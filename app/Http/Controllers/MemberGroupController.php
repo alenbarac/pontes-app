@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\MemberGroupRequest;
+use App\Http\Resources\MemberGroupResource;
+use App\Models\MemberGroup;
 use Illuminate\Http\Request;
 
 class MemberGroupController extends Controller
@@ -11,54 +14,50 @@ class MemberGroupController extends Controller
      */
     public function index()
     {
-        //
-    }
+        $groups = MemberGroup::with('members')->paginate(10);
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
+        return inertia('MemberGroups/Index', [
+            'groups' => MemberGroupResource::collection($groups),
+        ]);
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(MemberGroupRequest $request)
     {
-        //
+        MemberGroup::create($request->validated());
+
+        return redirect()->route('member-groups.index')->with('success', 'Group created successfully.');
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function show(MemberGroup $memberGroup)
     {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
-    {
-        //
+        return inertia('MemberGroups/Show', [
+            'group' => new MemberGroupResource($memberGroup->load('members')),
+        ]);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+    public function update(MemberGroupRequest $request, MemberGroup $memberGroup)
     {
-        //
+        $memberGroup->update($request->validated());
+
+        return redirect()->route('member-groups.index')->with('success', 'Group updated successfully.');
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
+    public function destroy(MemberGroup $memberGroup)
     {
-        //
+        $memberGroup->delete();
+
+        return redirect()->route('member-groups.index')->with('success', 'Group deleted successfully.');
     }
 }
