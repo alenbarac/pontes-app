@@ -12,3 +12,25 @@ export type PageProps<
         user: User;
     };
 };
+export interface MemberFormData {
+    first_name: string;
+    last_name?: string;
+    birth_year?: string;
+    phone_number?: string;
+    email: string;
+    is_active: boolean;
+    parent_contact?: string;
+    parent_email?: string;
+}
+
+export interface Member {
+    id: number;
+    first_name: string;
+    last_name?: string;
+    birth_year: number;
+    phone_number: string;
+    email: string;
+    is_active: boolean;
+    parent_contact?: string;
+    parent_email?: string;
+}

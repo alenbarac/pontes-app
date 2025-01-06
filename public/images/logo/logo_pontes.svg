@@ -1,0 +1,21 @@
+
+<svg width="100%" height="100%" viewBox="0 0 34 34" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
+    <g transform="matrix(1,0,0,1,0,1)">
+        <path d="M0,8.421C0,3.77 3.77,0 8.421,0L23.579,0C28.23,0 32,3.77 32,8.421L32,23.579C32,28.23 28.23,32 23.579,32L8.421,32C3.77,32 0,28.23 0,23.579L0,8.421Z" style="fill:rgb(60,80,224);fill-rule:nonzero;"/>
+    </g>
+    <g transform="matrix(1,0,0,1,0,1)">
+        <path d="M8.421,8.421C8.421,7.491 9.175,6.737 10.106,6.737C11.036,6.737 11.79,7.491 11.79,8.421L11.79,23.579C11.79,24.509 11.036,25.263 10.106,25.263C9.175,25.263 8.421,24.509 8.421,23.579L8.421,8.421Z" style="fill:white;fill-rule:nonzero;"/>
+    </g>
+    <g transform="matrix(1,0,0,1,0,1)">
+        <g opacity="0.9">
+            <path d="M14.737,15.158C14.737,14.227 15.491,13.473 16.421,13.473C17.351,13.473 18.105,14.227 18.105,15.158L18.105,23.579C18.105,24.509 17.351,25.263 16.421,25.263C15.491,25.263 14.737,24.509 14.737,23.579L14.737,15.158Z" style="fill:white;fill-rule:nonzero;"/>
+        </g>
+    </g>
+    <g transform="matrix(1,0,0,1,0,1)">
+        <g opacity="0.7">
+            <path d="M21.052,10.947C21.052,10.017 21.806,9.263 22.737,9.263C23.667,9.263 24.421,10.017 24.421,10.947L24.421,23.578C24.421,24.509 23.667,25.263 22.737,25.263C21.806,25.263 21.052,24.509 21.052,23.578L21.052,10.947Z" style="fill:white;fill-rule:nonzero;"/>
+        </g>
+    </g>
+
+<text x="50" y="50" font-family="Open Sans, sans-serif" font-size="24" fill="#000">Pontes</text>
+</svg>

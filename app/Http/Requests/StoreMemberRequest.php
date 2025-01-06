@@ -11,7 +11,7 @@ class StoreMemberRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
     /**
@@ -22,11 +22,11 @@ class StoreMemberRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => 'required|string|max:255',
-            'name' => 'nullable|string|max:255',
+            'first_name' => 'required|string|max:255',
+            'last_name' => 'nullable|string|max:255',
             'birth_year' => 'required|integer|min:1900|max:' . now()->year,
             'phone_number' => 'required|string|max:20',
-            'email' => 'nullable|email|unique:members,email',
+            'email' => 'required|email|unique:members,email',
             'is_active' => 'boolean',
             'parent_contact' => 'nullable|string|max:20',
             'parent_email' => 'nullable|email|max:255',
