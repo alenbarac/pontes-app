@@ -1,4 +1,3 @@
-import React from "react";
 import { Head, Link } from "@inertiajs/react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import Breadcrumb from "@/Components/Breadcrumb";
@@ -8,10 +7,12 @@ import { Member } from "@/types";
 interface MembersPageProps {
     members: {
         data: Member[];
-        current_page: number;
-        last_page: number;
-        per_page: number;
-        total: number;
+        pagination: {
+            current_page: number;
+            last_page: number;
+            per_page: number;
+            total: number;
+        };
     };
 }
 
@@ -60,6 +61,9 @@ export default function Index({ members }: MembersPageProps) {
         },
     ];
 
+     const memberData = members.data || [];
+     const pagination = members.pagination;
+
     return (
         <AuthenticatedLayout>
             <Head title="Članovi" />
@@ -75,16 +79,16 @@ export default function Index({ members }: MembersPageProps) {
                             </h3>
                             <Link
                                 href="/members/create"
-                                className="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primarydark">
+                                className="inline-flex items-center px-3 py-2  text-sm font-medium text-white bg-primary rounded-md hover:bg-primarydark"
+                            >
                                 Novi upis
                             </Link>
                         </div>
                     </div>
                     <DataTable
-                        data={members.data}
+                        data={memberData}
                         columns={columns}
-                        pageSizeOptions={[5, 10, 20]}
-                        defaultPageSize={10}
+                        pagination={pagination}
                     />
                 </div>
             </div>

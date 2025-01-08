@@ -11,7 +11,7 @@ export type PageProps<
     auth: {
         user: User;
     };
-};
+}
 export interface MemberFormData {
     first_name: string;
     last_name?: string;
@@ -33,4 +33,7 @@ export interface Member {
     is_active: boolean;
     parent_contact?: string;
     parent_email?: string;
+    groups: { id: number; name: string }[];
+    workshops: { id: number; name: string }[];
+    membership: { plan: string; fee: number };
 }

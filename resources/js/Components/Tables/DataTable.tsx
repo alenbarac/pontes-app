@@ -1,26 +1,31 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import {
     useReactTable,
     getCoreRowModel,
-    getPaginationRowModel,
     getFilteredRowModel,
     ColumnDef,
     flexRender,
 } from "@tanstack/react-table";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import { router, usePage } from "@inertiajs/react";
 
 interface DataTableProps<T extends object> {
     data: T[];
     columns: ColumnDef<T>[];
+    pagination: {
+        current_page: number;
+        last_page: number;
+        per_page: number;
+        total: number;
+    };
     pageSizeOptions?: number[];
-    defaultPageSize?: number;
 }
 
 const DataTable = <T extends object>({
     data,
     columns,
+    pagination,
     pageSizeOptions = [5, 10, 20, 50],
-    defaultPageSize = 10,
 }: DataTableProps<T>) => {
     const [globalFilter, setGlobalFilter] = useState<string>("");
 
@@ -31,20 +36,27 @@ const DataTable = <T extends object>({
             globalFilter,
         },
         onGlobalFilterChange: setGlobalFilter,
-        globalFilterFn: (row, columnId, filterValue) => {
-            if (!filterValue) return true;
-            const value = row.getValue(columnId);
-            return String(value)
-                .toLowerCase()
-                .includes(String(filterValue).toLowerCase());
-        },
         getCoreRowModel: getCoreRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
-        initialState: {
-            pagination: { pageSize: defaultPageSize },
-        },
+        manualPagination: true,
+        pageCount: pagination.last_page,
     });
+
+    const handlePageChange = (page: number) => {
+        router.get(route("members.index"), {
+            page,
+            per_page: pagination.per_page,
+            filter: globalFilter,
+        });
+    };
+
+    const handlePageSizeChange = (size: number) => {
+        router.get(route("members.index"), {
+            page: 1,
+            per_page: size,
+            filter: globalFilter,
+        });
+    };
 
     return (
         <section className="rounded-sm border border-stroke bg-white py-4 shadow-default dark:border-strokedark dark:bg-boxdark">
@@ -56,16 +68,16 @@ const DataTable = <T extends object>({
                         type="text"
                         value={globalFilter || ""}
                         onChange={(e) => setGlobalFilter(e.target.value)}
-                        placeholder="Pretraga..."
+                        placeholder="Search..."
                         className="w-full rounded-md border border-stroke px-5 py-2.5 text-sm outline-none focus:border-primary dark:border-strokedark dark:bg-meta-4 dark:focus:border-primary"
                     />
                 </div>
                 {/* Page Size Dropdown */}
                 <div className="flex items-center font-medium text-sm">
                     <select
-                        value={table.getState().pagination.pageSize}
+                        value={pagination.per_page}
                         onChange={(e) =>
-                            table.setPageSize(Number(e.target.value))
+                            handlePageSizeChange(Number(e.target.value))
                         }
                         className="bg-transparent pl-2 text-sm border-b border-stroke dark:border-strokedark"
                     >
@@ -103,17 +115,12 @@ const DataTable = <T extends object>({
                     ))}
                 </thead>
                 <tbody>
-                    {table.getRowModel().rows.map((row, rowIndex) => (
+                    {table.getRowModel().rows.map((row) => (
                         <tr key={row.id} className="hover:bg-gray-200">
                             {row.getVisibleCells().map((cell) => (
                                 <td
                                     key={cell.id}
-                                    className={`px-4 py-2 text-sm text-gray-900 dark:text-gray-300 border-b border-stroke dark:border-strokedark ${
-                                        rowIndex ===
-                                        table.getRowModel().rows.length - 1
-                                            ? "border-b-0"
-                                            : ""
-                                    }`}
+                                    className="px-4 py-2 text-sm text-gray-900 dark:text-gray-300 border-b border-stroke dark:border-strokedark"
                                 >
                                     {flexRender(
                                         cell.column.columnDef.cell,
@@ -127,34 +134,46 @@ const DataTable = <T extends object>({
             </table>
 
             {/* Pagination */}
-            <div className="flex justify-between border-t border-stroke px-8 pt-5 dark:border-strokedark">
+            <div className="flex flex-col md:flex-row items-center justify-between border-t border-stroke px-8 pt-5 dark:border-strokedark">
                 <p className="font-medium text-sm">
-                    Stranica {table.getState().pagination.pageIndex + 1} od{" "}
-                    {table.getPageCount()}
+                    Stranica {pagination.current_page} od {pagination.last_page}
                 </p>
-                <div className="flex space-x-2">
-                    {/* Previous Page Button */}
+                <div className="flex items-center gap-1 mt-2 md:mt-0">
+                    {/* Previous Page */}
                     <button
-                        onClick={() => table.previousPage()}
-                        disabled={!table.getCanPreviousPage()}
-                        className={`flex items-center justify-center px-2 py-1 rounded-md ${
-                            table.getCanPreviousPage()
-                                ? "bg-primary text-white hover:bg-primary-dark"
-                                : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                        }`}
+                        onClick={() =>
+                            handlePageChange(pagination.current_page - 1)
+                        }
+                        disabled={pagination.current_page === 1}
+                        className="px-2 py-1 rounded-md bg-gray-200"
                     >
                         <ChevronLeftIcon className="h-4 w-4" />
                     </button>
 
-                    {/* Next Page Button */}
+                    {/* Page Numbers */}
+                    {[...Array(pagination.last_page)].map((_, i) => (
+                        <button
+                            key={i}
+                            onClick={() => handlePageChange(i + 1)}
+                            className={`px-2 py-1 rounded-md ${
+                                pagination.current_page === i + 1
+                                    ? "bg-primary text-white"
+                                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                            }`}
+                        >
+                            {i + 1}
+                        </button>
+                    ))}
+
+                    {/* Next Page */}
                     <button
-                        onClick={() => table.nextPage()}
-                        disabled={!table.getCanNextPage()}
-                        className={`flex items-center justify-center px-2 py-1 rounded-md ${
-                            table.getCanNextPage()
-                                ? "bg-primary text-white hover:bg-primary-dark"
-                                : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                        }`}
+                        onClick={() =>
+                            handlePageChange(pagination.current_page + 1)
+                        }
+                        disabled={
+                            pagination.current_page === pagination.last_page
+                        }
+                        className="px-2 py-1 rounded-md bg-gray-200"
                     >
                         <ChevronRightIcon className="h-4 w-4" />
                     </button>

@@ -13,12 +13,23 @@ class MemberController extends Controller
     /**
      * Display a listing of the resource.
      */
-   
-    public function index()
+
+    public function index(Request $request)
     {
-        $members = Member::with(['groups', 'workshops', 'membership'])->paginate(10);
+        $perPage = $request->input('per_page', 10); // Default to 10 if not provided
+        $page = $request->input('page', 1); 
+        $members = Member::with(['groups', 'workshops', 'membership'])->paginate($perPage, ['*'], 'page', $page);
+
         return inertia('Members/Index', [
-            'members' => MemberResource::collection($members),
+            'members' => [
+                'data' => MemberResource::collection($members->items()),
+                'pagination' => [
+                    'current_page' => $members->currentPage(),
+                    'last_page' => $members->lastPage(),
+                    'per_page' => $members->perPage(),
+                    'total' => $members->total(),
+                ],
+            ],
         ]);
     }
 
