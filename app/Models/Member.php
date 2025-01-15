@@ -18,7 +18,8 @@ class Member extends Model
         'is_active',
         'parent_contact',
         'parent_email',
-        'membership_id'
+        'membership_id',
+        'workshop_id',
     ];
 
     public function groups()
@@ -31,9 +32,9 @@ class Member extends Model
         return $this->belongsToMany(Workshop::class, 'member_workshop')->withTimestamps();
     }
 
-    public function membership()
+    public function memberships()
     {
-        return $this->belongsTo(Membership::class);
+        return $this->hasMany(Membership::class);
     }
 
 }

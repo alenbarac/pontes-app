@@ -18,9 +18,12 @@ class MemberController extends Controller
     {
         $perPage = $request->input('per_page', 10); // Default to 10 if not provided
         $page = $request->input('page', 1); 
-        $members = Member::with(['groups', 'workshops', 'membership'])->paginate($perPage, ['*'], 'page', $page);
+        $members = Member::with(['groups', 'workshops', 'memberships.workshop'])
+                            ->paginate($perPage, ['*'], 'page', $page);
 
-        return inertia('Members/Index', [
+        /*  dd($members->toArray()); 
+ */
+    return inertia('Members/Index', [
             'members' => [
                 'data' => MemberResource::collection($members->items()),
                 'pagination' => [

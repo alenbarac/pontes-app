@@ -54,22 +54,26 @@ class MemberSeeder extends Seeder
 
             // Assign 1-2 random workshops
             $workshops = Workshop::inRandomOrder()->take(random_int(1, 2))->pluck('id');
+
             $member->workshops()->attach($workshops);
 
-            // Assign one random membership
-            $membership = Arr::random($membershipOptions);
+            // Assign one random membership per workshop
+            foreach ($workshops as $workshopId) {
+                $membership = Arr::random($membershipOptions);
 
-            Membership::create([
-                'member_id' => $member->id,
-                'plan' => $membership['plan'],
-                'fee' => $membership['fee'],
-                'billing_frequency' => $membership['billing_frequency'],
-                'discount_type' => $membership['discount_type'],
-                'total_fee' => $membership['total_fee'],
-                'start_date' => $membership['duration']['start'],
-                'end_date' => $membership['duration']['end'],
-                'status' => 'Active',
-            ]);
+                Membership::create([
+                    'member_id' => $member->id,
+                    'workshop_id' => $workshopId, // Use a single workshop ID
+                    'plan' => $membership['plan'],
+                    'fee' => $membership['fee'],
+                    'billing_frequency' => $membership['billing_frequency'],
+                    'discount_type' => $membership['discount_type'],
+                    'total_fee' => $membership['total_fee'],
+                    'start_date' => $membership['duration']['start'],
+                    'end_date' => $membership['duration']['end'],
+                    'status' => 'Active',
+                ]);
+            }
         }
     }
 }

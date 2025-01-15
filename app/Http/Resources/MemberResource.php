@@ -24,11 +24,22 @@ class MemberResource extends JsonResource
             'is_active' => $this->is_active,
             'parent_contact' => $this->parent_contact,
             'parent_email' => $this->parent_email,
-            'membership_name' => $this->membership?->plan ?? 'No Membership',
-            'group_names' => $this->groups->pluck('name')->toArray(),
-            'workshop_names' => $this->workshops->pluck('name')->toArray(),
+            'groups' => $this->groups->map(fn($group) => [
+                'id' => $group->id,
+                'name' => $group->name,
+            ]),
+            'workshops' => $this->workshops->map(fn($workshop) => [
+                'id' => $workshop->id,
+                'name' => $workshop->name,
+            ]),
+            // Map all memberships and include plan and associated workshop name
+            'memberships' => $this->memberships->map(fn($membership) => [
+                'plan' => $membership->plan,
+                'workshop' => $membership->workshop->name ?? null, // Include workshop name
+            ]),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];
     }
 }
+

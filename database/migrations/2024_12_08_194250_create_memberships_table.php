@@ -13,7 +13,8 @@ return new class extends Migration
     {
         Schema::create('memberships', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('member_id'); // Foreign key to members table
+            $table->unsignedBigInteger('member_id');
+            $table->unsignedBigInteger('workshop_id');
             $table->string('plan');
             $table->decimal('fee', 8, 2);
             $table->string('billing_frequency')->default('Monthly');
@@ -26,6 +27,7 @@ return new class extends Migration
 
             // Foreign key constraint
             $table->foreign('member_id')->references('id')->on('members')->onDelete('cascade');
+            $table->foreign('workshop_id')->references('id')->on('workshops')->onDelete('cascade');
         });
     }
 
