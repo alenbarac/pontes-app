@@ -1,13 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     useReactTable,
     getCoreRowModel,
-    getFilteredRowModel,
     ColumnDef,
     flexRender,
 } from "@tanstack/react-table";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
-import { router, usePage } from "@inertiajs/react";
+import { router } from "@inertiajs/react";
 
 interface DataTableProps<T extends object> {
     data: T[];
@@ -29,15 +28,25 @@ const DataTable = <T extends object>({
 }: DataTableProps<T>) => {
     const [globalFilter, setGlobalFilter] = useState<string>("");
 
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            router.get(route("members.index"), {
+                page: pagination.current_page,
+                per_page: pagination.per_page,
+                filter: globalFilter,
+            }, { preserveState: true });
+        }, 500);
+
+        return () => clearTimeout(timeoutId);
+    }, [globalFilter, pagination.current_page, pagination.per_page]);
+
     const table = useReactTable({
         data,
         columns,
         state: {
             globalFilter,
         },
-        onGlobalFilterChange: setGlobalFilter,
         getCoreRowModel: getCoreRowModel(),
-        getFilteredRowModel: getFilteredRowModel(),
         manualPagination: true,
         pageCount: pagination.last_page,
     });
@@ -95,7 +104,7 @@ const DataTable = <T extends object>({
 
             {/* Table */}
             <table className="w-full table-auto border-collapse px-4 md:px-8">
-                <thead>
+                <thead className="bg-whiten">
                     {table.getHeaderGroups().map((headerGroup) => (
                         <tr key={headerGroup.id}>
                             {headerGroup.headers.map((header) => (
@@ -120,7 +129,7 @@ const DataTable = <T extends object>({
                             {row.getVisibleCells().map((cell) => (
                                 <td
                                     key={cell.id}
-                                    className="px-4 py-2 text-sm text-gray-900 dark:text-gray-300 border-b border-stroke dark:border-strokedark"
+                                    className="px-4 py-2 text-sm text-meta-4 dark:text-gray-300 border-b border-stroke dark:border-strokedark"
                                 >
                                     {flexRender(
                                         cell.column.columnDef.cell,

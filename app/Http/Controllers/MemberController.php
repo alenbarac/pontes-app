@@ -17,13 +17,29 @@ class MemberController extends Controller
     public function index(Request $request)
     {
         $perPage = $request->input('per_page', 10); // Default to 10 if not provided
-        $page = $request->input('page', 1); 
-        $members = Member::with(['groups', 'workshops', 'memberships.workshop'])
-                            ->paginate($perPage, ['*'], 'page', $page);
+        $page = $request->input('page', 1);
+        $filter = $request->input('filter', '');
 
-        /*  dd($members->toArray()); 
- */
-    return inertia('Members/Index', [
+        $query = Member::with(['groups', 'workshops', 'memberships.workshop']);
+
+        if (!empty($filter)) {
+            $query->where(function ($q) use ($filter) {
+                $q->where('first_name', 'like', "%{$filter}%")
+                  ->orWhere('last_name', 'like', "%{$filter}%")
+                  ->orWhere('email', 'like', "%{$filter}%")
+                  ->orWhere('birth_year', 'like', "%{$filter}%")
+                    ->orWhereHas('workshops', function ($q) use ($filter) {
+                        $q->where('name', 'like', "%{$filter}%");
+                    })
+                    ->orWhereHas('groups', function ($q) use ($filter) {
+                        $q->where('name', 'like', "%{$filter}%");
+                    });
+            });
+        }
+
+        $members = $query->paginate($perPage, ['*'], 'page', $page);
+
+        return inertia('Members/Index', [
             'members' => [
                 'data' => MemberResource::collection($members->items()),
                 'pagination' => [
@@ -33,6 +49,7 @@ class MemberController extends Controller
                     'total' => $members->total(),
                 ],
             ],
+            'filters' => $request->only(['filter', 'per_page']),
         ]);
     }
 
