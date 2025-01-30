@@ -70,14 +70,14 @@ const DataTable = <T extends object>({
     return (
         <section className="rounded-sm border border-stroke bg-white py-4 shadow-default dark:border-strokedark dark:bg-boxdark">
             {/* Global Search and Page Size Dropdown */}
-            <div className="flex justify-between border-b border-stroke px-8 pb-4 dark:border-strokedark">
+            <div className="flex justify-between border-b border-stroke px-6 pb-4 dark:border-strokedark">
                 {/* Global Search Input */}
                 <div className="w-80">
                     <input
                         type="text"
                         value={globalFilter || ""}
                         onChange={(e) => setGlobalFilter(e.target.value)}
-                        placeholder="Search..."
+                        placeholder="Pretraga..."
                         className="w-full rounded-md border border-stroke px-5 py-2.5 text-sm outline-none focus:border-primary dark:border-strokedark dark:bg-meta-4 dark:focus:border-primary"
                     />
                 </div>

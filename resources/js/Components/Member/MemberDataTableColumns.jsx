@@ -1,7 +1,6 @@
-import { ColumnDef } from "@tanstack/react-table";
-import { Cog8ToothIcon, EyeIcon, IdentificationIcon, TrashIcon } from "@heroicons/react/24/outline";
+import { Cog8ToothIcon, IdentificationIcon, TrashIcon } from "@heroicons/react/24/outline";
 
-export const groupColorMap: { [key: string]: string } = {
+export const groupColorMap = {
     "Juniori 1": "bg-primary/15 text-dark",
     "Juniori 2": "bg-secondary/15 text-dark",
     "Srednjoškolci 1": "bg-danger/15 text-dark",
@@ -13,7 +12,8 @@ export const groupColorMap: { [key: string]: string } = {
     "Mini 2": "bg-meta-6/15 text-dark",
 };
 
-export const columns: ColumnDef<any>[] = [
+
+export const columns = [
     {
         header: "ID",
         accessorKey: "id",
@@ -33,7 +33,7 @@ export const columns: ColumnDef<any>[] = [
     {
         header: "Kontakt",
         accessorKey: "email",
-        cell: (info: any) => {
+        cell: (info) => {
             const email = info.getValue();
             return email ? (
                 <a
@@ -50,11 +50,12 @@ export const columns: ColumnDef<any>[] = [
     {
         header: "Grupe",
         accessorKey: "groups",
-        cell: (info: any) => {
+        cell: (info) => {
             const groups = info.getValue() || [];
+            console.log(groups);
             return (
                 <div className="flex flex-wrap gap-1">
-                    {groups.map((group: { id: number; name: string }) => (
+                    {groups.map((group) => (
                         <span
                             key={group.id}
                             className={`px-2 text-xs py-1 rounded ${groupColorMap[group.name]}`}
@@ -69,11 +70,11 @@ export const columns: ColumnDef<any>[] = [
     {
       header:"Radionice",
       accessorKey:"workshops",
-      cell:(info:any)=>{
+      cell:(info)=>{
         const workshops = info.getValue() || [];
         return (
           <div>
-            {workshops.map((workshop:{id:number;name:string})=>(
+            {workshops.map((workshop)=>(
               <div
                 key={workshop.id}
                 className={`px-2 py-1 rounded ${groupColorMap[workshop.name]}`}
@@ -88,10 +89,10 @@ export const columns: ColumnDef<any>[] = [
     {
         header: "Akcije",
         accessorKey: "actions",
-        cell: (info: any) => {
+        cell: (info) => {
             return (
-                <div className="flex space-x-2">
-                    <button className="hover:text-blue-700">
+                <div className="flex space-x-1 justify-between">
+                    <button className="hover:text-blue-700 mx-1">
                         <IdentificationIcon className="h-5 w-5" />
                     </button>
                     <button className="hover:text-yellow-700">

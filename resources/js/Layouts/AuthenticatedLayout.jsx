@@ -1,14 +1,10 @@
 import React, { useState } from "react";
-import { PropsWithChildren, ReactNode } from "react";
 import { usePage } from "@inertiajs/react";
-import Sidebar from "@/Components/Sidebar"; // Ensure this points to the Sidebar component
-import Header from "@/Components/Header"; // Ensure this points to the Header component
+import Sidebar from "@/Components/Sidebar"; // Ensure correct import path
+import Header from "@/Components/Header"; // Ensure correct import path
 
-export default function Authenticated({
-    header,
-    children,
-}: PropsWithChildren<{ header?: ReactNode }>) {
-    const user = usePage().props.auth.user;
+export default function Authenticated({ header, children }) {
+    const user = usePage()?.props?.auth?.user; // Ensure safe access
 
     // State for managing the sidebar's visibility
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -30,8 +26,6 @@ export default function Authenticated({
                         sidebarOpen={sidebarOpen}
                         setSidebarOpen={setSidebarOpen}
                     />
-
-                   
 
                     {/* Main Content */}
                     <main>

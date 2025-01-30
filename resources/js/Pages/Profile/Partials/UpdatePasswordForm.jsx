@@ -8,11 +8,9 @@ import { FormEventHandler, useRef } from 'react';
 
 export default function UpdatePasswordForm({
     className = '',
-}: {
-    className?: string;
 }) {
-    const passwordInput = useRef<HTMLInputElement>(null);
-    const currentPasswordInput = useRef<HTMLInputElement>(null);
+    const passwordInput = useRef(null);
+    const currentPasswordInput = useRef(null);
 
     const {
         data,
@@ -28,7 +26,7 @@ export default function UpdatePasswordForm({
         password_confirmation: '',
     });
 
-    const updatePassword: FormEventHandler = (e) => {
+    const updatePassword = (e) => {
         e.preventDefault();
 
         put(route('password.update'), {

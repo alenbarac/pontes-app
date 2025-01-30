@@ -1,20 +1,26 @@
 {
     "compilerOptions": {
-        "allowJs": true,
+        "allowJs": true, // Allow JavaScript files
         "module": "ESNext",
-        "moduleResolution": "bundler",
-        "jsx": "react-jsx",
-        "strict": true,
-        "isolatedModules": true,
-        "target": "ESNext",
-        "esModuleInterop": true,
-        "forceConsistentCasingInFileNames": true,
-        "skipLibCheck": true,
-        "noEmit": true,
+        "moduleResolution": "bundler", // Better support for modern module systems
+        "jsx": "react-jsx", // Enables React JSX support
+        "strict": true, // Strict mode for TypeScript
+        "isolatedModules": true, // Ensures every file is a module
+        "target": "ESNext", // Latest ES features
+        "esModuleInterop": true, // Compatibility with CommonJS modules
+        "forceConsistentCasingInFileNames": true, // Avoids file name casing issues
+        "skipLibCheck": true, // Skips type-checking third-party libraries
+        "noEmit": true, // Disables emitting JavaScript files
         "paths": {
-            "@/*": ["./resources/js/*"],
+            "@/*": ["./resources/js/*"], // Aliases for easier imports
             "ziggy-js": ["./vendor/tightenco/ziggy"]
         }
     },
-    "include": ["resources/js/**/*.ts", "resources/js/**/*.tsx", "resources/js/**/*.d.ts"]
+    "include": [
+        "resources/js/**/*.ts",
+        "resources/js/**/*.tsx",
+        "resources/js/**/*.d.ts",
+        "resources/js/**/*.js", // Include JavaScript files
+        "resources/js/**/*.jsx" // Include JSX files
+    ]
 }

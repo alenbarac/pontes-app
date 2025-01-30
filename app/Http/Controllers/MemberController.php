@@ -6,6 +6,9 @@ use App\Http\Requests\StoreMemberRequest;
 use App\Http\Requests\UpdateMemberRequest;
 use App\Http\Resources\MemberResource;
 use App\Models\Member;
+use App\Models\MemberGroup;
+use App\Models\Membership;
+use App\Models\Workshop;
 use Illuminate\Http\Request;
 
 class MemberController extends Controller
@@ -56,10 +59,19 @@ class MemberController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create() 
+    public function create()
     {
-        return inertia('Members/Create');
+        $groups = MemberGroup::select('id', 'name')->get();
+        $workshops = Workshop::select('id', 'name')->get();
+        $memberShipPlans = Membership::select('id', 'plan', 'total_fee')->get();
+
+        return inertia('Members/Create', [
+            'groups' => $groups,
+            'workshops' => $workshops,
+            'memberShipPlans' => $memberShipPlans,
+        ]);
     }
+
 
     /**
      * Store a newly created resource in storage.

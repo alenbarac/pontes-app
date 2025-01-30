@@ -10,10 +10,6 @@ export default function UpdateProfileInformation({
     mustVerifyEmail,
     status,
     className = '',
-}: {
-    mustVerifyEmail: boolean;
-    status?: string;
-    className?: string;
 }) {
     const user = usePage().props.auth.user;
 
@@ -23,7 +19,7 @@ export default function UpdateProfileInformation({
             email: user.email,
         });
 
-    const submit: FormEventHandler = (e) => {
+    const submit = (e) => {
         e.preventDefault();
 
         patch(route('profile.update'));

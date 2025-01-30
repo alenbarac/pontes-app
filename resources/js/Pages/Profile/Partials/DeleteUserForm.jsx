@@ -9,11 +9,9 @@ import { FormEventHandler, useRef, useState } from 'react';
 
 export default function DeleteUserForm({
     className = '',
-}: {
-    className?: string;
 }) {
     const [confirmingUserDeletion, setConfirmingUserDeletion] = useState(false);
-    const passwordInput = useRef<HTMLInputElement>(null);
+    const passwordInput = useRef(null);
 
     const {
         data,
@@ -31,7 +29,7 @@ export default function DeleteUserForm({
         setConfirmingUserDeletion(true);
     };
 
-    const deleteUser: FormEventHandler = (e) => {
+    const deleteUser = (e) => {
         e.preventDefault();
 
         destroy(route('profile.destroy'), {
