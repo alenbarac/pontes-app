@@ -12,29 +12,43 @@ class Member extends Model
     protected $fillable = [
         'first_name',
         'last_name',
-        'birth_year',
+        'dob', // Updated from birth_year to full date of birth
         'phone_number',
         'email',
         'is_active',
         'parent_contact',
         'parent_email',
-        'membership_id',
-        'workshop_id',
     ];
 
-    public function groups()
-    {
-        return $this->belongsToMany(MemberGroup::class, 'member_group_member')->withTimestamps();
-    }
-
+    /**
+     * A member can enroll in multiple workshops (Many-to-Many)
+     */
     public function workshops()
     {
         return $this->belongsToMany(Workshop::class, 'member_workshop')->withTimestamps();
     }
 
+    /**
+     * A member is assigned **one group per workshop** (One-to-Many)
+     */
+    public function workshopGroups()
+    {
+        return $this->hasMany(MemberGroupWorkshop::class);
+    }
+
+    /**
+     * A member has **one or more memberships**, linked to workshops (One-to-Many)
+     */
     public function memberships()
     {
         return $this->hasMany(Membership::class);
     }
 
+    /**
+     * A member has invoices (One-to-Many)
+     */
+    public function invoices()
+    {
+        return $this->hasMany(Invoice::class);
+    }
 }

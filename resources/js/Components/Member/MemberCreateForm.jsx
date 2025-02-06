@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { router, useForm } from "@inertiajs/react";
 
 import toast from "react-hot-toast";
@@ -31,28 +31,47 @@ const MemberCreateForm = ({
     const handleWorkshopSelection = (selectedWorkshops) => {
         setData("workshop_ids", selectedWorkshops);
 
+        // Ensure previously selected memberships persist
         const updatedWorkshopsWithMemberships = selectedWorkshops.map((id) => {
-            const existing = data.workshopsWithMemberships?.find(
-                (item) => item.workshop_id === id
+            return (
+                data.workshopsWithMemberships?.find(
+                    (item) => item.workshop_id === id,
+                ) || { workshop_id: id, membership_plan: "" }
             );
-            return existing || { workshop_id: id, membership_plan: "" };
         });
 
         setData("workshopsWithMemberships", updatedWorkshopsWithMemberships);
-    };
+    }
 
-    const handleMembershipPlanSelection = (
-        workshopId,
-        selectedPlan
-    ) => {
-        const updated = data.workshopsWithMemberships?.map((item) =>
-            item.workshop_id === workshopId
-                ? { ...item, membership_plan: selectedPlan }
-                : item
+    const handleMembershipPlanSelection = (workshopId, selectedPlan) => {
+        setData("workshopsWithMemberships", (prev) =>
+            prev.map((item) =>
+                item.workshop_id === workshopId
+                    ? { ...item, membership_plan: selectedPlan }
+                    : item,
+            ),
         );
+    }
 
-        setData("workshopsWithMemberships", updated);
-    };
+   useEffect(() => {
+       const updatedWorkshopsWithMemberships = data.workshop_ids.map((id) => {
+           // Find available plans for the selected workshop
+           const availablePlans = membershipPlans[id] || [];
+
+           return (
+               data.workshopsWithMemberships?.find(
+                   (item) => item.workshop_id === id,
+               ) || {
+                   workshop_id: id,
+                   membership_plan:
+                       availablePlans.length > 0 ? availablePlans[0].plan : "",
+               }
+           );
+       });
+
+       setData("workshopsWithMemberships", updatedWorkshopsWithMemberships);
+   }, [data.workshop_ids, membershipPlans]);
+
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -82,10 +101,10 @@ const MemberCreateForm = ({
            onSubmit={handleSubmit}
            className="rounded-md bg-white shadow-md dark:bg-boxdark"
        >
-           <div className="px-6">
+           <div className="px-6 py-6">
                {/* Row 1: Workshop & Group Selection */}
                <div className="mb-5 flex flex-col gap-6 md:flex-row">
-                   <div className="w-full xl:w-1/2">
+                   <div className="w-full">
                        <label className="mb-3 block text-sm font-medium text-black dark:text-white">
                            Radionica/e
                        </label>
@@ -101,8 +120,70 @@ const MemberCreateForm = ({
                            </div>
                        )}
                    </div>
+               </div>
 
-                   <div className="w-full xl:w-1/2">
+               <div className="mt-5">
+                   {data.workshopsWithMemberships.map((item) => {
+                       console.log("Workshop Membership Data:", item); // Debugging line
+                       const workshop = workshops.find(
+                           (w) => w.id === item.workshop_id,
+                       );
+                       const relatedPlans =
+                           membershipPlans[item.workshop_id] || []; // ✅ Corrected filtering
+
+                       return (
+                           <div key={item.workshop_id} className="mb-5">
+                               <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                                   Plan za radionicu: {workshop?.text}
+                               </label>
+                               <div className="space-y-2">
+                                   {relatedPlans.length > 0 ? (
+                                       relatedPlans.map((plan) => (
+                                           <div
+                                               key={plan.id}
+                                               className="flex items-center space-x-2"
+                                           >
+                                               <input
+                                                   type="radio"
+                                                   id={`workshop-${item.workshop_id}-plan-${plan.id}`}
+                                                   name={`workshop-${item.workshop_id}`}
+                                                   value={plan.plan}
+                                                   checked={
+                                                       item.membership_plan ===
+                                                       plan.plan
+                                                   }
+                                                   onChange={() =>
+                                                       handleMembershipPlanSelection(
+                                                           item.workshop_id,
+                                                           plan.plan,
+                                                       )
+                                                   }
+                                               />
+                                               <label
+                                                   htmlFor={`workshop-${item.workshop_id}-plan-${plan.id}`}
+                                                   className="text-sm text-black dark:text-white"
+                                               >
+                                                   {plan.plan} -{" "}
+                                                   {parseFloat(
+                                                       plan.total_fee,
+                                                   ).toFixed(2)}{" "}
+                                                   kn
+                                               </label>
+                                           </div>
+                                       ))
+                                   ) : (
+                                       <p className="text-gray-500 text-sm">
+                                           Nema dostupnih planova
+                                       </p>
+                                   )}
+                               </div>
+                           </div>
+                       );
+                   })}
+               </div>
+
+               <div className="mb-5 mt-5 flex flex-col gap-6 md:flex-row">
+                   <div className="w-full">
                        <label className="mb-3 block text-sm font-medium text-black dark:text-white">
                            Grupe
                        </label>
@@ -120,64 +201,8 @@ const MemberCreateForm = ({
                    </div>
                </div>
 
-               {/* Row 2: Membership Plans */}
-               {data.workshopsWithMemberships.map((item) => {
-                   const workshop = workshops.find(
-                       (w) => w.id === item.workshop_id,
-                   );
-                   return (
-                       <div key={item.workshop_id} className="mb-5">
-                           <label className="mb-3 block text-sm font-medium text-black dark:text-white">
-                               Plan za radionicu: {workshop?.text}
-                           </label>
-                           <div className="flex flex-col gap-3">
-                               {membershipPlans.map((plan) => (
-                                   <div
-                                       key={plan.id}
-                                       className="flex items-center space-x-2"
-                                   >
-                                       <input
-                                           type="radio"
-                                           id={`workshop-${item.workshop_id}-plan-${plan.id}`}
-                                           name={`workshop-${item.workshop_id}`}
-                                           value={plan.plan}
-                                           checked={
-                                               item.membership_plan ===
-                                               plan.plan
-                                           }
-                                           onChange={() =>
-                                               handleMembershipPlanSelection(
-                                                   item.workshop_id,
-                                                   plan.plan,
-                                               )
-                                           }
-                                       />
-                                       <label
-                                           htmlFor={`workshop-${item.workshop_id}-plan-${plan.id}`}
-                                           className="text-sm text-black dark:text-white"
-                                       >
-                                           {plan.plan} -{" "}
-                                           {plan.total_fee.toFixed(2)} kn
-                                       </label>
-                                   </div>
-                               ))}
-                           </div>
-                           {errors?.workshopsWithMemberships?.[item.workshop_id]
-                               ?.membership_plan && (
-                               <div className="text-red-500 text-sm">
-                                   {
-                                       errors.workshopsWithMemberships[
-                                           item.workshop_id
-                                       ].membership_plan
-                                   }
-                               </div>
-                           )}
-                       </div>
-                   );
-               })}
-
                {/* Row 3: First Name & Last Name */}
-               <div className="mb-5 flex flex-col gap-6 md:flex-row">
+               <div className="mb-5 mt-5 flex flex-col gap-6 md:flex-row">
                    <div className="w-full xl:w-1/2">
                        <label className="mb-3 block text-sm font-medium text-black dark:text-white">
                            Ime
@@ -220,7 +245,7 @@ const MemberCreateForm = ({
                </div>
 
                {/* Row 4: Birth Year, Email, and Phone */}
-               <div className="mb-5 flex flex-col gap-6 md:flex-row">
+               <div className="mb-5 mt-5 flex flex-col gap-6 md:flex-row">
                    <div className="w-full xl:w-1/3">
                        <label className="mb-3 block text-sm font-medium text-black dark:text-white">
                            Godina rođenja
@@ -266,25 +291,17 @@ const MemberCreateForm = ({
                </div>
 
                {/* Row 5: Active Status */}
-               <div className="mb-5">
-                   <label className="mr-2 text-sm font-medium text-black dark:text-white">
-                       Aktivan upis?
-                   </label>
-                   <input
-                       type="checkbox"
-                       checked={data.is_active}
-                       onChange={(e) => setData("is_active", e.target.checked)}
-                   />
-               </div>
 
                {/* Submit Button */}
-               <button
-                   type="submit"
-                   disabled={processing}
-                   className="flex w-full justify-center rounded bg-primary p-3 font-medium text-gray hover:bg-opacity-90"
-               >
-                   {processing ? "Spremam..." : submitButtonText}
-               </button>
+               <div className="mb-5 mt-6">
+                   <button
+                       type="submit"
+                       disabled={processing}
+                       className="flex w-full justify-center rounded bg-primary p-3 font-medium text-white hover:bg-opacity-90"
+                   >
+                       {processing ? "Spremam..." : submitButtonText}
+                   </button>
+               </div>
            </div>
        </form>
    );

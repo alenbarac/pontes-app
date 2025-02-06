@@ -9,6 +9,14 @@ export default function Create({
     workshops = [],
     membershipPlans = [],
 }) {
+    console.log("membershipPlans:", membershipPlans);
+
+    const groupedMembershipPlans = workshops.reduce((acc, workshop) => {
+        acc[workshop.id] = membershipPlans.filter(
+            (plan) => plan.workshop_id === workshop.id,
+        );
+        return acc;
+    }, {});
     return (
         <AuthenticatedLayout>
             <Head title="Novi Član" />
@@ -17,7 +25,7 @@ export default function Create({
 
             <div className="flex flex-col gap-9">
                 <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
-                    <div className="border-b border-stroke px-6.5 py-4 dark:border-strokedark">
+                    <div className="border-b border-stroke px-6 py-4 dark:border-strokedark">
                         <h3 className="font-medium text-black dark:text-white">
                             Polaznik/ca
                         </h3>
@@ -31,11 +39,7 @@ export default function Create({
                             id: workshop.id,
                             text: workshop.name ?? "",
                         }))}
-                        membershipPlans={membershipPlans.map((plan) => ({
-                            id: plan.id,
-                            plan: plan.plan ?? "",
-                            total_fee: plan.total_fee ?? 0,
-                        }))}
+                        membershipPlans={groupedMembershipPlans}
                     />
                 </div>
             </div>

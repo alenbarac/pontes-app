@@ -15,12 +15,18 @@ class MemberGroup extends Model
     ];
 
     /**
-     * The members that belong to the group.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     * A group is assigned per workshop.
      */
-    public function members()
+    public function workshop()
     {
-        return $this->belongsToMany(Member::class, 'member_group_member')->withTimestamps();
+        return $this->belongsTo(Workshop::class);
+    }
+
+    /**
+     * A group is assigned to members.
+     */
+    public function memberGroups()
+    {
+        return $this->hasMany(MemberGroupWorkshop::class);
     }
 }

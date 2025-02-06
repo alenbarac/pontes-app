@@ -63,15 +63,20 @@ class MemberController extends Controller
     {
         $groups = MemberGroup::select('id', 'name')->get();
         $workshops = Workshop::select('id', 'name')->get();
-        $memberShipPlans = Membership::select('id', 'plan', 'total_fee')->get();
+        $membershipPlans = Membership::with(['workshop', 'member'])
+        ->whereNotNull('member_id') // Ensure only memberships linked to a member are fetched
+        ->whereNotNull('plan')
+        ->where('plan', '!=', '')
+        ->select('id', 'workshop_id', 'plan', 'total_fee', 'member_id')
+        ->get();
 
         return inertia('Members/Create', [
             'groups' => $groups,
             'workshops' => $workshops,
-            'memberShipPlans' => $memberShipPlans,
+            'membershipPlans' => $membershipPlans,
         ]);
-    }
 
+    }
 
     /**
      * Store a newly created resource in storage.

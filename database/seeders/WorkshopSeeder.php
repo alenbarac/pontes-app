@@ -2,16 +2,12 @@
 
 namespace Database\Seeders;
 
-use App\Models\Workshop;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use App\Models\Workshop;
 
 class WorkshopSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
-    public function run(): void
+    public function run()
     {
         $workshops = [
             ['name' => 'Dramska radionica', 'type' => 'Groupe', 'description' => 'Grupne dramske radionice za raznovrsni uzrast.'],

@@ -2,78 +2,75 @@
 
 namespace Database\Seeders;
 
-use App\Models\Member;
-use App\Models\MemberGroup;
-use App\Models\Membership;
-use App\Models\Workshop;
-use Carbon\Carbon;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Arr;
+use App\Models\Member;
+use App\Models\Workshop;
+use App\Models\MemberGroup;
+use App\Models\MembershipPlan;
+use App\Models\MemberWorkshop;
+use App\Models\MemberGroupWorkshop;
+use Carbon\Carbon;
+use Faker\Factory as Faker;
 
 class MemberSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run()
     {
-        // Create 50 members using the factory
-        $members = Member::factory()->count(50)->create();
+        $faker = Faker::create();
+        $workshops = Workshop::all();
+        $groups = MemberGroup::all();
 
-        $membershipOptions = [
-            [
-                'plan' => 'Monthly Plan',
-                'fee' => 50.00,
-                'billing_frequency' => 'Monthly',
-                'discount_type' => null,
-                'total_fee' => 50.00,
-                'duration' => ['start' => Carbon::now()->subMonth(), 'end' => Carbon::now()->addMonths(11)],
-            ],
-            [
-                'plan' => '6-Month Plan',
-                'fee' => 270.00,
-                'billing_frequency' => 'Semi-Annual',
-                'discount_type' => 'Bulk Discount',
-                'total_fee' => 270.00,
-                'duration' => ['start' => Carbon::now()->subMonths(6), 'end' => Carbon::now()->addMonths(6)],
-            ],
-            [
-                'plan' => 'Annual Plan',
-                'fee' => 500.00,
-                'billing_frequency' => 'Yearly',
-                'discount_type' => 'Early Bird',
-                'total_fee' => 450.00,
-                'duration' => ['start' => Carbon::now()->startOfYear(), 'end' => Carbon::now()->endOfYear()],
-            ],
-        ];
+        // Ensure membership plans exist per workshop
+        $membershipPlans = MembershipPlan::all()->groupBy('workshop_id');
 
-        foreach ($members as $member) {
-            // Assign 1-2 random groups
-            $groups = MemberGroup::inRandomOrder()->take(random_int(1, 2))->pluck('id');
-            $member->groups()->attach($groups);
+        for ($i = 0; $i < 50; $i++) {
+            $member = Member::create([
+                'first_name' => $faker->firstName,
+                'last_name' => $faker->lastName,
+                'date_of_birth' => $faker->date(),
+                'phone_number' => $faker->phoneNumber,
+                'email' => $faker->unique()->safeEmail,
+                'is_active' => $faker->boolean(90),
+                'parent_contact' => $faker->boolean(70) ? $faker->phoneNumber : null,
+                'parent_email' => $faker->boolean(70) ? $faker->email : null,
+            ]);
 
-            // Assign 1-2 random workshops
-            $workshops = Workshop::inRandomOrder()->take(random_int(1, 2))->pluck('id');
+            // 80% of members join only one workshop
+            if ($faker->boolean(80)) {
+                $selectedWorkshop = $workshops->random();
+                $this->assignWorkshopAndMembership($member, $selectedWorkshop, $groups, $membershipPlans);
+            } else {
+                // 20% join multiple workshops
+                $selectedWorkshops = $workshops->count() > 1 ? $workshops->random(min($workshops->count(), rand(2, 3))) : collect([$workshops->first()]);
 
-            $member->workshops()->attach($workshops);
-
-            // Assign one random membership per workshop
-            foreach ($workshops as $workshopId) {
-                $membership = Arr::random($membershipOptions);
-
-                Membership::create([
-                    'member_id' => $member->id,
-                    'workshop_id' => $workshopId, // Use a single workshop ID
-                    'plan' => $membership['plan'],
-                    'fee' => $membership['fee'],
-                    'billing_frequency' => $membership['billing_frequency'],
-                    'discount_type' => $membership['discount_type'],
-                    'total_fee' => $membership['total_fee'],
-                    'start_date' => $membership['duration']['start'],
-                    'end_date' => $membership['duration']['end'],
-                    'status' => 'Active',
-                ]);
+                foreach ($selectedWorkshops as $selectedWorkshop) {
+                    $this->assignWorkshopAndMembership($member, $selectedWorkshop, $groups, $membershipPlans);
+                }
             }
         }
+    }
+
+    private function assignWorkshopAndMembership($member, $workshop, $groups, $membershipPlans)
+    {
+        // Fetch existing membership plan for the workshop
+        $availablePlans = $membershipPlans[$workshop->id] ?? collect();
+        $selectedPlan = $availablePlans->isNotEmpty() ? $availablePlans->random() : null;
+
+        if ($selectedPlan) {
+            // Attach the member to the workshop with the selected membership plan
+            MemberWorkshop::create([
+                'member_id' => $member->id,
+                'workshop_id' => $workshop->id,
+                'membership_plan_id' => $selectedPlan->id,
+            ]);
+        }
+
+        // Assign a single group per workshop
+        $group = $groups->random();
+        MemberGroupWorkshop::create([
+            'member_id' => $member->id,
+            'workshop_id' => $workshop->id,
+            'member_group_id' => $group->id,
+        ]);
     }
 }

@@ -3,8 +3,9 @@
 namespace Database\Seeders;
 
 use App\Models\Member;
+use App\Models\MemberGroup;
+use App\Models\MembershipPlan;
 use App\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -23,12 +24,11 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $this->call([
-            MemberGroupSeeder::class,
             WorkshopSeeder::class,
+            MemberGroupSeeder::class,
+            WorkshopGroupSeeder::class, 
+            MembershipPlanSeeder::class,
             MemberSeeder::class,
-            MembershipSeeder::class,
-            
-           
         ]);
     }
 }

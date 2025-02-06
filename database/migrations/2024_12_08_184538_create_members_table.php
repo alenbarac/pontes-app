@@ -13,18 +13,15 @@ return new class extends Migration
     {
         Schema::create('members', function (Blueprint $table) {
             $table->id();
-            $table->string('first_name'); // First name
-            $table->string('last_name')->nullable(); // Optional last name
-            $table->year('birth_year'); // Birth year
-            $table->string('phone_number'); // Phone number
-            $table->string('email')->unique(); // Unique email
-            $table->boolean('is_active')->default(true); // Active status
-           
-            $table->string('parent_contact')->nullable(); // Parent contact (phone)
-            $table->string('parent_email')->nullable(); // Parent email
+            $table->string('first_name');
+            $table->string('last_name')->nullable();
+            $table->date('date_of_birth');
+            $table->string('phone_number');
+            $table->string('email')->unique();
+            $table->boolean('is_active')->default(true);
+            $table->string('parent_contact')->nullable();
+            $table->string('parent_email')->nullable();
             $table->timestamps();
-
-            
         });
     }
 

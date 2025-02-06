@@ -2,16 +2,12 @@
 
 namespace Database\Seeders;
 
-use App\Models\MemberGroup;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use App\Models\MemberGroup;
 
 class MemberGroupSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
-    public function run(): void
+    public function run()
     {
         $groups = [
             ['name' => 'Juniori 1', 'description' => 'Uzrast 10 - 13 godina. PONEDJELJAK 18:00 - 19:30'],
@@ -24,7 +20,7 @@ class MemberGroupSeeder extends Seeder
             ['name' => 'Memorabilije 2', 'description' => 'Dramske radionice za starije'],
             ['name' => 'Memorabilije 3', 'description' => 'Dramske radionice za starije'],
         ];
-        
+
         foreach ($groups as $group) {
             MemberGroup::create($group);
         }
