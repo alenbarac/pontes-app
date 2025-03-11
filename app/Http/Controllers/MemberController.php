@@ -7,7 +7,7 @@ use App\Http\Requests\UpdateMemberRequest;
 use App\Http\Resources\MemberResource;
 use App\Models\Member;
 use App\Models\MemberGroup;
-use App\Models\Membership;
+use App\Models\MembershipPlan;
 use App\Models\Workshop;
 use Illuminate\Http\Request;
 
@@ -23,19 +23,26 @@ class MemberController extends Controller
         $page = $request->input('page', 1);
         $filter = $request->input('filter', '');
 
-        $query = Member::with(['groups', 'workshops', 'memberships.workshop']);
+        $query = Member::with([
+            'workshops.memberships', // ✅ Memberships are fetched through workshops
+            'workshopGroups.group',
+        ]);
+
 
         if (!empty($filter)) {
             $query->where(function ($q) use ($filter) {
                 $q->where('first_name', 'like', "%{$filter}%")
-                  ->orWhere('last_name', 'like', "%{$filter}%")
-                  ->orWhere('email', 'like', "%{$filter}%")
-                  ->orWhere('birth_year', 'like', "%{$filter}%")
+                    ->orWhere('last_name', 'like', "%{$filter}%")
+                    ->orWhere('email', 'like', "%{$filter}%")
+                    ->orWhere('dob', 'like', "%{$filter}%")
                     ->orWhereHas('workshops', function ($q) use ($filter) {
                         $q->where('name', 'like', "%{$filter}%");
                     })
-                    ->orWhereHas('groups', function ($q) use ($filter) {
+                    ->orWhereHas('memberGroups.memberGroup', function ($q) use ($filter) {
                         $q->where('name', 'like', "%{$filter}%");
+                    })
+                    ->orWhereHas('memberWorkshops.membershipPlan', function ($q) use ($filter) {
+                        $q->where('plan', 'like', "%{$filter}%");
                     });
             });
         }
@@ -56,6 +63,7 @@ class MemberController extends Controller
         ]);
     }
 
+
     /**
      * Show the form for creating a new resource.
      */
@@ -63,7 +71,7 @@ class MemberController extends Controller
     {
         $groups = MemberGroup::select('id', 'name')->get();
         $workshops = Workshop::select('id', 'name')->get();
-        $membershipPlans = Membership::with(['workshop', 'member'])
+        $membershipPlans = MembershipPlan::with(['workshop', 'member'])
         ->whereNotNull('member_id') // Ensure only memberships linked to a member are fetched
         ->whereNotNull('plan')
         ->where('plan', '!=', '')

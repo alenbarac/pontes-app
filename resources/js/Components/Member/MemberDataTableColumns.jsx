@@ -1,16 +1,18 @@
 import { Cog8ToothIcon, IdentificationIcon, TrashIcon } from "@heroicons/react/24/outline";
 
 export const groupColorMap = {
-    "Juniori 1": "bg-primary/15 text-dark",
-    "Juniori 2": "bg-secondary/15 text-dark",
-    "Srednjoškolci 1": "bg-danger/15 text-dark",
-    "Srednjoškolci 2": "bg-warning/15 text-dark",
-    "Memorabilije 1": "bg-success/15 text-dark",
-    "Memorabilije 2": "bg-meta-1/15 text-dark",
-    "Memorabilije 3": "bg-meta-3/15 text-dark",
-    "Mini 1": "bg-meta-5/15 text-dark",
-    "Mini 2": "bg-meta-6/15 text-dark",
+    "Juniori 1": "bg-primary bg-opacity-15 text-dark",
+    "Juniori 2": "bg-secondary bg-opacity-15 text-dark",
+    "Srednjoškolci 1": "bg-danger bg-opacity-15 text-dark",
+    "Srednjoškolci 2": "bg-warning bg-opacity-15 text-dark",
+    "Memorabilije 1": "bg-success bg-opacity-15 text-dark",
+    "Memorabilije 2": "bg-meta-1 bg-opacity-15 text-dark",
+    "Memorabilije 3": "bg-meta-3 bg-opacity-15 text-dark",
+    "Mini 1": "bg-meta-5 bg-opacity-15 text-dark",
+    "Mini 2": "bg-meta-6 bg-opacity-15 text-dark",
 };
+
+
 
 
 export const columns = [
@@ -28,7 +30,7 @@ export const columns = [
     },
     {
         header: "Godina rođenja",
-        accessorKey: "birth_year",
+        accessorKey: "date_of_birth",
     },
     {
         header: "Kontakt",

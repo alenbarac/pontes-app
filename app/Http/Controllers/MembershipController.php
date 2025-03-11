@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreMembershipRequest;
 use App\Http\Requests\UpdateMembershipRequest;
 use App\Http\Resources\MembershipResource;
-use App\Models\Membership;
+use App\Models\MembershipPlan;
 use Illuminate\Http\Request;
 
 class MembershipController extends Controller
@@ -15,7 +15,7 @@ class MembershipController extends Controller
      */
     public function index()
     {
-        $memberships = Membership::with('member')->paginate(10);
+        $memberships = MembershipPlan::with('member')->paginate(10);
 
         return inertia('Memberships/Index', [
             'memberships' => MembershipResource::collection($memberships),
@@ -27,7 +27,7 @@ class MembershipController extends Controller
      */
     public function store(StoreMembershipRequest $request)
     {
-        Membership::create($request->validated());
+        MembershipPlan::create($request->validated());
 
         return redirect()->route('memberships.index')->with('success', 'Membership created successfully.');
     }
@@ -35,7 +35,7 @@ class MembershipController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Membership $membership)
+    public function show(MembershipPlan $membership)
     {
         return inertia('Memberships/Show', [
             'membership' => new MembershipResource($membership->load('member')),
@@ -45,7 +45,7 @@ class MembershipController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateMembershipRequest $request, Membership $membership)
+    public function update(UpdateMembershipRequest $request, MembershipPlan $membership)
     {
         $membership->update($request->validated());
 
@@ -55,7 +55,7 @@ class MembershipController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Membership $membership)
+    public function destroy(MembershipPlan $membership)
     {
         $membership->delete();
 

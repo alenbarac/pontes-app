@@ -18,28 +18,31 @@ class MemberResource extends JsonResource
             'id' => $this->id,
             'first_name' => $this->first_name ?? '',
             'last_name' => $this->last_name ?? '',
-            'birth_year' => $this->birth_year,
+            'date_of_birth' => $this->date_of_birth,
             'phone_number' => $this->phone_number ?? '',
             'email' => $this->email ?? '',
             'is_active' => $this->is_active,
             'parent_contact' => $this->parent_contact,
             'parent_email' => $this->parent_email,
-            'groups' => $this->groups->map(fn($group) => [
-                'id' => $group->id,
-                'name' => $group->name,
+
+            // Map groups correctly
+            'groups' => $this->workshopGroups->map(fn($group) => [
+                'id' => $group->group->id ?? null,
+                'name' => $group->group->name ?? '',
             ]),
+
+            // Map workshops and include memberships inside them
             'workshops' => $this->workshops->map(fn($workshop) => [
                 'id' => $workshop->id,
                 'name' => $workshop->name,
+                'memberships' => $workshop->memberships->map(fn($membership) => [
+                    'plan' => $membership->plan,
+                    'total_fee' => $membership->total_fee,
+                ]),
             ]),
-            // Map all memberships and include plan and associated workshop name
-            'memberships' => $this->memberships->map(fn($membership) => [
-                'plan' => $membership->plan,
-                'workshop' => $membership->workshop->name ?? null, // Include workshop name
-            ]),
+
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];
     }
 }
-

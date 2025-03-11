@@ -12,7 +12,7 @@ class Member extends Model
     protected $fillable = [
         'first_name',
         'last_name',
-        'dob', // Updated from birth_year to full date of birth
+        'date_of_birth', // Updated from birth_year to full date of birth
         'phone_number',
         'email',
         'is_active',
@@ -41,7 +41,7 @@ class Member extends Model
      */
     public function memberships()
     {
-        return $this->hasMany(Membership::class);
+        return $this->hasMany(MembershipPlan::class);
     }
 
     /**
