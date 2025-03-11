@@ -34,7 +34,7 @@ class MemberController extends Controller
                 $q->where('first_name', 'like', "%{$filter}%")
                     ->orWhere('last_name', 'like', "%{$filter}%")
                     ->orWhere('email', 'like', "%{$filter}%")
-                    ->orWhere('dob', 'like', "%{$filter}%")
+                    ->orWhere('date_of_birth', 'like', "%{$filter}%")
                     ->orWhereHas('workshops', function ($q) use ($filter) {
                         $q->where('name', 'like', "%{$filter}%");
                     })
@@ -69,22 +69,25 @@ class MemberController extends Controller
      */
     public function create()
     {
-        $groups = MemberGroup::select('id', 'name')->get();
         $workshops = Workshop::select('id', 'name')->get();
-        $membershipPlans = MembershipPlan::with(['workshop', 'member'])
-        ->whereNotNull('member_id') // Ensure only memberships linked to a member are fetched
-        ->whereNotNull('plan')
-        ->where('plan', '!=', '')
-        ->select('id', 'workshop_id', 'plan', 'total_fee', 'member_id')
-        ->get();
+
+        // ✅ Fetch all groups per workshop by joining `workshop_groups`
+        $groups = MemberGroup::join('workshop_groups', 'member_groups.id', '=', 'workshop_groups.member_group_id')
+            ->select('member_groups.id', 'member_groups.name', 'workshop_groups.workshop_id')
+            ->get()
+            ->groupBy('workshop_id'); // ✅ Groups mapped by `workshop_id`
+
+        // ✅ Fetch all membership plans per workshop
+        $membershipPlans = MembershipPlan::select('id', 'workshop_id', 'plan', 'total_fee')->get()->groupBy('workshop_id');
 
         return inertia('Members/Create', [
-            'groups' => $groups,
             'workshops' => $workshops,
+            'groups' => $groups, // ✅ Groups are now linked properly
             'membershipPlans' => $membershipPlans,
         ]);
-
     }
+
+
 
     /**
      * Store a newly created resource in storage.

@@ -4,23 +4,14 @@ import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import Breadcrumb from "@/Components/Breadcrumb";
 import MemberCreateForm from "@/Components/Member/MemberCreateForm";
 
-export default function Create({
-    groups = [],
-    workshops = [],
-    membershipPlans = [],
-}) {
-    console.log("membershipPlans:", membershipPlans);
+export default function Create({ groups, workshops, membershipPlans }) {
+    console.log("Fetched Workshops:", workshops);
+    console.log("Fetched Groups:", groups);
+    console.log("Fetched Membership Plans:", membershipPlans);
 
-    const groupedMembershipPlans = workshops.reduce((acc, workshop) => {
-        acc[workshop.id] = membershipPlans.filter(
-            (plan) => plan.workshop_id === workshop.id,
-        );
-        return acc;
-    }, {});
     return (
         <AuthenticatedLayout>
             <Head title="Novi Član" />
-
             <Breadcrumb pageName="Novi upis" />
 
             <div className="flex flex-col gap-9">
@@ -31,15 +22,9 @@ export default function Create({
                         </h3>
                     </div>
                     <MemberCreateForm
-                        groups={groups.map((group) => ({
-                            id: group.id,
-                            text: group.name ?? "",
-                        }))}
-                        workshops={workshops.map((workshop) => ({
-                            id: workshop.id,
-                            text: workshop.name ?? "",
-                        }))}
-                        membershipPlans={groupedMembershipPlans}
+                        groups={groups}
+                        workshops={workshops}
+                        membershipPlans={membershipPlans}
                     />
                 </div>
             </div>
