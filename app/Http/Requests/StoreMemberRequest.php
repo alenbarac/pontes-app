@@ -24,12 +24,17 @@ class StoreMemberRequest extends FormRequest
         return [
             'first_name' => 'required|string|max:255',
             'last_name' => 'nullable|string|max:255',
-            'birth_year' => 'required|integer|min:1900|max:' . now()->year,
+            'date_of_birth' => 'required|date|before:today', // ✅ Ensure proper date validation
             'phone_number' => 'required|string|max:20',
             'email' => 'required|email|unique:members,email',
             'is_active' => 'boolean',
             'parent_contact' => 'nullable|string|max:20',
             'parent_email' => 'nullable|email|max:255',
+
+            // ✅ Ensure relationships exist
+            'workshop_id' => 'required|exists:workshops,id',
+            'group_id' => 'nullable|exists:member_groups,id',
+            'membership_plan_id' => 'nullable|exists:membership_plans,id',
         ];
     }
 }

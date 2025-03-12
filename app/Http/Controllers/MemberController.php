@@ -7,7 +7,9 @@ use App\Http\Requests\UpdateMemberRequest;
 use App\Http\Resources\MemberResource;
 use App\Models\Member;
 use App\Models\MemberGroup;
+use App\Models\MemberGroupWorkshop;
 use App\Models\MembershipPlan;
+use App\Models\MemberWorkshop;
 use App\Models\Workshop;
 use Illuminate\Http\Request;
 
@@ -19,14 +21,14 @@ class MemberController extends Controller
 
     public function index(Request $request)
     {
-        $perPage = $request->input('per_page', 10); // Default to 10 if not provided
+        $perPage = $request->input('per_page', 10);
         $page = $request->input('page', 1);
         $filter = $request->input('filter', '');
 
         $query = Member::with([
-            'workshops.memberships', // ✅ Memberships are fetched through workshops
+            'workshops.memberships',
             'workshopGroups.group',
-        ]);
+        ])->orderBy('created_at', 'desc');
 
 
         if (!empty($filter)) {
@@ -70,24 +72,20 @@ class MemberController extends Controller
     public function create()
     {
         $workshops = Workshop::select('id', 'name')->get();
-
-        // ✅ Fetch all groups per workshop by joining `workshop_groups`
         $groups = MemberGroup::join('workshop_groups', 'member_groups.id', '=', 'workshop_groups.member_group_id')
             ->select('member_groups.id', 'member_groups.name', 'workshop_groups.workshop_id')
             ->get()
-            ->groupBy('workshop_id'); // ✅ Groups mapped by `workshop_id`
+            ->groupBy('workshop_id');
 
-        // ✅ Fetch all membership plans per workshop
+        
         $membershipPlans = MembershipPlan::select('id', 'workshop_id', 'plan', 'total_fee')->get()->groupBy('workshop_id');
 
         return inertia('Members/Create', [
             'workshops' => $workshops,
-            'groups' => $groups, // ✅ Groups are now linked properly
+            'groups' => $groups,
             'membershipPlans' => $membershipPlans,
         ]);
     }
-
-
 
     /**
      * Store a newly created resource in storage.
@@ -95,8 +93,41 @@ class MemberController extends Controller
     public function store(StoreMemberRequest $request)
     {
         $member = Member::create($request->validated());
-        return redirect()->route('members.index')->with('success', 'Member created successfully.');
+
+        // Attach workshop only if it's not already attached
+        if ($request->workshop_id && !$member->workshops()->where('workshop_id', $request->workshop_id)->exists()) {
+            $member->workshops()->attach($request->workshop_id);
+        }
+
+        // Ensure the member isn't already assigned to the group
+        if ($request->group_id && !MemberGroupWorkshop::where([
+            'member_id' => $member->id,
+            'workshop_id' => $request->workshop_id,
+            'member_group_id' => $request->group_id,
+        ])->exists()) {
+            MemberGroupWorkshop::create([
+                'member_id' => $member->id,
+                'workshop_id' => $request->workshop_id,
+                'member_group_id' => $request->group_id,
+            ]);
+        }
+
+        // Ensure the membership plan isn't duplicated
+        if ($request->membership_plan_id && !MemberWorkshop::where([
+            'member_id' => $member->id,
+            'workshop_id' => $request->workshop_id,
+        ])->exists()) {
+            MemberWorkshop::create([
+                'member_id' => $member->id,
+                'workshop_id' => $request->workshop_id,
+                'membership_plan_id' => $request->membership_plan_id,
+            ]);
+        }
+
+        return redirect()->route('members.index')->with('success', 'Član uspješno dodan.');
     }
+
+
 
     /**
      * Display the specified resource.
