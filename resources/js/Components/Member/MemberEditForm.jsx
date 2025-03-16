@@ -4,30 +4,34 @@ import toast from "react-hot-toast";
 import DatePicker from "../DatePicker";
 
 const MemberEditForm = ({ member, workshops, groups, membershipPlans }) => {
-    const { data, setData, put, processing, errors } = useForm({
-        first_name: member.first_name,
-        last_name: member.last_name,
-        date_of_birth: member.date_of_birth,
-        phone_number: member.phone_number,
-        email: member.email,
-        is_active: member.is_active,
-        parent_contact: member.parent_contact,
-        parent_email: member.parent_email,
-        currentEnrollment: {
-            workshop_id: member.workshops[0]?.id || "",
-            membership_plan_id:
-                member.workshops[0]?.pivot?.membership_plan_id ||
-                member.memberships?.[0]?.id ||
-                "",
-            group_id: member.workshopGroups?.[0]?.member_group_id || "",
-        },
-        newEnrollment: {
-            workshop_id: "",
-            group_id: "",
-            membership_plan_id: "",
-        },
-    });
+   const { data, setData, put, processing, errors } = useForm({
+       first_name: member.first_name,
+       last_name: member.last_name,
+       date_of_birth: member.date_of_birth,
+       phone_number: member.phone_number,
+       email: member.email,
+       is_active: member.is_active,
+       parent_contact: member.parent_contact,
+       parent_email: member.parent_email,
+       currentEnrollment: {
+           workshop_id: member.workshops[0]?.id || "",
+           // Force the pivot value to a string, or fallback to member.memberships[0].id if needed.
+           membership_plan_id: member.workshops[0]?.pivot?.membership_plan_id
+               ? member.workshops[0].pivot.membership_plan_id.toString()
+               : member.memberships?.[0]?.id?.toString() || "",
+           group_id: member.workshopGroups?.[0]?.member_group_id || "",
+       },
+       newEnrollment: {
+           workshop_id: "",
+           group_id: "",
+           membership_plan_id: "",
+       },
+   });
 
+
+   console.log("Member Workshops:", member.workshops);
+   console.log("Member Memberships:", member.memberships);
+   console.log("Member WorkshopGroups:", member.workshopGroups);
     // For optional new enrollment: filtered groups and plans after selecting a new workshop.
     const [newEnrollmentGroups, setNewEnrollmentGroups] = useState([]);
     const [newEnrollmentPlans, setNewEnrollmentPlans] = useState([]);
