@@ -25,22 +25,29 @@ class MemberResource extends JsonResource
             'parent_contact' => $this->parent_contact,
             'parent_email' => $this->parent_email,
 
-            // Map groups correctly
-            'groups' => $this->workshopGroups->map(fn($group) => [
-                'id' => $group->group->id ?? null,
-                'name' => $group->group->name ?? '',
-            ]),
+            'groups' => $this->whenLoaded('workshopGroups', function () {
+                return $this->workshopGroups->map(fn($group) => [
+                    'id'   => $group->group->id ?? null,
+                    'name' => $group->group->name ?? '',
+                ]);
+            }),
 
-            // Map workshops and include memberships inside them
-            'workshops' => $this->workshops->map(fn($workshop) => [
-                'id' => $workshop->id,
-                'name' => $workshop->name,
-                'memberships' => $workshop->memberships->map(fn($membership) => [
-                    'plan' => $membership->plan,
-                    'total_fee' => $membership->total_fee,
-                ]),
-            ]),
-
+            // Map workshops and include memberships inside them.
+            'workshops' => $this->whenLoaded('workshops', function () {
+                return $this->workshops->map(function ($workshop) {
+                    return [
+                        'id'   => $workshop->id,
+                        'name' => $workshop->name,
+                        'memberships' => $workshop->relationLoaded('memberships')
+                            ? $workshop->memberships->map(fn($membership) => [
+                                'plan'      => $membership->plan,
+                                'total_fee' => $membership->total_fee,
+                            ])
+                            : [],
+                    ];
+                });
+            }),
+            
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

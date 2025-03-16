@@ -134,8 +134,29 @@ class MemberController extends Controller
      */
     public function show(Member $member)
     {
-        return inertia('Members/Show', [
+        // Load member with related data
+        $member->load([
+            'workshops.memberships',
+            'workshopGroups.group',
+        ]);
+
+        // Fetch all workshops for selection
+        $workshops = Workshop::select('id', 'name')->get();
+
+        // Fetch all groups linked to workshops
+        $groups = MemberGroup::join('workshop_groups', 'member_groups.id', '=', 'workshop_groups.member_group_id')
+            ->select('member_groups.id', 'member_groups.name', 'workshop_groups.workshop_id')
+            ->get()
+            ->groupBy('workshop_id');
+
+        // Fetch all membership plans grouped by workshop
+        $membershipPlans = MembershipPlan::select('id', 'workshop_id', 'plan', 'total_fee')->get()->groupBy('workshop_id');
+
+        return inertia('Members/Edit', [
             'member' => new MemberResource($member),
+            'workshops' => $workshops,
+            'groups' => $groups,
+            'membershipPlans' => $membershipPlans,
         ]);
     }
 
@@ -144,8 +165,40 @@ class MemberController extends Controller
      */
     public function update(UpdateMemberRequest $request, Member $member)
     {
+        // ✅ Update basic details
         $member->update($request->validated());
-        return redirect()->route('members.index')->with('success', 'Member updated successfully.');
+
+        // ✅ If a new workshop is selected, attach it
+        if ($request->workshop_id && !$member->workshops()->where('workshop_id', $request->workshop_id)->exists()) {
+            $member->workshops()->attach($request->workshop_id);
+        }
+
+        // ✅ Ensure the new group is not duplicated
+        if ($request->group_id && !MemberGroupWorkshop::where([
+            'member_id' => $member->id,
+            'workshop_id' => $request->workshop_id,
+            'member_group_id' => $request->group_id,
+        ])->exists()) {
+            MemberGroupWorkshop::create([
+                'member_id' => $member->id,
+                'workshop_id' => $request->workshop_id,
+                'member_group_id' => $request->group_id,
+            ]);
+        }
+
+        // ✅ Ensure the membership plan is unique
+        if ($request->membership_plan_id && !MemberWorkshop::where([
+            'member_id' => $member->id,
+            'workshop_id' => $request->workshop_id,
+        ])->exists()) {
+            MemberWorkshop::create([
+                'member_id' => $member->id,
+                'workshop_id' => $request->workshop_id,
+                'membership_plan_id' => $request->membership_plan_id,
+            ]);
+        }
+
+        return redirect()->route('members.index')->with('success', 'Član uspješno ažuriran.');
     }
 
     /**

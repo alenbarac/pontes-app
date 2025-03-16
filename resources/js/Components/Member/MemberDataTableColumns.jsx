@@ -1,4 +1,5 @@
 import { Cog8ToothIcon, IdentificationIcon, TrashIcon } from "@heroicons/react/24/outline";
+import { Link, router } from "@inertiajs/react";
 
 export const groupColorMap = {
     "Juniori 1": "bg-primary bg-opacity-15 text-dark",
@@ -91,15 +92,18 @@ export const columns = [
     {
         header: "Akcije",
         accessorKey: "actions",
-        cell: (info) => {
+        cell: ({row}) => {
             return (
                 <div className="flex space-x-1 justify-between">
-                    <button className="hover:text-blue-700 mx-1">
+                    <Link
+                        href={route("members.show", row.original.id)}
+                        className="hover:text-blue-700 mx-1"
+                    >
                         <IdentificationIcon className="h-5 w-5" />
-                    </button>
-                    <button className="hover:text-yellow-700">
+                    </Link>
+                    {/*  <button className="hover:text-yellow-700">
                         <Cog8ToothIcon className="h-5 w-5" />
-                    </button>
+                    </button> */}
                     <button className="hover:text-red-700">
                         <TrashIcon className="h-5 w-5" />
                     </button>
