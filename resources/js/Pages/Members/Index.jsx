@@ -3,7 +3,8 @@ import { Head, Link } from "@inertiajs/react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import Breadcrumb from "@/Components/Breadcrumb";
 import { columns } from "@/Components/Member/MemberDataTableColumns";
-import DataTable from "@/Components/Tables/DataTable";
+import MembersDataTable from "@/Components/Member/MembersDataTable";
+import ComponentCard from "@/Components/common/ComponentCard";
 
 export default function Index({ members }) {
     return (
@@ -11,28 +12,25 @@ export default function Index({ members }) {
             <Head title="Članovi" />
             <Breadcrumb pageName="Članovi" />
 
-            <div className="flex flex-col gap-9">
-                <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
-                    <div className="border-b border-stroke px-6 py-4 dark:border-strokedark flex justify-between">
-                        <h3 className="font-medium text-black dark:text-white">
-                            Popis Članova
-                        </h3>
-                        <Link
-                            href="/members/create"
-                            className="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primarydark"
+          
+                        <ComponentCard
+                            title="Popis Članova"
+                            headerAction={
+                                <Link
+                                    href="/members/create"
+                                    className="inline-flex items-center justify-center gap-2 rounded-lg transition px-4 py-3 text-sm bg-brand-500 text-white shadow-theme-xs hover:bg-brand-600 disabled:bg-brand-300"
+                                >
+                                    Novi upis
+                                </Link>
+                            }
                         >
-                            Novi upis
-                        </Link>
-                    </div>
-                    <div className="p-4">
-                        <DataTable
-                            data={members.data}
-                            columns={columns}
-                            pagination={members.pagination}
-                        />
-                    </div>
-                </div>
-            </div>
+                            <MembersDataTable
+                                data={members.data}
+                                columns={columns}
+                                pagination={members.pagination}
+                            />
+                        </ComponentCard>
+                   
         </AuthenticatedLayout>
     );
 }

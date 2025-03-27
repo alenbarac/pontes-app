@@ -81,7 +81,10 @@ const AppSidebar: React.FC = () => {
         );
     };
 
-    const renderMenuItems = (items: NavItem[]) => (
+    const renderMenuItems = (
+        items: NavItem[],
+        menuType: "main" | "support" | "others",
+    ) => (
         <ul className="flex flex-col gap-4">
             {items.map((nav, index) => (
                 <li key={nav.name}>
@@ -89,13 +92,26 @@ const AppSidebar: React.FC = () => {
                         <>
                             <button
                                 onClick={() => handleSubmenuToggle(index)}
-                                className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors w-full ${
+                                className={`menu-item group ${
+                                    /* openSubmenu?.type === menuType && */
                                     openSubmenu?.index === index
-                                        ? "bg-gray-700 text-white"
-                                        : "text-gray-300 hover:bg-gray-600"
-                                } ${!isExpanded && !isHovered ? "justify-center" : "justify-start"}`}
+                                        ? "menu-item-active"
+                                        : "menu-item-inactive"
+                                } cursor-pointer ${
+                                    !isExpanded && !isHovered
+                                        ? "lg:justify-center"
+                                        : "lg:justify-start"
+                                }`}
                             >
-                                <span>{nav.icon}</span>
+                                <span
+                                    className={`menu-item-icon-size  ${
+                                        openSubmenu?.index === index
+                                            ? "menu-item-icon-active"
+                                            : "menu-item-icon-inactive"
+                                    }`}
+                                >
+                                    {nav.icon}
+                                </span>
                                 {(isExpanded || isHovered || isMobileOpen) && (
                                     <span>{nav.name}</span>
                                 )}
@@ -127,10 +143,10 @@ const AppSidebar: React.FC = () => {
                                             <li key={subItem.name}>
                                                 <Link
                                                     href={subItem.path}
-                                                    className={`block px-4 py-1 text-sm transition-colors ${
+                                                    className={`menu-dropdown-item ${
                                                         isActive(subItem.path)
-                                                            ? "bg-gray-700 text-white"
-                                                            : "text-gray-300 hover:bg-gray-600"
+                                                            ? "menu-dropdown-item-active"
+                                                            : "menu-dropdown-item-inactive"
                                                     }`}
                                                 >
                                                     {subItem.name}
@@ -145,15 +161,17 @@ const AppSidebar: React.FC = () => {
                         nav.path && (
                             <Link
                                 href={nav.path}
-                                className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors w-full ${
+                                className={`menu-item group ${
                                     isActive(nav.path)
-                                        ? "bg-gray-700 text-white"
-                                        : "text-gray-300 hover:bg-gray-600"
+                                        ? "menu-item-active"
+                                        : "menu-item-inactive"
                                 } ${!isExpanded && !isHovered ? "justify-center" : "justify-start"}`}
                             >
                                 <span>{nav.icon}</span>
                                 {(isExpanded || isHovered || isMobileOpen) && (
-                                    <span>{nav.name}</span>
+                                    <span className="menu-item-text">
+                                        {nav.name}
+                                    </span>
                                 )}
                             </Link>
                         )
@@ -165,9 +183,16 @@ const AppSidebar: React.FC = () => {
 
     return (
         <aside
-            className={`fixed top-0 left-0 z-50 h-screen border-r border-gray-200 bg-white dark:bg-gray-900 dark:border-gray-800 text-gray-900 transition-all duration-300 ease-in-out 
-        ${isExpanded || isMobileOpen ? "w-[290px]" : isHovered ? "w-[290px]" : "w-[90px]"}
-        ${isMobileOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
+            className={`fixed mt-16 flex flex-col lg:mt-0 top-0 px-5 left-0 bg-white dark:bg-gray-900 dark:border-gray-800 text-gray-900 h-screen transition-all duration-300 ease-in-out z-50 border-r border-gray-200 
+        ${
+            isExpanded || isMobileOpen
+                ? "w-[290px]"
+                : isHovered
+                  ? "w-[290px]"
+                  : "w-[90px]"
+        }
+        ${isMobileOpen ? "translate-x-0" : "-translate-x-full"}
+        lg:translate-x-0`}
             onMouseEnter={() => !isExpanded && setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >
@@ -180,7 +205,7 @@ const AppSidebar: React.FC = () => {
                         <>
                             <img
                                 className="dark:hidden"
-                                src="/images/logo/logo.svg"
+                                src="/images/logo/pontes-app-logo-main.svg"
                                 alt="Logo"
                                 width={150}
                                 height={40}
@@ -206,8 +231,7 @@ const AppSidebar: React.FC = () => {
 
             {/* Navigation Menu */}
             <div className="flex flex-col overflow-y-auto transition-all duration-300 ease-linear no-scrollbar">
-                <nav className="mb-6">{renderMenuItems(navItems)}</nav>
-               
+                <nav className="mb-6">{renderMenuItems(navItems, "main")}</nav>
             </div>
         </aside>
     );

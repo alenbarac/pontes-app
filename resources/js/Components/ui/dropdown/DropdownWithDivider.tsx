@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Dropdown } from "./Dropdown";
 import { DropdownItem } from "./DropdownItem";
 
-const AccountMenuDropdown: React.FC = () => {
+export default function DropdownWithDivider() {
   const [isOpen, setIsOpen] = useState(false);
 
   function toggleDropdown() {
@@ -19,7 +19,7 @@ const AccountMenuDropdown: React.FC = () => {
         onClick={toggleDropdown}
         className="inline-flex items-center gap-2 px-4 py-3 text-sm font-medium text-white rounded-lg dropdown-toggle bg-brand-500 hover:bg-brand-600"
       >
-        Account Menu
+        Options
         <svg
           className={`duration-200 ease-in-out stroke-current ${
             isOpen ? "rotate-180" : ""
@@ -41,55 +41,59 @@ const AccountMenuDropdown: React.FC = () => {
       </button>
 
       <Dropdown
+        className="absolute left-0 top-full z-40 mt-2 w-full min-w-[260px] rounded-2xl border border-gray-200 bg-white p-3 shadow-theme-lg dark:border-gray-800 dark:bg-[#1E2635]"
         isOpen={isOpen}
         onClose={closeDropdown}
-        className="absolute left-0 top-full z-40 mt-2 w-full min-w-[260px] rounded-2xl border border-gray-200 bg-white p-3 shadow-theme-lg dark:border-gray-800 dark:bg-[#1E2635]"
       >
         <ul className="flex flex-col gap-1">
           <li>
             <DropdownItem
               onItemClick={closeDropdown}
-              className="flex rounded-lg px-3 py-2.5 text-sm font-medium
-              text-gray-700 hover:bg-gray-100 dark:text-gray-300
-              dark:hover:bg-white/5"
+              className="flex rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5"
             >
-              Edit Profile
+              Edit
             </DropdownItem>
           </li>
           <li>
             <DropdownItem
               onItemClick={closeDropdown}
-              className="flex rounded-lg px-3 py-2.5 text-sm font-medium
-              text-gray-700 hover:bg-gray-100 dark:text-gray-300
-              dark:hover:bg-white/5"
+              className="flex rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5"
             >
-              Account Settings
+              Duplicate
+            </DropdownItem>
+          </li>
+          <li>
+            <span className="my-1.5 block h-px w-full bg-gray-200 dark:bg-[#353C49]"></span>
+          </li>
+          <li>
+            <DropdownItem
+              onItemClick={closeDropdown}
+              className="flex rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5"
+            >
+              Archive
             </DropdownItem>
           </li>
           <li>
             <DropdownItem
               onItemClick={closeDropdown}
-              className="flex rounded-lg px-3 py-2.5 text-sm font-medium
-              text-gray-700 hover:bg-gray-100 dark:text-gray-300
-              dark:hover:bg-white/5"
+              className="flex rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5"
             >
-              License
+              Move
             </DropdownItem>
+          </li>
+          <li>
+            <span className="my-1.5 block h-px w-full bg-gray-200 dark:bg-[#353C49]"></span>
           </li>
           <li>
             <DropdownItem
               onItemClick={closeDropdown}
-              className="flex rounded-lg px-3 py-2.5 text-sm font-medium
-              text-gray-700 hover:bg-gray-100 dark:text-gray-300
-              dark:hover:bg-white/5"
+              className="flex rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5"
             >
-              Support
+              Delete
             </DropdownItem>
           </li>
         </ul>
       </Dropdown>
     </div>
   );
-};
-
-export default AccountMenuDropdown;
+}
