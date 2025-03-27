@@ -111,7 +111,6 @@ class MemberController extends Controller
                 'member_group_id' => $request->group_id,
             ]);
         }
-
         // Ensure the membership plan isn't duplicated
         if ($request->membership_plan_id && !MemberWorkshop::where([
             'member_id' => $member->id,
