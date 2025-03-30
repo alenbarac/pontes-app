@@ -22,7 +22,13 @@ createInertiaApp({
 
         root.render(
             <>
-                <Toaster position="top-center" reverseOrder={false} />
+                <Toaster
+                    position="top-center"
+                    containerStyle={{
+                        top: 90,
+                    }}
+                    reverseOrder={false}
+                />
                 <ThemeProvider>
                     <App {...props} />
                 </ThemeProvider>

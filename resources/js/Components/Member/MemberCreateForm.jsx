@@ -1,9 +1,21 @@
 import React, { useState } from "react";
-import { router, useForm } from "@inertiajs/react";
+import { Link, router, useForm } from "@inertiajs/react";
 import toast from "react-hot-toast";
-import DatePicker from "../DatePicker";
+import Label from "@/Components/form/Label";
+import Input from "@/Components/form/input/InputField";
+import Select from "@/Components/form/Select";
+import Button from "@/Components/ui/button/Button";
+import Flatpickr from "react-flatpickr";
 
-const MemberCreateForm = ({ workshops, groups, membershipPlans }) => {
+import "flatpickr/dist/themes/light.css";
+import Form from "@/Components/form/Form";
+import { CalendarDaysIcon } from "@heroicons/react/24/outline";
+
+export default function MemberCreateForm({
+    workshops,
+    groups,
+    membershipPlans,
+}) {
     const { data, setData, post, processing, errors } = useForm({
         first_name: "",
         last_name: "",
@@ -21,17 +33,10 @@ const MemberCreateForm = ({ workshops, groups, membershipPlans }) => {
     const [filteredGroups, setFilteredGroups] = useState([]);
     const [filteredPlans, setFilteredPlans] = useState([]);
 
-    // ✅ Update Group & Membership Plan Dropdowns when Workshop is Selected
     const handleWorkshopSelection = (workshopId) => {
         setData("workshop_id", workshopId);
-
-        // ✅ Fetch all available groups per workshop
         setFilteredGroups(groups[workshopId] || []);
-
-        // ✅ Fetch all available membership plans per workshop
         setFilteredPlans(membershipPlans[workshopId] || []);
-
-        // Reset dependent selections
         setData("group_id", "");
         setData("membership_plan_id", "");
     };
@@ -39,7 +44,6 @@ const MemberCreateForm = ({ workshops, groups, membershipPlans }) => {
     const handleSubmit = (e) => {
         e.preventDefault();
 
-        // ✅ Client-side validation
         const validationErrors = {};
         if (!data.first_name.trim())
             validationErrors.first_name = "Ime je obavezno.";
@@ -52,7 +56,6 @@ const MemberCreateForm = ({ workshops, groups, membershipPlans }) => {
             validationErrors.workshop_id = "Radionica je obavezna.";
 
         if (Object.keys(validationErrors).length > 0) {
-            // ✅ Display errors without submitting
             toast.error("Molimo ispunite sva obavezna polja.");
             return;
         }
@@ -60,109 +63,27 @@ const MemberCreateForm = ({ workshops, groups, membershipPlans }) => {
         post(route("members.store"), {
             data,
             onSuccess: () => {
-                toast.success("Član je uspješno dodan!");
                 router.visit(route("members.index"));
+                toast.success("Član je uspješno dodan!");
             },
-            onError: (errors) => {
+            onError: (err) => {
                 toast.error(
-                    errors.email || "Došlo je do greške. Pokušajte ponovno.",
+                    err.email || "Došlo je do greške. Pokušajte ponovno.",
                 );
             },
         });
     };
 
-
     return (
-        <form
-            onSubmit={handleSubmit}
-            className="rounded-md bg-white shadow-md dark:bg-boxdark p-6"
-        >
-            {/* Workshop Selection */}
-            <div className="mb-5">
-                <label className="mb-3 block text-sm font-medium text-black dark:text-white">
-                    Radionice
-                </label>
-                <select
-                    value={data.workshop_id}
-                    onChange={(e) => handleWorkshopSelection(e.target.value)}
-                    className="w-full rounded border border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white"
-                >
-                    <option value="">Odaberi radionicu</option>
-                    {workshops.map((workshop) => (
-                        <option key={workshop.id} value={workshop.id}>
-                            {workshop.name}
-                        </option>
-                    ))}
-                </select>
-                {errors.workshop_id && (
-                    <p className="text-red-500 text-sm">{errors.workshop_id}</p>
-                )}
-            </div>
-
-            {/* Group Selection (Single Selection) */}
-            {filteredGroups.length > 0 && (
-                <div className="mb-5">
-                    <label className="mb-3 block text-sm font-medium text-black dark:text-white">
-                        Grupe
-                    </label>
-                    <select
-                        value={data.group_id}
-                        onChange={(e) => setData("group_id", e.target.value)}
-                        className="w-full rounded border border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white"
-                    >
-                        <option value="">Odaberi grupu</option>
-                        {filteredGroups.map((group) => (
-                            <option key={group.id} value={group.id}>
-                                {group.name}
-                            </option>
-                        ))}
-                    </select>
-                    {errors.group_id && (
-                        <p className="text-red-500 text-sm">
-                            {errors.group_id}
-                        </p>
-                    )}
-                </div>
-            )}
-
-            {/* Membership Plan Selection (Single Selection) */}
-            {filteredPlans.length > 0 && (
-                <div className="mb-5">
-                    <label className="mb-3 block text-sm font-medium text-black dark:text-white">
-                        Članarina
-                    </label>
-                    <select
-                        value={data.membership_plan_id}
-                        onChange={(e) =>
-                            setData("membership_plan_id", e.target.value)
-                        }
-                        className="w-full rounded border border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white"
-                    >
-                        <option value="">Odaberi plan</option>
-                        {filteredPlans.map((plan) => (
-                            <option key={plan.id} value={plan.id}>
-                                {plan.plan} -{" "}
-                                {parseFloat(plan.total_fee).toFixed(2)} kn
-                            </option>
-                        ))}
-                    </select>
-                    {errors.membership_plan_id && (
-                        <p className="text-red-500 text-sm">
-                            {errors.membership_plan_id}
-                        </p>
-                    )}
-                </div>
-            )}
-
-            <div className="mb-5 flex flex-col gap-6 xl:flex-row">
-                <div className="w-full xl:w-1/3">
-                    <label className="mb-3 block text-sm font-medium text-black dark:text-white">
-                        Ime
-                    </label>
-                    <input
+        <Form onSubmit={handleSubmit}>
+            <div className="grid gap-6 sm:grid-cols-2 mb-4">
+                {/* First Name */}
+                <div>
+                    <Label htmlFor="first_name">Ime</Label>
+                    <Input
                         type="text"
-                        placeholder="unos imena"
-                        className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 font-normal text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                        id="first_name"
+                        placeholder="Unesite ime"
                         value={data.first_name}
                         onChange={(e) => setData("first_name", e.target.value)}
                     />
@@ -173,32 +94,32 @@ const MemberCreateForm = ({ workshops, groups, membershipPlans }) => {
                     )}
                 </div>
 
-                <div className="w-full xl:w-1/3">
-                    <label className="mb-3 block text-sm font-medium text-black dark:text-white">
-                        Prezime
-                    </label>
-                    <input
+                {/* Last Name */}
+                <div>
+                    <Label htmlFor="last_name">Prezime</Label>
+                    <Input
                         type="text"
-                        placeholder="unos prezimena"
-                        className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 font-normal text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                        id="last_name"
+                        placeholder="Unesite prezime"
                         value={data.last_name}
                         onChange={(e) => setData("last_name", e.target.value)}
                     />
-                    {errors.first_name && (
+                    {errors.last_name && (
                         <p className="text-red-500 text-sm">
                             {errors.last_name}
                         </p>
                     )}
                 </div>
+            </div>
 
-                <div className="w-full xl:w-1/3">
-                    <label className="mb-3 block text-sm font-medium text-black dark:text-white">
-                        Email
-                    </label>
-                    <input
+            <div className="grid gap-6 sm:grid-cols-3 mb-4">
+                {/* Email */}
+                <div>
+                    <Label htmlFor="email">Email</Label>
+                    <Input
                         type="email"
-                        placeholder="email polaznika/ce"
-                        className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 font-normal text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                        id="email"
+                        placeholder="Email polaznika/ce"
                         value={data.email}
                         onChange={(e) => setData("email", e.target.value)}
                     />
@@ -206,27 +127,14 @@ const MemberCreateForm = ({ workshops, groups, membershipPlans }) => {
                         <p className="text-red-500 text-sm">{errors.email}</p>
                     )}
                 </div>
-            </div>
 
-            <div className="mb-5 flex flex-col gap-6 xl:flex-row">
-                <div className="w-full xl:w-1/2">
-                    <DatePicker
-                        value={data.date_of_birth}
-                        onChange={(date) => setData("date_of_birth", date)}
-                        placeholder="odabir datuma"
-                        dateFormat="Y-m-d"
-                        labelText="Datum rođenja"
-                    />
-                </div>
-
-                <div className="w-full xl:w-1/2">
-                    <label className="mb-3 block text-sm font-medium text-black dark:text-white">
-                        Telefon
-                    </label>
-                    <input
+                {/* Phone Number */}
+                <div>
+                    <Label htmlFor="phone_number">Telefon</Label>
+                    <Input
                         type="text"
-                        placeholder="br. telefon/mobitel"
-                        className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 font-normal text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                        id="phone_number"
+                        placeholder="Broj telefona/mobitel"
                         value={data.phone_number}
                         onChange={(e) =>
                             setData("phone_number", e.target.value)
@@ -238,17 +146,102 @@ const MemberCreateForm = ({ workshops, groups, membershipPlans }) => {
                         </p>
                     )}
                 </div>
+
+                {/* Date of Birth */}
+                <div>
+                    <Label htmlFor="date_of_birth">Datum rođenja</Label>
+                    <div className="relative">
+                        <Flatpickr
+                            value={data.date_of_birth}
+                            onChange={(selectedDates, dateStr) =>
+                                setData("date_of_birth", dateStr)
+                            }
+                            options={{ dateFormat: "Y-m-d" }}
+                            className="w-full py-[10px] pl-3 pr-10 text-sm border border-gray-300 rounded-md focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                        />
+                        <span className="absolute text-gray-500 -translate-y-1/2 pointer-events-none right-3 top-1/2 dark:text-gray-400">
+                            <CalendarDaysIcon width={18} height={18} />
+                        </span>
+                    </div>
+                </div>
             </div>
 
-            <div className="mb-5 flex flex-col gap-6 xl:flex-row">
-                <div className="w-full xl:w-1/2">
-                    <label className="mb-3 block text-sm font-medium text-black dark:text-white">
-                        Kontakt roditelja
-                    </label>
-                    <input
+            <div className="mb-4">
+                {/* Workshop Selection */}
+                <div className="col-span-full mb-4">
+                    <Label htmlFor="workshop_id">Radionica</Label>
+                    <Select
+                        id="workshop_id"
+                        placeholder="Odaberi radionicu"
+                        value={data.workshop_id}
+                        onChange={(value) => handleWorkshopSelection(value)}
+                        options={workshops.map((workshop) => ({
+                            value: workshop.id,
+                            label: workshop.name,
+                        }))}
+                    />
+                    {errors.workshop_id && (
+                        <p className="text-red-500 text-sm">
+                            {errors.workshop_id}
+                        </p>
+                    )}
+                </div>
+
+                {/* Group Selection */}
+                {filteredGroups.length > 0 && (
+                    <div className="col-span-full mb-4">
+                        <Label htmlFor="group_id">Grupe</Label>
+                        <Select
+                            id="group_id"
+                            placeholder="Odaberi grupu"
+                            value={data.group_id}
+                            onChange={(value) => setData("group_id", value)}
+                            options={filteredGroups.map((group) => ({
+                                value: group.id,
+                                label: group.name,
+                            }))}
+                        />
+                        {errors.group_id && (
+                            <p className="text-red-500 text-sm">
+                                {errors.group_id}
+                            </p>
+                        )}
+                    </div>
+                )}
+
+                {/* Membership Plan Selection */}
+                {filteredPlans.length > 0 && (
+                    <div className="col-span-full mb-4">
+                        <Label htmlFor="membership_plan_id">Članarina</Label>
+                        <Select
+                            id="membership_plan_id"
+                            placeholder="Odaberi plan"
+                            value={data.membership_plan_id}
+                            onChange={(value) =>
+                                setData("membership_plan_id", value)
+                            }
+                            options={filteredPlans.map((plan) => ({
+                                value: plan.id,
+                                label: `${plan.plan} - ${parseFloat(plan.total_fee).toFixed(2)} kn`,
+                            }))}
+                        />
+                        {errors.membership_plan_id && (
+                            <p className="text-red-500 text-sm">
+                                {errors.membership_plan_id}
+                            </p>
+                        )}
+                    </div>
+                )}
+            </div>
+
+            <div className="grid gap-6 sm:grid-cols-2">
+                {/* Parent Contact */}
+                <div className="sm:col-span-1">
+                    <Label htmlFor="parent_contact">Kontakt roditelja</Label>
+                    <Input
                         type="text"
-                        placeholder="telefon/mobitel roditelja"
-                        className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 font-normal text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                        id="parent_contact"
+                        placeholder="Telefon roditelja"
                         value={data.parent_contact}
                         onChange={(e) =>
                             setData("parent_contact", e.target.value)
@@ -261,14 +254,13 @@ const MemberCreateForm = ({ workshops, groups, membershipPlans }) => {
                     )}
                 </div>
 
-                <div className="w-full xl:w-1/2">
-                    <label className="mb-3 block text-sm font-medium text-black dark:text-white">
-                        Email roditelja
-                    </label>
-                    <input
+                {/* Parent Email */}
+                <div className="sm:col-span-1">
+                    <Label htmlFor="parent_email">Email roditelja</Label>
+                    <Input
                         type="email"
-                        placeholder="email adresa"
-                        className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 font-normal text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                        id="parent_email"
+                        placeholder="Email roditelja"
                         value={data.parent_email}
                         onChange={(e) =>
                             setData("parent_email", e.target.value)
@@ -282,18 +274,17 @@ const MemberCreateForm = ({ workshops, groups, membershipPlans }) => {
                 </div>
             </div>
 
-            {/* Submit Button */}
-            <div className="mt-6">
-                <button
-                    type="submit"
-                    disabled={processing}
-                    className="w-full rounded bg-primary p-3 text-white"
-                >
+            <div className="mt-6 flex justify-end gap-3">
+                <Button disabled={processing} size="sm">
                     {processing ? "Spremam..." : "Spremi upis"}
-                </button>
+                </Button>
+                <Link
+                    className="inline-flex items-center justify-center gap-2 rounded-lg transition bg-white text-gray-700 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-400 dark:ring-gray-700 dark:hover:bg-white/[0.03] dark:hover:text-gray-300 px-4 py-3 text-sm"
+                    href={route("members.index")}
+                >
+                    Odustani
+                </Link>
             </div>
-        </form>
+        </Form>
     );
-};
-
-export default MemberCreateForm;
+}

@@ -27,9 +27,8 @@ class MemberController extends Controller
 
         $query = Member::with([
             'workshops.memberships',
-            'workshopGroups.group',
+            'workshopGroups',
         ])->orderBy('created_at', 'desc');
-
 
         if (!empty($filter)) {
             $query->where(function ($q) use ($filter) {
@@ -40,12 +39,10 @@ class MemberController extends Controller
                     ->orWhereHas('workshops', function ($q) use ($filter) {
                         $q->where('name', 'like', "%{$filter}%");
                     })
-                    ->orWhereHas('memberGroups.memberGroup', function ($q) use ($filter) {
+                    ->orWhereHas('workshopGroups.group', function ($q) use ($filter) {
                         $q->where('name', 'like', "%{$filter}%");
-                    })
-                    ->orWhereHas('memberWorkshops.membershipPlan', function ($q) use ($filter) {
-                        $q->where('plan', 'like', "%{$filter}%");
                     });
+                   
             });
         }
 

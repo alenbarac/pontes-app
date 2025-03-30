@@ -7,12 +7,11 @@ import MembersDataTable from "@/Components/Member/MembersDataTable";
 import ComponentCard from "@/Components/common/ComponentCard";
 
 export default function Index({ members }) {
+    console.log(members.data);
     return (
         <AuthenticatedLayout>
             <Head title="Članovi" />
-            <Breadcrumb pageName="Članovi" />
-
-          
+            <Breadcrumb pageName="Članovi" />  
                         <ComponentCard
                             title="Popis Članova"
                             headerAction={
@@ -23,7 +22,7 @@ export default function Index({ members }) {
                                     Novi upis
                                 </Link>
                             }
-                        >
+                        >              
                             <MembersDataTable
                                 data={members.data}
                                 columns={columns}
