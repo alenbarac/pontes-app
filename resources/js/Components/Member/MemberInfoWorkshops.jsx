@@ -30,8 +30,6 @@ const MemberInfoWorkshops = ({ memberData }) => {
                             </p>
                             <p className="text-sm font-medium text-gray-800 dark:text-white/90">
                                 {memberData?.workshops?.map((workshop) => {
-                                    const { membership_plan: mebershipPlan } =
-                                        workshop;
                                     return (
                                         <>
                                             <div
@@ -95,7 +93,21 @@ const MemberInfoWorkshops = ({ memberData }) => {
                                 Datum upisa
                             </p>
                             <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                               Todo - add enrollment date
+                                {memberData?.workshops?.map((workshop) => {
+                                    const { membership_plan: mebershipPlan } =
+                                        workshop;
+                                    return (
+                                        <>
+                                            <div
+                                                key={mebershipPlan.id}
+                                                className="text-sm font-medium text-gray-800 dark:text-white/90"
+                                            >
+                                                {mebershipPlan.start_date}
+                                                
+                                            </div>
+                                        </>
+                                    );
+                                })}
                             </p>
                         </div>
                     </div>

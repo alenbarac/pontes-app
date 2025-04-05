@@ -94,7 +94,8 @@ class MemberController extends Controller
     // Attach workshop and include membership_plan_id on the pivot.
     if ($request->workshop_id && !$member->workshops()->where('workshop_id', $request->workshop_id)->exists()) {
         $member->workshops()->attach($request->workshop_id, [
-            'membership_plan_id' => $request->membership_plan_id
+            'membership_plan_id' => $request->membership_plan_id,
+            'membership_start_date' => $request->membership_start_date,
         ]);
     }
 

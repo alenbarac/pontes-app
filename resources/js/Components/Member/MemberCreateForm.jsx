@@ -28,9 +28,8 @@ export default function MemberCreateForm({
         workshop_id: "",
         group_id: "",
         membership_plan_id: "",
+        membership_start_date: "",
     });
-
-        /*   #TODO# : add the date of enrollment */
 
     const [filteredGroups, setFilteredGroups] = useState([]);
     const [filteredPlans, setFilteredPlans] = useState([]);
@@ -56,6 +55,9 @@ export default function MemberCreateForm({
         if (!data.email.trim()) validationErrors.email = "Email je obavezan.";
         if (!data.workshop_id)
             validationErrors.workshop_id = "Radionica je obavezna.";
+        if (!data.membership_start_date)
+            validationErrors.membership_plan_start_date =
+                "Obvezan unos početka upisa.";
 
         if (Object.keys(validationErrors).length > 0) {
             toast.error("Molimo ispunite sva obavezna polja.");
@@ -213,25 +215,50 @@ export default function MemberCreateForm({
 
                 {/* Membership Plan Selection */}
                 {filteredPlans.length > 0 && (
-                    <div className="col-span-full mb-4">
-                        <Label htmlFor="membership_plan_id">Članarina</Label>
-                        <Select
-                            id="membership_plan_id"
-                            placeholder="Odaberi plan"
-                            value={data.membership_plan_id}
-                            onChange={(value) =>
-                                setData("membership_plan_id", value)
-                            }
-                            options={filteredPlans.map((plan) => ({
-                                value: plan.id,
-                                label: `${plan.plan} - ${parseFloat(plan.total_fee).toFixed(2)} kn`,
-                            }))}
-                        />
-                        {errors.membership_plan_id && (
-                            <p className="text-red-500 text-sm">
-                                {errors.membership_plan_id}
-                            </p>
-                        )}
+                    <div className="grid gap-6 sm:grid-cols-2 mb-4">
+                        <div className=" mb-4">
+                            <Label htmlFor="membership_plan_id">
+                                Članarina
+                            </Label>
+                            <Select
+                                id="membership_plan_id"
+                                placeholder="Odaberi plan"
+                                value={data.membership_plan_id}
+                                onChange={(value) =>
+                                    setData("membership_plan_id", value)
+                                }
+                                options={filteredPlans.map((plan) => ({
+                                    value: plan.id,
+                                    label: `${plan.plan} - ${parseFloat(plan.total_fee).toFixed(2)} kn`,
+                                }))}
+                            />
+                            {errors.membership_plan_id && (
+                                <p className="text-red-500 text-sm">
+                                    {errors.membership_plan_id}
+                                </p>
+                            )}
+                        </div>
+                        <div>
+                            <Label htmlFor="membership_start_date">
+                                Početak upisa
+                            </Label>
+                            <div className="relative">
+                                <Flatpickr
+                                    value={data.membership_start_date}
+                                    onChange={(selectedDates, dateStr) =>
+                                        setData(
+                                            "membership_start_date",
+                                            dateStr,
+                                        )
+                                    }
+                                    options={{ dateFormat: "Y-m-d" }}
+                                    className="w-full py-[10px] pl-3 pr-10 text-sm border border-gray-300 rounded-md focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                                />
+                                <span className="absolute text-gray-500 -translate-y-1/2 pointer-events-none right-3 top-1/2 dark:text-gray-400">
+                                    <CalendarDaysIcon width={18} height={18} />
+                                </span>
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>

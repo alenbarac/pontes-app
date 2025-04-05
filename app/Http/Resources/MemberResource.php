@@ -47,6 +47,8 @@ class MemberResource extends JsonResource
                             'id'        => $chosenPlan->id,
                             'plan'      => $chosenPlan->plan,
                             'total_fee' => $chosenPlan->total_fee,
+                            'start_date' => $workshop->pivot->membership_start_date,
+                            'end_date'   => $workshop->pivot->membership_end_date,
                         ] : null,
                         'memberships'        => $workshop->relationLoaded('memberships')
                             ? $workshop->memberships->map(fn($membership) => [

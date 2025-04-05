@@ -25,7 +25,7 @@ class Member extends Model
      */
     public function workshops()
     {
-        return $this->belongsToMany(Workshop::class, 'member_workshop')->withPivot('membership_plan_id')
+        return $this->belongsToMany(Workshop::class, 'member_workshop')->withPivot('membership_plan_id', 'membership_start_date', 'membership_end_date')
             ->withTimestamps();
     }
 

@@ -26,8 +26,6 @@ class MembershipPlanSeeder extends Seeder
                 'billing_frequency' => 'Mjesečno',
                 'discount_type' => null,
                 'total_fee' => 50.00,
-                'start_date' => Carbon::now()->subMonth(),
-                'end_date' => Carbon::now()->addMonths(11),
             ],
             [
                 'plan' => '6 mjeseci',
@@ -35,8 +33,6 @@ class MembershipPlanSeeder extends Seeder
                 'billing_frequency' => 'Polugodišnje',
                 'discount_type' => 'Polugođišnji popust',
                 'total_fee' => 270.00,
-                'start_date' => Carbon::now()->subMonths(6),
-                'end_date' => Carbon::now()->addMonths(6),
             ],
             [
                 'plan' => 'Godišnja članarina',
@@ -44,8 +40,6 @@ class MembershipPlanSeeder extends Seeder
                 'billing_frequency' => 'Godišnje',
                 'discount_type' => 'Godišnji popust',
                 'total_fee' => 450.00,
-                'start_date' => Carbon::now()->startOfYear(),
-                'end_date' => Carbon::now()->endOfYear(),
             ],
         ];
 
@@ -58,8 +52,6 @@ class MembershipPlanSeeder extends Seeder
                     'billing_frequency' => $option['billing_frequency'],
                     'discount_type' => $option['discount_type'],
                     'total_fee' => $option['total_fee'],
-                    'start_date' => $option['start_date'],
-                    'end_date' => $option['end_date'],
                 ]);
             }
         }

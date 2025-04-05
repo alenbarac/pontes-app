@@ -18,10 +18,7 @@ return new class extends Migration {
             $table->string('billing_frequency')->default('Monthly'); // Billing type (Monthly, Yearly, etc.)
             $table->string('discount_type')->nullable(); // Optional discount type
             $table->decimal('total_fee', 8, 2)->nullable(); // Final fee after discount
-            $table->date('start_date'); // Start date of the plan
-            $table->date('end_date')->nullable(); // Optional end date
             $table->timestamps();
-
             // Foreign key constraint
             $table->foreign('workshop_id')->references('id')->on('workshops')->onDelete('cascade');
         });

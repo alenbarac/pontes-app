@@ -13,6 +13,8 @@ return new class extends Migration
             $table->unsignedBigInteger('member_id');
             $table->unsignedBigInteger('workshop_id');
             $table->unsignedBigInteger('membership_plan_id')->nullable(); // Membership assigned to this workshop
+            $table->date('membership_start_date')->nullable();
+            $table->date('membership_end_date')->nullable();
             $table->timestamps();
 
             // Foreign Key Constraints
