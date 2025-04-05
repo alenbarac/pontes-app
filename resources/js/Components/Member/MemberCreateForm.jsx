@@ -30,6 +30,8 @@ export default function MemberCreateForm({
         membership_plan_id: "",
     });
 
+        /*   #TODO# : add the date of enrollment */
+
     const [filteredGroups, setFilteredGroups] = useState([]);
     const [filteredPlans, setFilteredPlans] = useState([]);
 

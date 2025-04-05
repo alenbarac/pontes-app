@@ -35,11 +35,19 @@ class MemberResource extends JsonResource
             // Include workshops and add the pivot data for membership_plan_id
             'workshops' => $this->whenLoaded('workshops', function () {
                 return $this->workshops->map(function ($workshop) {
+                    // Find the membership plan chosen by the member from the workshop's memberships
+                    $chosenPlan = $workshop->memberships->firstWhere('id', $workshop->pivot->membership_plan_id);
                     return [
                         'id'                 => $workshop->id,
                         'name'               => $workshop->name,
-                        // Make sure to return the pivot data
+                        // Return the pivot data
                         'membership_plan_id' => $workshop->pivot->membership_plan_id ?? null,
+                        // Return full details of the selected membership plan if found
+                        'membership_plan'    => $chosenPlan ? [
+                            'id'        => $chosenPlan->id,
+                            'plan'      => $chosenPlan->plan,
+                            'total_fee' => $chosenPlan->total_fee,
+                        ] : null,
                         'memberships'        => $workshop->relationLoaded('memberships')
                             ? $workshop->memberships->map(fn($membership) => [
                                 'id'        => $membership->id,

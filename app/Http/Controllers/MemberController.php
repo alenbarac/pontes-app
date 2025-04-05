@@ -88,41 +88,31 @@ class MemberController extends Controller
      * Store a newly created resource in storage.
      */
     public function store(StoreMemberRequest $request)
-    {
-        $member = Member::create($request->validated());
+{
+    $member = Member::create($request->validated());
 
-        // Attach workshop only if it's not already attached
-        if ($request->workshop_id && !$member->workshops()->where('workshop_id', $request->workshop_id)->exists()) {
-            $member->workshops()->attach($request->workshop_id);
-        }
+    // Attach workshop and include membership_plan_id on the pivot.
+    if ($request->workshop_id && !$member->workshops()->where('workshop_id', $request->workshop_id)->exists()) {
+        $member->workshops()->attach($request->workshop_id, [
+            'membership_plan_id' => $request->membership_plan_id
+        ]);
+    }
 
-        // Ensure the member isn't already assigned to the group
-        if ($request->group_id && !MemberGroupWorkshop::where([
+    // Ensure the member isn't already assigned to the group
+    if ($request->group_id && !MemberGroupWorkshop::where([
+        'member_id' => $member->id,
+        'workshop_id' => $request->workshop_id,
+        'member_group_id' => $request->group_id,
+    ])->exists()) {
+        MemberGroupWorkshop::create([
             'member_id' => $member->id,
             'workshop_id' => $request->workshop_id,
             'member_group_id' => $request->group_id,
-        ])->exists()) {
-            MemberGroupWorkshop::create([
-                'member_id' => $member->id,
-                'workshop_id' => $request->workshop_id,
-                'member_group_id' => $request->group_id,
-            ]);
-        }
-        // Ensure the membership plan isn't duplicated
-        if ($request->membership_plan_id && !MemberWorkshop::where([
-            'member_id' => $member->id,
-            'workshop_id' => $request->workshop_id,
-        ])->exists()) {
-            MemberWorkshop::create([
-                'member_id' => $member->id,
-                'workshop_id' => $request->workshop_id,
-                'membership_plan_id' => $request->membership_plan_id,
-            ]);
-        }
-
-        return redirect()->route('members.index')->with('success', 'Član uspješno dodan.');
+        ]);
     }
 
+    return redirect()->route('members.index')->with('success', 'Član uspješno dodan.');
+}
 
 
     /**
@@ -148,7 +138,7 @@ class MemberController extends Controller
         // Fetch all membership plans grouped by workshop
         $membershipPlans = MembershipPlan::select('id', 'workshop_id', 'plan', 'total_fee')->get()->groupBy('workshop_id');
 
-        return inertia('Members/Edit', [
+        return inertia('Members/Show', [
             'member' => new MemberResource($member),
             'workshops' => $workshops,
             'groups' => $groups,
