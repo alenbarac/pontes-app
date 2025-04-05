@@ -147,46 +147,21 @@ class MemberController extends Controller
         ]);
     }
 
-    /**
-     * Update the specified resource in storage.
+     /**
+     * Update basic member details.
      */
+
     public function update(UpdateMemberRequest $request, Member $member)
     {
-        // ✅ Update basic details
+        // Update only the basic member details from the validated request.
         $member->update($request->validated());
-
-        // ✅ If a new workshop is selected, attach it
-        if ($request->workshop_id && !$member->workshops()->where('workshop_id', $request->workshop_id)->exists()) {
-            $member->workshops()->attach($request->workshop_id);
-        }
-
-        // ✅ Ensure the new group is not duplicated
-        if ($request->group_id && !MemberGroupWorkshop::where([
-            'member_id' => $member->id,
-            'workshop_id' => $request->workshop_id,
-            'member_group_id' => $request->group_id,
-        ])->exists()) {
-            MemberGroupWorkshop::create([
-                'member_id' => $member->id,
-                'workshop_id' => $request->workshop_id,
-                'member_group_id' => $request->group_id,
-            ]);
-        }
-
-        // ✅ Ensure the membership plan is unique
-        if ($request->membership_plan_id && !MemberWorkshop::where([
-            'member_id' => $member->id,
-            'workshop_id' => $request->workshop_id,
-        ])->exists()) {
-            MemberWorkshop::create([
-                'member_id' => $member->id,
-                'workshop_id' => $request->workshop_id,
-                'membership_plan_id' => $request->membership_plan_id,
-            ]);
-        }
 
         return redirect()->route('members.index')->with('success', 'Član uspješno ažuriran.');
     }
+
+    /**
+     *  TODO : Update workshop related member details.
+     */
 
     /**
      * Remove the specified resource from storage.

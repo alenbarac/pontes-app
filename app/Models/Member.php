@@ -12,7 +12,7 @@ class Member extends Model
     protected $fillable = [
         'first_name',
         'last_name',
-        'date_of_birth', // Updated from birth_year to full date of birth
+        'date_of_birth',
         'phone_number',
         'email',
         'is_active',
