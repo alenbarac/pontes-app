@@ -3,10 +3,10 @@ import { Link, router, useForm } from "@inertiajs/react";
 import toast from "react-hot-toast";
 import Label from "@/Components/form/Label";
 import Input from "@/Components/form/input/InputField";
+import Form from "@/Components/form/Form";
 import Button from "@/Components/ui/button/Button";
 import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/light.css";
-import Form from "@/Components/form/Form";
 import { CalendarDaysIcon } from "@heroicons/react/24/outline";
 
 export default function MemberDetailEditForm({ member, closeModal }) {
@@ -20,15 +20,19 @@ export default function MemberDetailEditForm({ member, closeModal }) {
         parent_email: member.parent_email || "",
     });
 
+
     const handleSubmit = (e) => {
         e.preventDefault();
+        
         put(route("members.update", member.id), {
             data,
+            preserveState: true,
             onSuccess: () => {
+                closeModal();
                 toast.success("Član je uspješno ažuriran!");
-                // Optionally close the modal here
             },
             onError: (err) => {
+                console.log(err);
                 toast.error(
                     err.email || "Došlo je do greške. Pokušajte ponovno.",
                 );
@@ -36,8 +40,10 @@ export default function MemberDetailEditForm({ member, closeModal }) {
         });
     };
 
+
+
     return (
-        <Form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit}>
             <>
                 <div className="grid gap-6 sm:grid-cols-2 mb-4">
                     {/* First Name */}
@@ -180,7 +186,7 @@ export default function MemberDetailEditForm({ member, closeModal }) {
                 </div>
 
                 <div className="mt-6 flex justify-end gap-3">
-                    <Button disabled={processing} size="sm">
+                    <Button size="sm" disabled={processing}>
                         {processing ? "Spremam..." : "Spremi promjene"}
                     </Button>
                     <Button variant="outline" onClick={closeModal}>
@@ -188,6 +194,6 @@ export default function MemberDetailEditForm({ member, closeModal }) {
                     </Button>
                 </div>
             </>
-        </Form>
+        </form>
     );
 }

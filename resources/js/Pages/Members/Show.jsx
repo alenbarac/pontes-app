@@ -6,6 +6,7 @@ import MemberInfoCard from "@/Components/Member/MemberInfoCard";
 import MemberInfoWorkshops from "@/Components/Member/MemberInfoWorkshops";
 
 export default function Show({ member }) {
+
     return (
         <AuthenticatedLayout>
             <Head title="Detalji upisa" />
@@ -17,6 +18,7 @@ export default function Show({ member }) {
                 </h3>
                 <div className="space-y-6">
                     <MemberInfoCard memberData={member} />
+                    {/* TODO - update of the member workshops detail */}
                     <MemberInfoWorkshops memberData={member} />
                 </div>
             </div>

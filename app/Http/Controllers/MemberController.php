@@ -153,10 +153,8 @@ class MemberController extends Controller
 
     public function update(UpdateMemberRequest $request, Member $member)
     {
-        // Update only the basic member details from the validated request.
         $member->update($request->validated());
-
-        return redirect()->route('members.index')->with('success', 'Član uspješno ažuriran.');
+        return redirect()->route('members.show', $member->id);
     }
 
     /**

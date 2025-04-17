@@ -11,7 +11,7 @@ class UpdateMemberRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
     /**
@@ -22,12 +22,11 @@ class UpdateMemberRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => 'required|string|max:255',
-            'name' => 'nullable|string|max:255',
-            'birth_year' => 'required|integer|min:1900|max:' . now()->year,
+            'first_name' => 'required|string|max:255',
+            'last_name' => 'nullable|string|max:255',
+            'date_of_birth' => 'required|date|before:today',
             'phone_number' => 'required|string|max:20',
-            'email' => 'nullable|email|unique:members,email',
-            'is_active' => 'boolean',
+            'email' => 'required|email',
             'parent_contact' => 'nullable|string|max:20',
             'parent_email' => 'nullable|email|max:255',
         ];

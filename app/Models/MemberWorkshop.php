@@ -15,6 +15,8 @@ class MemberWorkshop extends Model
     'member_id',
     'workshop_id',
     'membership_plan_id',
+    'membership_start_date',
+    'membership_end_date'
   ];
 
   /**

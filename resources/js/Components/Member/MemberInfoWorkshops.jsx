@@ -12,9 +12,7 @@ const MemberInfoWorkshops = ({ memberData }) => {
         closeModal();
     };
 
-    console.log(memberData);
 
-    console.log(memberData);
     return (
         <div className="p-5 border border-gray-200 rounded-2xl dark:border-gray-800 lg:p-6">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
@@ -93,13 +91,13 @@ const MemberInfoWorkshops = ({ memberData }) => {
                                 Datum upisa
                             </p>
                             <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                                {memberData?.workshops?.map((workshop) => {
+                                {memberData?.workshops?.map((workshop, index) => {
                                     const { membership_plan: mebershipPlan } =
                                         workshop;
                                     return (
                                         <>
                                             <div
-                                                key={mebershipPlan.id}
+                                                key={index}
                                                 className="text-sm font-medium text-gray-800 dark:text-white/90"
                                             >
                                                 {mebershipPlan.start_date}
