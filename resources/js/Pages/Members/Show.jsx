@@ -5,7 +5,7 @@ import Breadcrumb from "@/Components/Breadcrumb";
 import MemberInfoCard from "@/Components/Member/MemberInfoCard";
 import MemberInfoWorkshops from "@/Components/Member/MemberInfoWorkshops";
 
-export default function Show({ member }) {
+export default function Show({ member, workshops, groups, membershipPlans }) {
 
     return (
         <AuthenticatedLayout>
@@ -18,8 +18,13 @@ export default function Show({ member }) {
                 </h3>
                 <div className="space-y-6">
                     <MemberInfoCard memberData={member} />
-                    {/* TODO - update of the member workshops detail */}
-                    <MemberInfoWorkshops memberData={member} />
+                    
+                    <MemberInfoWorkshops
+                        memberData={member}
+                        workshops={workshops}
+                        groups={groups}
+                        membershipPlans={membershipPlans}
+                    />
                 </div>
             </div>
         </AuthenticatedLayout>

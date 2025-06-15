@@ -3,6 +3,7 @@
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\MemberGroupController;
 use App\Http\Controllers\MembershipController;
+use App\Http\Controllers\MemberWorkshopController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
@@ -29,6 +30,10 @@ Route::middleware('auth')->group(function () {
     Route::resource('members', MemberController::class);
     Route::resource('member-groups', MemberGroupController::class);
     Route::resource('memberships', MembershipController::class);
+
+    Route::patch('/members/{member}/workshops/{workshop}', 
+            [MemberWorkshopController::class, 'update'])
+            ->name('members.workshops.update');
 });
 
 require __DIR__.'/auth.php';
