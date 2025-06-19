@@ -24,6 +24,7 @@ class MemberResource extends JsonResource
             'workshopGroups' => $this->whenLoaded('workshopGroups', function () {
                 return $this->workshopGroups->map(fn($wGroup) => [
                     'id'              => $wGroup->id,
+                    'workshop_id'     => $wGroup->workshop_id, 
                     'member_group_id' => $wGroup->member_group_id, // from pivot table
                     'group'           => [
                         'id'   => $wGroup->group->id ?? null,
