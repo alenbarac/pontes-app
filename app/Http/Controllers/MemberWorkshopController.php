@@ -42,4 +42,25 @@ class MemberWorkshopController extends Controller
             ->route('members.show', $member)
             ->with('success', 'Workshop enrollment updated.');
     }
+
+    public function rollOut(Request $request, Member $member, Workshop $workshop)
+    {
+        $data = $request->validate([
+            'membership_end_date' => 'nullable|date',
+        ]);
+
+        // Default to today's date if termination_date is not provided.
+        $terminationDate = $data['membership_end_date'] ?? now()->format('Y-m-d');
+
+        // Call the rollOutFromWorkshop method on the Member model.
+        if ($member->rollOutFromWorkshop($workshop, $terminationDate)) {
+            return redirect()
+                ->route('members.show', $member)
+                ->with('success', 'Workshop enrollment terminated.');
+        }
+
+        return redirect()
+            ->route('members.show', $member)
+            ->with('error', 'Termination failed.');
+    }
 }

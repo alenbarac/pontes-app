@@ -49,6 +49,7 @@
         "apexcharts": "^4.1.0",
         "classnames": "^2.5.1",
         "clsx": "^2.1.1",
+        "date-fns": "^4.1.0",
         "flatpickr": "^4.6.13",
         "laravel-vite-plugin": "^1.0",
         "localforage": "^1.10.0",

@@ -31,6 +31,11 @@ Route::middleware('auth')->group(function () {
     Route::resource('member-groups', MemberGroupController::class);
     Route::resource('memberships', MembershipController::class);
 
+    Route::patch(
+        '/members/{member}/workshops/{workshop}/roll-out',
+        [MemberWorkshopController::class, 'rollOut']
+    )->name('members.workshops.rollout');
+
     Route::patch('/members/{member}/workshops/{workshop}', 
             [MemberWorkshopController::class, 'update'])
             ->name('members.workshops.update');

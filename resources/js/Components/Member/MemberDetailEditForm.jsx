@@ -8,9 +8,11 @@ import Button from "@/Components/ui/button/Button";
 import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/light.css";
 import { CalendarDaysIcon } from "@heroicons/react/24/outline";
+import Switch from "../form/switch/Switch";
 
 export default function MemberDetailEditForm({ member, closeModal }) {
     const { data, setData, put, processing, errors } = useForm({
+        is_active: member.is_active || false,
         first_name: member.first_name || "",
         last_name: member.last_name || "",
         date_of_birth: member.date_of_birth || "",
@@ -22,6 +24,7 @@ export default function MemberDetailEditForm({ member, closeModal }) {
 
 
     const handleSubmit = (e) => {
+        console.log("Submitting form with data:", data);
         e.preventDefault();
         
         put(route("members.update", member.id), {
@@ -45,6 +48,14 @@ export default function MemberDetailEditForm({ member, closeModal }) {
     return (
         <form onSubmit={handleSubmit}>
             <>
+                <div className="my-3">
+                    <Switch
+                        label="Aktivan član"
+                        checked={data.is_active}
+                        onChange={(checked) => setData("is_active", checked)}
+                    />
+                </div>
+
                 <div className="grid gap-6 sm:grid-cols-2 mb-4">
                     {/* First Name */}
                     <div>

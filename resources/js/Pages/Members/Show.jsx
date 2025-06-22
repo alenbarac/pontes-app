@@ -18,7 +18,7 @@ export default function Show({ member, workshops, groups, membershipPlans }) {
                 </h3>
                 <div className="space-y-6">
                     <MemberInfoCard memberData={member} />
-                    
+                    <h3 className="ml-2">Radionice</h3>
                     <MemberInfoWorkshops
                         memberData={member}
                         workshops={workshops}

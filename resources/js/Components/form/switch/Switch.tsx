@@ -1,26 +1,39 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface SwitchProps {
   label: string;
+  checked?: boolean; // Controlled value
   defaultChecked?: boolean;
   disabled?: boolean;
   onChange?: (checked: boolean) => void;
-  color?: "blue" | "gray"; // Added prop to toggle color theme
+  color?: "blue" | "gray"; // Toggle color theme
 }
 
 const Switch: React.FC<SwitchProps> = ({
   label,
+  checked,
   defaultChecked = false,
   disabled = false,
   onChange,
-  color = "blue", // Default to blue color
+  color = "blue",
 }) => {
-  const [isChecked, setIsChecked] = useState(defaultChecked);
+  const isControlled = checked !== undefined;
+  const [internalChecked, setInternalChecked] = useState(defaultChecked);
+  const effectiveChecked = isControlled ? checked! : internalChecked;
+
+  // Sync internal state with defaultChecked if not controlled.
+  useEffect(() => {
+    if (!isControlled) {
+      setInternalChecked(defaultChecked);
+    }
+  }, [defaultChecked, isControlled]);
 
   const handleToggle = () => {
     if (disabled) return;
-    const newCheckedState = !isChecked;
-    setIsChecked(newCheckedState);
+    const newCheckedState = !effectiveChecked;
+    if (!isControlled) {
+      setInternalChecked(newCheckedState);
+    }
     if (onChange) {
       onChange(newCheckedState);
     }
@@ -29,18 +42,18 @@ const Switch: React.FC<SwitchProps> = ({
   const switchColors =
     color === "blue"
       ? {
-          background: isChecked
-            ? "bg-brand-500 "
+          background: effectiveChecked
+            ? "bg-brand-500"
             : "bg-gray-200 dark:bg-white/10", // Blue version
-          knob: isChecked
+          knob: effectiveChecked
             ? "translate-x-full bg-white"
             : "translate-x-0 bg-white",
         }
       : {
-          background: isChecked
+          background: effectiveChecked
             ? "bg-gray-800 dark:bg-white/10"
             : "bg-gray-200 dark:bg-white/10", // Gray version
-          knob: isChecked
+          knob: effectiveChecked
             ? "translate-x-full bg-white"
             : "translate-x-0 bg-white",
         };
@@ -50,7 +63,7 @@ const Switch: React.FC<SwitchProps> = ({
       className={`flex cursor-pointer select-none items-center gap-3 text-sm font-medium ${
         disabled ? "text-gray-400" : "text-gray-700 dark:text-gray-400"
       }`}
-      onClick={handleToggle} // Toggle when the label itself is clicked
+      onClick={handleToggle} // Toggle when the label is clicked
     >
       <div className="relative">
         <div

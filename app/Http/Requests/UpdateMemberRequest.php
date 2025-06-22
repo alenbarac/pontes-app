@@ -29,6 +29,7 @@ class UpdateMemberRequest extends FormRequest
             'email' => 'required|email',
             'parent_contact' => 'nullable|string|max:20',
             'parent_email' => 'nullable|email|max:255',
+            'is_active'     => 'required|boolean',
         ];
     }
 }

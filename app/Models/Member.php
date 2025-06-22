@@ -52,4 +52,13 @@ class Member extends Model
     {
         return $this->hasMany(Invoice::class);
     }
+
+    /**
+     * Roll out a member from a specific workshop.
+     *
+     */
+    public function rollOutFromWorkshop(Workshop $workshop): bool
+    {
+        return (bool) $this->workshops()->detach($workshop->id);
+    }
 }

@@ -1,7 +1,12 @@
 import React, { useState } from "react";
+import { format } from "date-fns";
 import { useModal } from "@/hooks/useModal";
 import { Modal } from "../ui/modal";
 import MemberWorkshopEditForm from "./MemberWorkshopEditForm";
+import { PencilIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import Button from "@/ui/button/Button";
+import { router } from "@inertiajs/react";
+import toast from "react-hot-toast";
 
 const MemberInfoWorkshops = ({
     memberData,
@@ -10,11 +15,42 @@ const MemberInfoWorkshops = ({
     membershipPlans,
 }) => {
     const { isOpen, openModal, closeModal } = useModal();
+    const confirmModal = useModal();
     const [editingWorkshop, setEditingWorkshop] = useState(null);
+    const [workshopToTerminate, setWorkshopToTerminate] = useState(null);
 
     const handleEdit = (w) => {
         setEditingWorkshop(w);
         openModal();
+    };
+
+    const handleTerminate = (w) => {
+        setWorkshopToTerminate(w);
+        confirmModal.openModal();
+    };
+
+    const confirmTerminate = () => {
+        console.log("Terminating membership for workshop:", workshopToTerminate);
+        router.patch(
+            route("members.workshops.rollout", {
+                member: memberData.id,
+                workshop: workshopToTerminate.id,
+            }),
+            {
+                membership_end_date: new Date().toISOString().split("T")[0],
+            },
+            {
+                onSuccess: () => {
+                    confirmModal.closeModal();
+                    toast.success("član ispisan iz radionice");
+                    setWorkshopToTerminate(null);
+                    // Optionally, refresh data here if needed.
+                },
+                onError: () => {
+                    toast.error("Došlo je do pogreške prilikom ispisa.");
+                },
+            }
+        );
     };
 
     const handleClose = () => {
@@ -28,62 +64,70 @@ const MemberInfoWorkshops = ({
                 const currentGroup = memberData.workshopGroups[idx]?.group;
                 const plan = w.membership_plan;
                 return (
-                    <>
-                        <div
-                            key={w.id}
-                            className="p-5 border border-gray-200 rounded-2xl dark:border-gray-800 lg:p-6"
-                        >
-                            <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90 lg:mb-6">
-                                {w.name}
-                            </h4>
-                            <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-                                <div className="flex flex-col gap-2">
-                                    <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">
-                                        Grupa
-                                    </p>
-                                    <div className="text-sm font-medium text-gray-800 dark:text-white/90">{currentGroup?.name}</div>
+                    <div
+                        key={w.id}
+                        className="p-5 border border-gray-200 rounded-2xl dark:border-gray-800 lg:p-6"
+                    >
+                        <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90 lg:mb-6">
+                            {w.name}
+                        </h4>
+                        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+                            <div className="flex flex-col gap-2">
+                                <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">
+                                    Grupa
+                                </p>
+                                <div className="text-sm font-medium text-gray-800 dark:text-white/90">
+                                    {currentGroup?.name}
                                 </div>
+                            </div>
 
-                                <div className="flex flex-col gap-2">
-                                    <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">
-                                        Članarina
-                                    </p>
-                                    <div className="text-sm font-medium text-gray-800 dark:text-white/90">
-                                        {plan?.plan} ({plan?.total_fee} EUR)
-                                    </div>
+                            <div className="flex flex-col gap-2">
+                                <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">
+                                    Članarina
+                                </p>
+                                <div className="text-sm font-medium text-gray-800 dark:text-white/90">
+                                    {plan?.plan} ({plan?.total_fee} EUR)
                                 </div>
+                            </div>
 
-                                <div className="flex flex-col gap-2">
-                                    <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">
-                                        Dautum upisa
-                                    </p>
-                                    <div className="text-sm font-medium text-gray-800 dark:text-white/90">{plan?.start_date}</div>
+                            <div className="flex flex-col gap-2">
+                                <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">
+                                    Datum upisa
+                                </p>
+                                <div className="text-sm font-medium text-gray-800 dark:text-white/90">
+                                    {format(
+                                        new Date(plan?.start_date),
+                                        "dd.MM.yyyy.",
+                                    )}
                                 </div>
+                            </div>
 
-                                <button
+                            <div className="flex flex-col">
+                                <Button
                                     onClick={() => handleEdit(w)}
-                                    className="flex w-full items-center justify-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 hover:text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] dark:hover:text-gray-200 lg:inline-flex lg:w-auto"
+                                    variant="primary"
+                                    size="xs"
+                                    startIcon={
+                                        <PencilIcon className="h-4 w-4" />
+                                    }
+                                    className="mb-3"
                                 >
-                                    <svg
-                                        className="fill-current"
-                                        width="18"
-                                        height="18"
-                                        viewBox="0 0 18 18"
-                                        fill="none"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                    >
-                                        <path
-                                            fillRule="evenodd"
-                                            clipRule="evenodd"
-                                            d="M15.0911 2.78206C14.2125 1.90338 12.7878 1.90338 11.9092 2.78206L4.57524 10.116C4.26682 10.4244 4.0547 10.8158 3.96468 11.2426L3.31231 14.3352C3.25997 14.5833 3.33653 14.841 3.51583 15.0203C3.69512 15.1996 3.95286 15.2761 4.20096 15.2238L7.29355 14.5714C7.72031 14.4814 8.11172 14.2693 8.42013 13.9609L15.7541 6.62695C16.6327 5.74827 16.6327 4.32365 15.7541 3.44497L15.0911 2.78206ZM12.9698 3.84272C13.2627 3.54982 13.7376 3.54982 14.0305 3.84272L14.6934 4.50563C14.9863 4.79852 14.9863 5.2734 14.6934 5.56629L14.044 6.21573L12.3204 4.49215L12.9698 3.84272ZM11.2597 5.55281L5.6359 11.1766C5.53309 11.2794 5.46238 11.4099 5.43238 11.5522L5.01758 13.5185L6.98394 13.1037C7.1262 13.0737 7.25666 13.003 7.35947 12.9002L12.9833 7.27639L11.2597 5.55281Z"
-                                            fill=""
-                                        />
-                                    </svg>
                                     Uredi
-                                </button>
+                                </Button>
+
+                                <Button
+                                    onClick={() => handleTerminate(w)}
+                                    variant="outline"
+                                    size="xs"
+                                    startIcon={
+                                        <XMarkIcon className="h-4 w-4" />
+                                    }
+                                >
+                                    Ispis
+                                </Button>
                             </div>
                         </div>
-                    </>
+                    </div>
                 );
             })}
 
@@ -94,20 +138,82 @@ const MemberInfoWorkshops = ({
             >
                 {editingWorkshop && (
                     <div className="no-scrollbar relative w-full max-w-[700px] overflow-y-auto rounded-3xl bg-white p-4 dark:bg-gray-900 lg:p-11">
-                    <div className="px-2 pr-14">
-                        <h4 className="mb-2 text-2xl font-semibold text-gray-800 dark:text-white/90">
-                            Uredi upis
-                        </h4>
-                    <MemberWorkshopEditForm
-                        member={memberData}
-                        workshop={editingWorkshop}
-                        groups={groups[editingWorkshop.id] || []}
-                        plans={membershipPlans[editingWorkshop.id] || []}
-                        closeModal={handleClose}
-                    />
+                        <div className="px-2 pr-14">
+                            <h4 className="mb-2 text-2xl font-semibold text-gray-800 dark:text-white/90">
+                                Uredi upis
+                            </h4>
+                            <MemberWorkshopEditForm
+                                member={memberData}
+                                workshop={editingWorkshop}
+                                groups={groups[editingWorkshop.id] || []}
+                                plans={
+                                    membershipPlans[editingWorkshop.id] || []
+                                }
+                                closeModal={handleClose}
+                            />
+                        </div>
+                    </div>
+                )}
+            </Modal>
+
+            <Modal
+                isOpen={confirmModal.isOpen}
+                onClose={confirmModal.closeModal}
+                className="max-w-[600px] p-5 lg:p-10"
+            >
+                <div className="text-center">
+                    <div className="relative flex items-center justify-center z-1 mb-7">
+                        <svg
+                            className="fill-error-50 dark:fill-error-500/15"
+                            width="90"
+                            height="90"
+                            viewBox="0 0 90 90"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                        >
+                            <path
+                                d="M34.364 6.85053C38.6205 -2.28351 51.3795 -2.28351 55.636 6.85053C58.0129 11.951 63.5594 14.6722 68.9556 13.3853C78.6192 11.0807 86.5743 21.2433 82.2185 30.3287C79.7862 35.402 81.1561 41.5165 85.5082 45.0122C93.3019 51.2725 90.4628 63.9451 80.7747 66.1403C75.3648 67.3661 71.5265 72.2695 71.5572 77.9156C71.6123 88.0265 60.1169 93.6664 52.3918 87.3184C48.0781 83.7737 41.9219 83.7737 37.6082 87.3184C29.8831 93.6664 18.3877 88.0266 18.4428 77.9156C18.4735 72.2695 14.6352 67.3661 9.22531 66.1403C-0.462787 63.9451 -3.30193 51.2725 4.49185 45.0122C8.84391 41.5165 10.2138 35.402 7.78151 30.3287C3.42572 21.2433 11.3808 11.0807 21.0444 13.3853C26.4406 14.6722 31.9871 11.951 34.364 6.85053Z"
+                                fill=""
+                                fillOpacity=""
+                            />
+                        </svg>
+
+                        <span className="absolute -translate-x-1/2 -translate-y-1/2 left-1/2 top-1/2">
+                            <svg
+                                className="fill-error-600 dark:fill-error-500"
+                                width="38"
+                                height="38"
+                                viewBox="0 0 38 38"
+                                fill="none"
+                                xmlns="http://www.w3.org/2000/svg"
+                            >
+                                <path
+                                    fillRule="evenodd"
+                                    clipRule="evenodd"
+                                    d="M9.62684 11.7496C9.04105 11.1638 9.04105 10.2141 9.62684 9.6283C10.2126 9.04252 11.1624 9.04252 11.7482 9.6283L18.9985 16.8786L26.2485 9.62851C26.8343 9.04273 27.7841 9.04273 28.3699 9.62851C28.9556 10.2143 28.9556 11.164 28.3699 11.7498L21.1198 18.9999L28.3699 26.25C28.9556 26.8358 28.9556 27.7855 28.3699 28.3713C27.7841 28.9571 26.8343 28.9571 26.2485 28.3713L18.9985 21.1212L11.7482 28.3715C11.1624 28.9573 10.2126 28.9573 9.62684 28.3715C9.04105 27.7857 9.04105 26.836 9.62684 26.2502L16.8771 18.9999L9.62684 11.7496Z"
+                                    fill=""
+                                />
+                            </svg>
+                        </span>
+                    </div>
+
+                    <h4 className="mb-2 text-2xl font-semibold text-gray-800 dark:text-white/90 sm:text-title-sm">
+                        Ispis is radionice
+                    </h4>
+                    <p className="text-sm leading-6 text-gray-500 dark:text-gray-400">
+                        Jeste li sigurni da želite ispisati ovog člana iz radionice?
+                    </p>
+
+                    <div className="flex items-center justify-center w-full gap-3 mt-7">
+                        <Button
+                            onClick={confirmTerminate}
+                            variant="primary"
+                            size="sm"
+                        >
+                            Da, ispiši
+                        </Button>
                     </div>
                 </div>
-                )}
             </Modal>
         </div>
     );
