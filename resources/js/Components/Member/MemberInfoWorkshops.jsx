@@ -3,10 +3,11 @@ import { format } from "date-fns";
 import { useModal } from "@/hooks/useModal";
 import { Modal } from "../ui/modal";
 import MemberWorkshopEditForm from "./MemberWorkshopEditForm";
-import { PencilIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { PencilIcon, PlusIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import Button from "@/ui/button/Button";
 import { router } from "@inertiajs/react";
 import toast from "react-hot-toast";
+import MemberWorkshopAddForm from "./MemberWorkshopAddForm";
 
 const MemberInfoWorkshops = ({
     memberData,
@@ -17,9 +18,11 @@ const MemberInfoWorkshops = ({
     const { isOpen, openModal, closeModal } = useModal();
     const confirmModal = useModal();
     const [editingWorkshop, setEditingWorkshop] = useState(null);
+    const [isAdding, setIsAdding] = useState(false);
     const [workshopToTerminate, setWorkshopToTerminate] = useState(null);
 
     const handleEdit = (w) => {
+				setIsAdding(false);   
         setEditingWorkshop(w);
         openModal();
     };
@@ -30,15 +33,15 @@ const MemberInfoWorkshops = ({
     };
 
     const confirmTerminate = () => {
-        console.log("Terminating membership for workshop:", workshopToTerminate);
-        router.patch(
-            route("members.workshops.rollout", {
+        console.log(
+            "Terminating membership for workshop:",
+            workshopToTerminate,
+        );
+        router.delete(
+            route("members.workshops.destroy", {
                 member: memberData.id,
                 workshop: workshopToTerminate.id,
             }),
-            {
-                membership_end_date: new Date().toISOString().split("T")[0],
-            },
             {
                 onSuccess: () => {
                     confirmModal.closeModal();
@@ -49,17 +52,27 @@ const MemberInfoWorkshops = ({
                 onError: () => {
                     toast.error("Došlo je do pogreške prilikom ispisa.");
                 },
-            }
+            },
         );
     };
 
+    function handleAddWorkshop() {
+        setIsAdding(true);
+				setEditingWorkshop(null);
+        openModal();
+    }
+
     const handleClose = () => {
         setEditingWorkshop(null);
+				setIsAdding(false);
         closeModal();
     };
 
     return (
         <div className="space-y-6">
+            {memberData.workshops.length > 0 && (
+                <h3 className="ml-2">Radionice</h3>
+            )}
             {memberData.workshops.map((w, idx) => {
                 const currentGroup = memberData.workshopGroups[idx]?.group;
                 const plan = w.membership_plan;
@@ -136,24 +149,41 @@ const MemberInfoWorkshops = ({
                 onClose={handleClose}
                 className="max-w-[700px] m-4"
             >
-                {editingWorkshop && (
-                    <div className="no-scrollbar relative w-full max-w-[700px] overflow-y-auto rounded-3xl bg-white p-4 dark:bg-gray-900 lg:p-11">
-                        <div className="px-2 pr-14">
-                            <h4 className="mb-2 text-2xl font-semibold text-gray-800 dark:text-white/90">
-                                Uredi upis
-                            </h4>
-                            <MemberWorkshopEditForm
+                <div className="no-scrollbar relative w-full max-w-[700px] overflow-y-auto rounded-3xl bg-white p-4 dark:bg-gray-900 lg:p-11">
+                    {isAdding ? (
+                        <>
+                            <h5 className="mb-5 text-xl font-semibold text-gray-800 dark:text-white/90">
+                                Upis u radionicu
+                            </h5>
+                            <MemberWorkshopAddForm
                                 member={memberData}
-                                workshop={editingWorkshop}
-                                groups={groups[editingWorkshop.id] || []}
-                                plans={
-                                    membershipPlans[editingWorkshop.id] || []
-                                }
+                                workshops={workshops}
+                                groupsMap={groups}
+                                plansMap={membershipPlans}
                                 closeModal={handleClose}
                             />
-                        </div>
-                    </div>
-                )}
+                        </>
+                    ) : (
+                        editingWorkshop && (
+                            <>
+                                <h5 className="text-xl mb-5 font-semibold text-gray-800 dark:text-white/90">
+                                    Upis u radionicu
+                                </h5>
+
+                                <MemberWorkshopEditForm
+                                    member={memberData}
+                                    workshop={editingWorkshop}
+                                    groups={groups[editingWorkshop.id] || []}
+                                    plans={
+                                        membershipPlans[editingWorkshop.id] ||
+                                        []
+                                    }
+                                    closeModal={handleClose}
+                                />
+                            </>
+                        )
+                    )}
+                </div>
             </Modal>
 
             <Modal
@@ -201,7 +231,8 @@ const MemberInfoWorkshops = ({
                         Ispis is radionice
                     </h4>
                     <p className="text-sm leading-6 text-gray-500 dark:text-gray-400">
-                        Jeste li sigurni da želite ispisati ovog člana iz radionice?
+                        Jeste li sigurni da želite ispisati ovog člana iz
+                        radionice?
                     </p>
 
                     <div className="flex items-center justify-center w-full gap-3 mt-7">
@@ -215,6 +246,16 @@ const MemberInfoWorkshops = ({
                     </div>
                 </div>
             </Modal>
+            <div className="flex justify-end">
+                <Button
+                    onClick={handleAddWorkshop}
+                    variant="outline"
+                    size="sm"
+                    startIcon={<PlusIcon className="h-4 w-4" />}
+                >
+                    Upis u radionicu
+                </Button>
+            </div>
         </div>
     );
 };

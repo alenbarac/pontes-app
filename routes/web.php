@@ -31,14 +31,18 @@ Route::middleware('auth')->group(function () {
     Route::resource('member-groups', MemberGroupController::class);
     Route::resource('memberships', MembershipController::class);
 
-    Route::patch(
-        '/members/{member}/workshops/{workshop}/roll-out',
-        [MemberWorkshopController::class, 'rollOut']
-    )->name('members.workshops.rollout');
+    Route::post('/members/{member}/workshops',[MemberWorkshopController::class,'store'])
+                ->name('members.workshops.store');
 
-    Route::patch('/members/{member}/workshops/{workshop}', 
-            [MemberWorkshopController::class, 'update'])
-            ->name('members.workshops.update');
+    Route::patch('/members/{member}/workshops/{workshop}', [MemberWorkshopController::class, 'update'])
+                ->name('members.workshops.update');
+
+     Route::delete('/members/{member}/workshops/{workshop}',[MemberWorkshopController::class, 'destroy'])
+                ->name('members.workshops.destroy');
+
+     Route::delete(
+        '/members/{member}/workshops',[MemberWorkshopController::class, 'destroyAll'])
+        ->name('members.workshops.destroyAll');
 });
 
 require __DIR__.'/auth.php';
