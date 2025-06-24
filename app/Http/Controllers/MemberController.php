@@ -12,6 +12,7 @@ use App\Models\MembershipPlan;
 use App\Models\MemberWorkshop;
 use App\Models\Workshop;
 use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
 
 class MemberController extends Controller
 {
@@ -160,9 +161,20 @@ class MemberController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Member $member)
+    public function destroy(Member $member): RedirectResponse
     {
+        // Detach all workshop pivots
+        $member->workshops()->detach();
+
+        // Delete all group assignments
+        MemberGroupWorkshop::where('member_id', $member->id)->delete();
+        // TODO: If you have other related models, delete them as well
+        // $member->invoices()->delete();
+        // $member->memberships()->delete();
+
+        // Finally delete the member record
         $member->delete();
-        return redirect()->route('members.index')->with('success', 'Member deleted successfully.');
+
+        return redirect()->route('members.index')->with('success', 'Član i svi povezani podaci su obrisani.');
     }
 }

@@ -1,5 +1,6 @@
 import { Cog8ToothIcon, IdentificationIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { Link, router } from "@inertiajs/react";
+import Badge from "@/Components/ui/badge/Badge";
 
 export const groupColorMap = {
     "Juniori 1": "bg-error-200 text-dark",
@@ -12,9 +13,6 @@ export const groupColorMap = {
     "Mini 1": "bg-error-300 text-dark",
     "Mini 2": "bg-success-200 text-dark",
 };
-
-
-
 
 export const columns = [
     {
@@ -54,22 +52,17 @@ export const columns = [
         header: "Grupe",
         accessorKey: "workshopGroups",
         cell: (info) => {
-            console.log(info.getValue());
             const groups = info.getValue() || [];
-           
             return (
                 <div className="flex flex-wrap gap-1">
-                    {groups.map((group) => {
-                        console.log(group.group.name);
-                        return (
-                            <span
-                                key={group.id}
-                                className={`px-2 text-xs py-1 rounded ${groupColorMap[group.group.name]}`}
-                            >
-                                {group.group.name}
-                            </span>
-                        );
-                    })}
+                    {groups.map((group) => (
+                        <span
+                            key={group.id}
+                            className={`px-2 text-xs py-1 rounded ${groupColorMap[group.group.name]}`}
+                        >
+                            {group.group.name}
+                        </span>
+                    ))}
                 </div>
             );
         },
@@ -90,6 +83,18 @@ export const columns = [
                         </div>
                     ))}
                 </div>
+            );
+        },
+    },
+    {
+        header: "Status",
+        accessorKey: "is_active",
+        cell: (info) => {
+            const isActive = info.getValue();
+            return (
+                <Badge variant="light" color={isActive ? "success" : "error"} size="sm">
+                    {isActive ? "Aktivan" : "Neaktivan"}
+                </Badge>
             );
         },
     },

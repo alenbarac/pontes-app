@@ -33,10 +33,6 @@ const MemberInfoWorkshops = ({
     };
 
     const confirmTerminate = () => {
-        console.log(
-            "Terminating membership for workshop:",
-            workshopToTerminate,
-        );
         router.delete(
             route("members.workshops.destroy", {
                 member: memberData.id,
