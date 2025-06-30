@@ -4,6 +4,7 @@ use App\Http\Controllers\MemberController;
 use App\Http\Controllers\MemberGroupController;
 use App\Http\Controllers\MembershipController;
 use App\Http\Controllers\MemberWorkshopController;
+use App\Http\Controllers\MemberImportController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
@@ -23,9 +24,12 @@ Route::get('/dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
+
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+     Route::get('/members/import', [MemberImportController::class, 'index']);
 
     Route::resource('members', MemberController::class);
     Route::resource('member-groups', MemberGroupController::class);
@@ -43,6 +47,11 @@ Route::middleware('auth')->group(function () {
      Route::delete(
         '/members/{member}/workshops',[MemberWorkshopController::class, 'destroyAll'])
         ->name('members.workshops.destroyAll');
+
+   
+   
+   
+
 });
 
 require __DIR__.'/auth.php';

@@ -14,7 +14,11 @@ class MemberGroupController extends Controller
      */
     public function index()
     {
-        $groups = MemberGroup::with('members')->paginate(10);
+        $groups = MemberGroup::with('workshop')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+           /* dd(MemberGroupResource::collection($groups)); */
 
         return inertia('MemberGroups/Index', [
             'groups' => MemberGroupResource::collection($groups),
