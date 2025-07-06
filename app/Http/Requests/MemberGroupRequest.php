@@ -11,7 +11,7 @@ class MemberGroupRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
     /**
@@ -24,6 +24,7 @@ class MemberGroupRequest extends FormRequest
         return [
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'workshop_id' => 'required|exists:workshops,id',
         ];
     }
 }

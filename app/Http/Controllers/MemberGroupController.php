@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\MemberGroupRequest;
 use App\Http\Resources\MemberGroupResource;
 use App\Models\MemberGroup;
+use App\Models\Workshop;
 use Illuminate\Http\Request;
 
 class MemberGroupController extends Controller
@@ -14,11 +15,7 @@ class MemberGroupController extends Controller
      */
     public function index()
     {
-        $groups = MemberGroup::with('workshop')
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-           /* dd(MemberGroupResource::collection($groups)); */
+        $groups = MemberGroup::withCount('members')->paginate(10);
 
         return inertia('MemberGroups/Index', [
             'groups' => MemberGroupResource::collection($groups),
@@ -26,14 +23,40 @@ class MemberGroupController extends Controller
     }
 
     /**
+     * Show the form for creating a new resource.
+     */
+    public function create()
+    {
+        $workshops = Workshop::select('id', 'name')->get();
+        return inertia('MemberGroups/Create', [
+            'workshops' => $workshops,
+        ]);
+    }
+
+    /**
      * Store a newly created resource in storage.
      */
-    public function store(MemberGroupRequest $request)
-    {
-        MemberGroup::create($request->validated());
+   public function store(MemberGroupRequest $request)
+{
+    // 1. Create the group
+    $group = MemberGroup::create([
+        'name' => $request->input('name'),
+        'description' => $request->input('description'),
+    ]);
 
-        return redirect()->route('member-groups.index')->with('success', 'Group created successfully.');
-    }
+    // 2. Associate with a workshop via pivot table
+    \DB::table('workshop_groups')->insert([
+        'workshop_id' => $request->input('workshop_id'),
+        'member_group_id' => $group->id,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    return redirect()
+        ->route('member-groups.index')
+        ->with('success', 'Grupa uspješno kreirana i povezana s radionicom.');
+}
+
 
     /**
      * Display the specified resource.

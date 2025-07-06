@@ -12,6 +12,7 @@ class MemberGroup extends Model
     protected $fillable = [
         'name',
         'description',
+        'workshop_id'
     ];
 
     /**
@@ -28,5 +29,17 @@ class MemberGroup extends Model
     public function memberGroups()
     {
         return $this->hasMany(MemberGroupWorkshop::class);
+    }
+
+    public function members()
+    {
+        return $this->hasManyThrough(
+            Member::class,
+            MemberGroupWorkshop::class,
+            'member_group_id', // Foreign key on MemberGroupWorkshop
+            'id',              // Local key on Member
+            'id',              // Local key on MemberGroup
+            'member_id'        // Foreign key on MemberGroupWorkshop
+        );
     }
 }

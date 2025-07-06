@@ -22,7 +22,7 @@ const MemberInfoWorkshops = ({
     const [workshopToTerminate, setWorkshopToTerminate] = useState(null);
 
     const handleEdit = (w) => {
-				setIsAdding(false);   
+		setIsAdding(false);   
         setEditingWorkshop(w);
         openModal();
     };

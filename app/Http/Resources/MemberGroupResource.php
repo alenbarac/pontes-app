@@ -18,6 +18,7 @@ class MemberGroupResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'description' => $this->description ?? '',
+            'members_count' => $this->members_count,
             'created_at' => $this->created_at->toDateString(),
             'updated_at' => $this->updated_at->toDateString(),
         ];
