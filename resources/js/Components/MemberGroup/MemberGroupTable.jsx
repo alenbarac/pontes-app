@@ -6,21 +6,33 @@ import {
     TableCell,
     TableBody,
 } from "@/Components/ui/table"; // Adjust if your Table components come from another library
-import { Cog8ToothIcon, EyeIcon, TrashIcon } from "@heroicons/react/24/outline";
+import { ChevronLeftIcon, ChevronRightIcon, Cog8ToothIcon, EyeIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { useModal } from "@/hooks/useModal";
-import { router } from "@inertiajs/react";
+import { Link, router } from "@inertiajs/react";
 import { Modal } from "../ui/modal";
 import Button from "@/ui/button/Button";
 import MemberGroupEditForm from "./MemberGroupEditForm";
 import toast from "react-hot-toast";
 
-export default function MemberGroupTable({ groups }) {
+export default function MemberGroupTable({ groups, workshops }) {
   const { data } = groups;
 
     const { isOpen, openModal, closeModal } = useModal();
       const confirmModal = useModal();
       const [editingGroup, setEditingGroup] = useState(null);
       const [groupToTerminate, setGroupToTerminate] = useState(null);
+
+      const pagination = groups?.meta ?? {};
+
+       const handlePageChange = (page) => {
+           if (page !== pagination.current_page) {
+               router.get(
+                   route("member-groups.index"),
+                   { page },
+                   { preserveScroll: true },
+               );
+           }
+       };
 
       const handleEdit = (g) => {
           setEditingGroup(g);
@@ -54,7 +66,7 @@ export default function MemberGroupTable({ groups }) {
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
             <div className="max-w-full overflow-x-auto">
                 <Table>
-                    <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
+                    <TableHeader className="border-b border-gray-200 dark:border-white/[0.05] bg-gray-50">
                         <TableRow>
                             <TableCell
                                 isHeader
@@ -78,6 +90,12 @@ export default function MemberGroupTable({ groups }) {
                                 isHeader
                                 className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
                             >
+                                Radionica
+                            </TableCell>
+                            <TableCell
+                                isHeader
+                                className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                            >
                                 Akcije
                             </TableCell>
                         </TableRow>
@@ -94,6 +112,9 @@ export default function MemberGroupTable({ groups }) {
                                 </TableCell>
                                 <TableCell className="px-5 py-4 text-start text-theme-sm text-gray-500 dark:text-gray-400">
                                     {group.members_count}
+                                </TableCell>
+                                <TableCell className="px-5 py-4 text-start text-theme-sm text-gray-500 dark:text-gray-400">
+                                    {group.workshop?.name ?? "—"}
                                 </TableCell>
                                 <TableCell className="px-5 py-4 text-start">
                                     <div className="flex gap-2">
@@ -118,6 +139,56 @@ export default function MemberGroupTable({ groups }) {
                     </TableBody>
                 </Table>
             </div>
+            {/* Pagination */}
+            <div className="flex items-center justify-between gap-2 px-6 py-4 sm:justify-normal">
+                {/* Previous Button */}
+                <button
+                    onClick={() =>
+                        handlePageChange(pagination.current_page - 1)
+                    }
+                    disabled={pagination.current_page === 1}
+                    className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white p-2 sm:p-2.5 text-gray-700 shadow-theme-xs hover:bg-gray-50 hover:text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] dark:hover:text-gray-200"
+                >
+                    <ChevronLeftIcon className="h-4 w-4" />
+                </button>
+
+                {/* Page Summary for small screens */}
+                <span className="block text-sm font-medium text-gray-700 dark:text-gray-400 sm:hidden">
+                    Page {pagination.current_page} of {pagination.last_page}
+                </span>
+
+                {/* Page Numbers */}
+                <ul className="hidden items-center gap-0.5 sm:flex">
+                    {Array.from(
+                        { length: pagination.last_page },
+                        (_, i) => i + 1,
+                    ).map((page) => (
+                        <li key={page}>
+                            <button
+                                onClick={() => handlePageChange(page)}
+                                className={`flex items-center justify-center w-10 h-10 text-sm font-medium rounded-lg ${
+                                    pagination.current_page === page
+                                        ? "bg-brand-500 text-white"
+                                        : "bg-white text-gray-700 hover:bg-brand-500 hover:text-white dark:text-gray-400 dark:hover:text-white"
+                                }`}
+                            >
+                                {page}
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+
+                {/* Next Button */}
+                <button
+                    onClick={() =>
+                        handlePageChange(pagination.current_page + 1)
+                    }
+                    disabled={pagination.current_page === pagination.last_page}
+                    className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white p-2 sm:p-2.5 text-gray-700 shadow-theme-xs hover:bg-gray-50 hover:text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] dark:hover:text-gray-200"
+                >
+                    <ChevronRightIcon className="h-4 w-4" />
+                </button>
+            </div>
             <Modal
                 isOpen={isOpen}
                 onClose={handleClose}
@@ -132,6 +203,7 @@ export default function MemberGroupTable({ groups }) {
 
                             <MemberGroupEditForm
                                 group={editingGroup}
+																workshops={workshops}
                                 onClose={handleClose}
                             />
                         </>

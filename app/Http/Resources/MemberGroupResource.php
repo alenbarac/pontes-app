@@ -21,6 +21,12 @@ class MemberGroupResource extends JsonResource
             'members_count' => $this->members_count,
             'created_at' => $this->created_at->toDateString(),
             'updated_at' => $this->updated_at->toDateString(),
+            'workshop' => $this->whenLoaded('assignedWorkshop', function () {
+            return [
+                'id' => $this->assignedWorkshop->id,
+                'name' => $this->assignedWorkshop->name,
+                ];
+        }),
         ];
     }
 }

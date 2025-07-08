@@ -5,10 +5,12 @@ import Label from "../form/Label";
 import Input from "../form/input/InputField";
 import toast from "react-hot-toast";
 
-export default function MemberGroupEditForm({ group, onClose }) {
+export default function MemberGroupEditForm({ group, workshops, onClose }) {
+    console.log("Editing group:", group);
   const { data, setData, put, processing, errors } = useForm({
     name: group.name || "",
     description: group.description || "",
+    workshop_id: group.workshop_id || "",
   });
 
 
@@ -55,6 +57,18 @@ export default function MemberGroupEditForm({ group, onClose }) {
               {errors.description && (
                   <p className="text-red-500 text-sm">{errors.description}</p>
               )}
+          </div>
+
+          <div>
+              <Label htmlFor="name">Radionica</Label>
+              <Input
+                  type="text"
+                  id="worksop_id"
+                  placeholder="Unesite naziv grupe"
+                  value={group.workshop?.name || ""}
+                  disabled
+              />
+              
           </div>
 
           <div className="flex justify-end">

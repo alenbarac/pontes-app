@@ -1,5 +1,5 @@
 import React from "react";
-import { Head, Link } from "@inertiajs/react";
+import { Head, Link, router } from "@inertiajs/react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import Breadcrumb from "@/Components/Breadcrumb";
 import ComponentCard from "@/Components/common/ComponentCard";
@@ -8,11 +8,23 @@ import { Modal } from "@/Components/ui/modal";
 import { useModal } from "@/hooks/useModal";
 import Button from "@/Components/ui/button/Button";
 import MemberGroupCreateForm from "@/Components/MemberGroup/MemberGroupAddForm";
+import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 
-export default function Index({ groups }) {
-
+export default function Index({ groups, workshops }) {
     const createModal = useModal();
-    
+
+    const pagination = groups.meta;
+
+    const handlePageChange = (page) => {
+        if (page !== pagination.current_page) {
+            router.get(
+                route("member-groups.index"),
+                { page },
+                { preserveScroll: true },
+            );
+        }
+    };
+
     return (
         <AuthenticatedLayout>
             <Head title="Grupe" />
@@ -28,8 +40,9 @@ export default function Index({ groups }) {
                     </Button>
                 }
             >
-                <MemberGroupTable groups={groups} />
+                <MemberGroupTable groups={groups} workshops={workshops} />
             </ComponentCard>
+
             <Modal
                 isOpen={createModal.isOpen}
                 onClose={createModal.closeModal}
@@ -39,7 +52,10 @@ export default function Index({ groups }) {
                     <h5 className="text-xl mb-5 font-semibold text-gray-800 dark:text-white/90">
                         Nova grupa
                     </h5>
-                    <MemberGroupCreateForm onClose={createModal.closeModal} />
+                    <MemberGroupCreateForm
+                        onClose={createModal.closeModal}
+                        workshops={workshops}
+                    />
                 </div>
             </Modal>
         </AuthenticatedLayout>

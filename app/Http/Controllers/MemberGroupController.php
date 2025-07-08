@@ -14,13 +14,18 @@ class MemberGroupController extends Controller
      * Display a listing of the resource.
      */
     public function index()
-    {
-        $groups = MemberGroup::withCount('members')->paginate(10);
+{
+    $workshops = Workshop::select('id', 'name')->get();
 
-        return inertia('MemberGroups/Index', [
-            'groups' => MemberGroupResource::collection($groups),
-        ]);
-    }
+    $groups = MemberGroup::withCount('members')
+                ->with('assignedWorkshop')
+                ->paginate(10);
+
+    return inertia('MemberGroups/Index', [
+        'groups' => MemberGroupResource::collection($groups),
+        'workshops' => $workshops,
+    ]);
+}
 
     /**
      * Show the form for creating a new resource.

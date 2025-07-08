@@ -5,6 +5,7 @@ import {
     UsersIcon,
     ChevronDownIcon,
     SquaresPlusIcon,
+    DocumentArrowUpIcon,
 } from "@heroicons/react/24/outline";
 import { useSidebar } from "@/context/SidebarContext";
 
@@ -28,7 +29,6 @@ const navItems: NavItem[] = [
         subItems: [
             { name: "Popis članova", path: "/members" },
             { name: "Novi upis", path: "/members/create" },
-            { name: "Uvoz članova", path: "/members/import" },
         ],
     },
     {
@@ -37,7 +37,15 @@ const navItems: NavItem[] = [
         subItems: [
             { name: "Popis grupa", path: "/member-groups" },
             { name: "Nova grupa", path: "/member-groups/create" },
-            { name: "Uvoz grupa", path: "/member-groups/import" },
+        ],
+    },
+
+    {
+        icon: <DocumentArrowUpIcon className="w-5 h-5" />,
+        name: "Uvoz podataka",
+        subItems: [
+            { name: "Uvoz članova", path: "/members/import" },
+            { name: "Uvoz grupa", path: "/member-groups/create" },
         ],
     },
 ];

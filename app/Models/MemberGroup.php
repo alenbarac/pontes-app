@@ -42,4 +42,16 @@ class MemberGroup extends Model
             'member_id'        // Foreign key on MemberGroupWorkshop
         );
     }
+
+    public function assignedWorkshop()
+{
+    return $this->hasOneThrough(
+        Workshop::class,
+        WorkshopGroup::class,
+        'member_group_id', // FK on workshop_groups
+        'id',              // PK on workshops
+        'id',              // PK on member_groups
+        'workshop_id'      // FK on workshop_groups
+    );
+}
 }
