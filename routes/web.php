@@ -6,6 +6,7 @@ use App\Http\Controllers\MembershipController;
 use App\Http\Controllers\MemberWorkshopController;
 use App\Http\Controllers\MemberImportController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\InvoiceController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -48,10 +49,7 @@ Route::middleware('auth')->group(function () {
         '/members/{member}/workshops',[MemberWorkshopController::class, 'destroyAll'])
         ->name('members.workshops.destroyAll');
 
-   
-   
-   
-
+    Route::resource('invoices', InvoiceController::class);
 });
 
 require __DIR__.'/auth.php';

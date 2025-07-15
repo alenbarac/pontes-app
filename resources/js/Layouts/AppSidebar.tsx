@@ -6,6 +6,7 @@ import {
     ChevronDownIcon,
     SquaresPlusIcon,
     DocumentArrowUpIcon,
+    DocumentCurrencyEuroIcon,
 } from "@heroicons/react/24/outline";
 import { useSidebar } from "@/context/SidebarContext";
 
@@ -38,6 +39,12 @@ const navItems: NavItem[] = [
             { name: "Popis grupa", path: "/member-groups" },
             { name: "Nova grupa", path: "/member-groups/create" },
         ],
+    },
+
+    {
+        icon: <DocumentCurrencyEuroIcon className="w-5 h-5" />,
+        name: "Članarine",
+        path: "/invoices",
     },
 
     {

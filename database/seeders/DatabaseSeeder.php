@@ -29,6 +29,7 @@ class DatabaseSeeder extends Seeder
             WorkshopGroupSeeder::class, 
             MembershipPlanSeeder::class,
             MemberSeeder::class,
+            InvoiceSeeder::class,
         ]);
     }
 }

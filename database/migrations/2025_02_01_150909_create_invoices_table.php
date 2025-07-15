@@ -19,6 +19,8 @@ return new class extends Migration {
             $table->decimal('amount_paid', 8, 2)->default(0.00); // Amount already paid
             $table->date('due_date'); // Invoice due date
             $table->string('payment_status')->default('Pending'); // Status: Pending, Paid, Overdue
+            $table->string('reference_code')->unique(); // Unique invoice number
+            $table->text('notes')->nullable(); // Additional notes for the invoice
             $table->timestamps();
 
             // Foreign key constraints
