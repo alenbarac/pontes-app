@@ -61,6 +61,7 @@ class MemberController extends Controller
             ],
             'filters' => $request->only(['filter', 'per_page']),
         ]);
+
     }
 
 

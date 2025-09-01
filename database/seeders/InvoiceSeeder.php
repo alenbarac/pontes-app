@@ -44,7 +44,7 @@ class InvoiceSeeder extends Seeder
                     'amount_due' => $plan->fee,
                     'amount_paid' => 0,
                     'due_date' => $dueDate->toDateString(),
-                    'payment_status' => 'Pending',
+                    'payment_status' => 'Otvoreno',
                     'reference_code' => $referenceCode,
                     'notes' => 'Članarina za ' . $dueDate->format('m/Y'),
                 ]);

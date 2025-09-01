@@ -5,9 +5,9 @@ import {
     flexRender,
 } from "@tanstack/react-table";
 import { router } from "@inertiajs/react";
-import { EyeIcon } from "@heroicons/react/24/outline";
+import InvoiceActionsDropdown from "./InvoiceActionColumn";
 
-const InvoiceDataTable = ({
+const InvoicesDataTable = ({
     data,
     pagination,
     pageSizeOptions = [10, 20, 50],
@@ -52,9 +52,9 @@ const InvoiceDataTable = ({
                     return (
                         <span
                             className={`inline-block px-2 py-1 text-xs rounded ${
-                                status === "Paid"
+                                status === "Plaćeno"
                                     ? "bg-green-100 text-green-800"
-                                    : status === "Overdue"
+                                    : status === "Opomeni"
                                       ? "bg-red-100 text-red-800"
                                       : "bg-yellow-100 text-yellow-800"
                             }`}
@@ -68,17 +68,10 @@ const InvoiceDataTable = ({
                 accessorKey: "actions",
                 header: "",
                 cell: ({ row }) => (
-                    <div className="flex items-center space-x-2">
-                        <button
-                            className="hover:text-blue-700"
-                            onClick={() => {
-                                // Placeholder for future view/download
-                                console.log("View invoice", row.original.id);
-                            }}
-                        >
-                            <EyeIcon className="h-5 w-5" />
-                        </button>
-                    </div>
+                    <InvoiceActionsDropdown
+                        invoiceId={row.original.id}
+                        isPaid={row.original.payment_status === "Plaćeno"}
+                    />
                 ),
             },
         ],
@@ -231,4 +224,4 @@ const InvoiceDataTable = ({
     );
 };
 
-export default InvoiceDataTable;
+export default InvoicesDataTable;

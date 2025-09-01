@@ -43,4 +43,48 @@ class InvoiceController extends Controller
         'filter' => $filter,
     ]);
 }
+public function updateStatus(Request $request, Invoice $invoice)
+{
+    $validated = $request->validate([
+        'status' => ['required', 'in:Plaćeno,Otvoreno'],
+    ]);
+
+    $status = $validated['status'];
+
+    if ($status === 'Plaćeno') {
+        // If you hit this endpoint instead of markPaid, set amount_paid to full
+        $invoice->amount_paid = $invoice->amount_due;
+    } else { // Otvoreno
+        $invoice->amount_paid = 0;
+    }
+    
+    $invoice->payment_status = $status;
+    $invoice->save();
+
+    return redirect()->route('invoices.index')->with('success', 'Status uspješno promijenjen.');
+}
+
+
+// app/Http/Controllers/InvoiceController.php
+
+public function markAsPaid(Request $request, Invoice $invoice)
+{
+    if ($invoice->payment_status === 'Plaćeno') {
+        return redirect()->route('invoices.index')->with('info', 'Račun je već plaćen.');
+    }
+
+    // Optional: allow override amount; by default pay in full
+    $validated = $request->validate([
+        'amount_paid' => ['nullable', 'numeric', 'min:0'],
+    ]);
+
+    $invoice->amount_paid    = $validated['amount_paid'] ?? $invoice->amount_due;
+    $invoice->payment_status = 'Plaćeno';
+    $invoice->save();
+
+    return redirect()->route('invoices.index')->with('success', 'Račun označen kao plaćen.');
+}
+
+
+
 }

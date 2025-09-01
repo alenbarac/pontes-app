@@ -50,6 +50,9 @@ Route::middleware('auth')->group(function () {
         ->name('members.workshops.destroyAll');
 
     Route::resource('invoices', InvoiceController::class);
+    Route::patch('/invoices/{invoice}/status', [InvoiceController::class, 'updateStatus'])->name('invoices.updateStatus');
+    Route::patch('/invoices/{invoice}/mark-paid', [InvoiceController::class, 'markAsPaid'])->name('invoices.markPaid');
+
 });
 
 require __DIR__.'/auth.php';
