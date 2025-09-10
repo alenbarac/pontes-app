@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Invoice;
 use Inertia\Inertia;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Str;
 
 class InvoiceController extends Controller
 {
@@ -57,7 +59,7 @@ public function updateStatus(Request $request, Invoice $invoice)
     } else { // Otvoreno
         $invoice->amount_paid = 0;
     }
-    
+
     $invoice->payment_status = $status;
     $invoice->save();
 
@@ -83,6 +85,46 @@ public function markAsPaid(Request $request, Invoice $invoice)
     $invoice->save();
 
     return redirect()->route('invoices.index')->with('success', 'Račun označen kao plaćen.');
+}
+
+public function slip(Invoice $invoice)
+{
+    $invoice->load(['member', 'workshop', 'membershipPlan']);
+
+    // Fallbacks so the template never breaks
+    $memberFullName = trim(($invoice->member->first_name ?? '') . ' ' . ($invoice->member->last_name ?? ''));
+    $memberAddress  = trim($invoice->member->address ?? '');
+    $notes          = $invoice->notes ?? 'Članarina';
+
+    $org = config('pontes');
+
+    // Amount formatted with comma decimals (HR)
+    $amount = number_format((float)$invoice->amount_due, 2, ',', '.');
+
+    $data = [
+        'bgPath'         => public_path('images/uplatnica.jpg'),
+        'member_name'    => $memberFullName,
+        'member_address' => $memberAddress,
+        'amount'         => $amount,
+        'currency'       => $org['currency'],
+        'due_date'       => \Carbon\Carbon::parse($invoice->due_date)->format('d.m.Y.'),
+        'reference'      => $invoice->reference_code,
+        'description'    => $notes,
+        'recipient_name'    => $org['recipient_name'],
+        'recipient_address' => $org['recipient_address'],
+        'recipient_iban'    => $org['recipient_iban'],
+        'model'            => $org['model'], // e.g. HR00
+        'status'           => $invoice->payment_status, // if you want to print status badge
+    ];
+
+    // Dompdf options: Unicode, images
+    $pdf = Pdf::loadView('invoices.slip', $data)
+        ->setPaper('a4', 'portrait');
+
+    $file = $invoice->reference_code . '.pdf';
+
+    // Stream in a new tab (nice for printing); change to download() if you prefer attachment
+    return $pdf->stream($file);
 }
 
 

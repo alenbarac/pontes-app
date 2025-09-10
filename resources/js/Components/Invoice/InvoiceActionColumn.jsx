@@ -60,6 +60,15 @@
                     >
                         Otvoreno
                     </DropdownItem>
+                    <a
+                        href={route("invoices.slip", invoiceId)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block w-full text-left px-3 py-2 hover:bg-gray-50 rounded"
+                        onClick={closeDropdown}
+                    >
+                        Uplatnica (PDF)
+                    </a>
                 </Dropdown>
             </div>
         );
