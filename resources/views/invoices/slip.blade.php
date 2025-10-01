@@ -17,12 +17,12 @@
     object-fit: cover;
     opacity: 1;
   }
-  .f { position: absolute; font-size: 3.4mm; line-height: 1.2; color: #000; }
+  .f { position: absolute; font-size: 3mm; line-height: 1.2; color: #000; }
 
   /* Approximate placements – tweak to align with your template */
   /* Top row */
-  .valuta       { top: 7mm;  left: 150mm; width: 20mm; text-align: left; }
-  .iznos        { top: 7mm;  left: 170mm; width: 18mm; text-align: right; }
+  .valuta       { top: 6mm;  left: 163mm; width: 20mm; text-align: left; }
+  .iznos        { top: 6mm;  left: 150mm; width: 18mm; text-align: left; }
 
   /* Platitelj (payer) block - left side */
   .platitelj_ime     { top: 15mm; left: 8mm;  width: 90mm; }
@@ -32,18 +32,18 @@
   .poziv_platitelja  { top: 28mm; left: 55mm; width: 43mm; }
 
   /* Primatelj (recipient) block - left middle */
-  .primatelj_ime     { top: 35mm; left: 8mm;  width: 90mm; }
-  .primatelj_adresa  { top: 41mm; left: 8mm;  width: 90mm; }
+  .primatelj_ime     { top: 35mm; left: 6mm;  width: 90mm; font-size: 2.5mm; }
+  .primatelj_adresa  { top: 41mm; left: 6mm;  width: 90mm; font-size: 2.5mm; }
 
   /* IBAN primatelja */
-  .iban_primatelja   { top: 35mm; left: 106mm; width: 80mm; letter-spacing: 0.5mm; }
+  .iban_primatelja   { top: 24mm; left: 69mm; width: 80mm; letter-spacing: 0.5mm; }
 
   /* Model i poziv na broj primatelja */
-  .model             { top: 41mm; left: 106mm; width: 14mm; text-align: center; }
-  .poziv_primatelja  { top: 41mm; left: 122mm; width: 64mm; }
+  .model             { top: 31mm; left: 46mm; width: 14mm; text-align: center; }
+  .poziv_primatelja  { top: 31mm; left: 66mm; width: 64mm; }
 
   /* Opis plaćanja */
-  .opis              { top: 49mm; left: 8mm;  width: 178mm; }
+  .opis              { top: 39mm; left: 78mm;  width: 178mm; }
 
   /* Datum izvršenja (we’ll use due date) */
   .datum             { top: 56mm; left: 28mm; width: 26mm; text-align: center; }
@@ -55,8 +55,9 @@
   <div class="canvas">
     <img class="bg" src="file://{{ $bgPath }}" alt="uplatnica">
     {{-- Currency + Amount --}}
-    <div class="f valuta">{{ $currency }}</div>
     <div class="f iznos">{{ $amount }}</div>
+    <div class="f valuta">{{ $currency }}</div>
+    
 
     {{-- Payer (Platitelj) --}}
     <div class="f platitelj_ime">{{ $member_name }}</div>
