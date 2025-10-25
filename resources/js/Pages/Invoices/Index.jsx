@@ -5,7 +5,15 @@ import Breadcrumb from "@/Components/Breadcrumb";
 import ComponentCard from "@/Components/common/ComponentCard";
 import InvoiceDataTable from "@/Components/Invoice/InvoiceDataTable";
 
-export default function Index({ invoices, pagination, filter }) {
+export default function Index({ 
+    invoices, 
+    pagination, 
+    filter, 
+    workshopId, 
+    paymentStatus, 
+    workshops, 
+    paymentStatuses 
+}) {
     
     return (
         <AuthenticatedLayout>
@@ -25,7 +33,11 @@ export default function Index({ invoices, pagination, filter }) {
                 <InvoiceDataTable
                     data={invoices.data}
                     pagination={pagination}
-                    filter={filter}
+                    initialFilter={filter}
+                    initialWorkshopId={workshopId}
+                    initialPaymentStatus={paymentStatus}
+                    workshops={workshops}
+                    paymentStatuses={paymentStatuses}
                 />
             </ComponentCard>
         </AuthenticatedLayout>

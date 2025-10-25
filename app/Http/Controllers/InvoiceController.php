@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Invoice;
+use App\Models\Workshop;
 use Inertia\Inertia;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Str;
@@ -15,6 +16,8 @@ class InvoiceController extends Controller
 {
     $perPage = $request->get('per_page', 10);
     $filter = $request->get('filter', '');
+    $workshopId = $request->get('workshop_id', '');
+    $paymentStatus = $request->get('payment_status', '');
 
     $query = Invoice::with(['member', 'workshop', 'membershipPlan'])
         ->when($filter, function ($query, $filter) {
@@ -30,9 +33,21 @@ class InvoiceController extends Controller
                 ->orWhere('payment_status', 'like', "%$filter%");
             });
         })
+        ->when($workshopId, function ($query, $workshopId) {
+            $query->where('workshop_id', $workshopId);
+        })
+        ->when($paymentStatus, function ($query, $paymentStatus) {
+            $query->where('payment_status', $paymentStatus);
+        })
         ->orderByDesc('due_date');
 
     $invoices = $query->paginate($perPage)->withQueryString();
+
+    // Get all workshops for the filter dropdown
+    $workshops = Workshop::select('id', 'name')->orderBy('name')->get();
+
+    // Payment status options
+    $paymentStatuses = ['Otvoreno', 'Plaćeno', 'Opomeni'];
 
     return Inertia::render('Invoices/Index', [
         'invoices' => $invoices,
@@ -43,6 +58,10 @@ class InvoiceController extends Controller
             'last_page' => $invoices->lastPage(),
         ],
         'filter' => $filter,
+        'workshopId' => $workshopId,
+        'paymentStatus' => $paymentStatus,
+        'workshops' => $workshops,
+        'paymentStatuses' => $paymentStatuses,
     ]);
 }
 public function updateStatus(Request $request, Invoice $invoice)
@@ -65,9 +84,84 @@ public function updateStatus(Request $request, Invoice $invoice)
 
     return redirect()->route('invoices.index')->with('success', 'Status uspješno promijenjen.');
 }
+/**
+ * Bulk update status for many invoices (Otvoreno or Plaćeno)
+ */
+public function markBulkAsPaid(Request $request)
+{
+    $validated = $request->validate([
+        'invoice_ids' => ['required', 'array', 'min:1'],
+        'invoice_ids.*' => ['integer', 'exists:invoices,id'],
+    ]);
 
+    // Only update if not already marked as paid
+    $invoices = Invoice::whereIn('id', $validated['invoice_ids'])
+        ->where('payment_status', '!=', 'Plaćeno')
+        ->get();
 
-// app/Http/Controllers/InvoiceController.php
+    foreach ($invoices as $invoice) {
+        $invoice->amount_paid = $invoice->amount_due;
+        $invoice->payment_status = 'Plaćeno';
+        $invoice->save();
+    }
+
+    $updatedCount = $invoices->count();
+    $total = count($validated['invoice_ids']);
+
+    if ($updatedCount === 0) {
+        return redirect()->route('invoices.index')->with('info', 'Svi označeni računi su već bili plaćeni.');
+    }
+
+    return redirect()->route('invoices.index')
+        ->with('success', "Označeno kao plaćeno: {$updatedCount}/{$total} računa.");
+}
+
+/**
+ * Bulk toggle open/paid status for invoices
+ */
+public function toggleBulkInvoiceStatus(Request $request)
+{
+    $validated = $request->validate([
+        'invoice_ids' => ['required', 'array', 'min:1'],
+        'invoice_ids.*' => ['integer', 'exists:invoices,id'],
+        'status' => ['required', 'in:Plaćeno,Otvoreno'],
+    ]);
+
+    $status = $validated['status'];
+
+    $invoices = Invoice::whereIn('id', $validated['invoice_ids'])->get();
+
+    $updatedCount = 0;
+
+    foreach ($invoices as $invoice) {
+        if ($invoice->payment_status !== $status) {
+            if ($status === 'Plaćeno') {
+                $invoice->amount_paid = $invoice->amount_due;
+            } else { // Otvoreno
+                $invoice->amount_paid = 0;
+            }
+            $invoice->payment_status = $status;
+            $invoice->save();
+            $updatedCount++;
+        }
+    }
+
+    $total = count($validated['invoice_ids']);
+
+    if ($updatedCount === 0) {
+        return redirect()->route('invoices.index')->with(
+            'info',
+            $status === 'Plaćeno'
+                ? 'Svi označeni računi su već bili plaćeni.'
+                : 'Svi označeni računi su već bili otvoreni.'
+        );
+    }
+
+    $statusText = $status === 'Plaćeno' ? 'plaćenih' : 'otvorenih';
+
+    return redirect()->route('invoices.index')
+        ->with('success', "Ažurirano kao {$statusText}: {$updatedCount}/{$total} računa.");
+}
 
 public function markAsPaid(Request $request, Invoice $invoice)
 {
@@ -126,7 +220,5 @@ public function slip(Invoice $invoice)
     // Stream in a new tab (nice for printing); change to download() if you prefer attachment
     return $pdf->stream($file);
 }
-
-
 
 }
