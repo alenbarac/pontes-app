@@ -11,8 +11,10 @@ export default function Index({
     filter, 
     workshopId, 
     paymentStatus, 
+    groupId,
     workshops, 
-    paymentStatuses 
+    paymentStatuses,
+    groups,
 }) {
     
     return (
@@ -36,8 +38,10 @@ export default function Index({
                     initialFilter={filter}
                     initialWorkshopId={workshopId}
                     initialPaymentStatus={paymentStatus}
+                    initialGroupId={groupId}
                     workshops={workshops}
                     paymentStatuses={paymentStatuses}
+                    groups={groups}
                 />
             </ComponentCard>
         </AuthenticatedLayout>

@@ -8,8 +8,9 @@ import { router } from "@inertiajs/react";
 import InvoiceActionsDropdown from "./InvoiceActionColumn";
 import { Dropdown } from "@/ui/dropdown/Dropdown";
 import { DropdownItem } from "@/ui/dropdown/DropdownItem";
-import Modal from "@/Components/Modal";
+import { Modal } from "@/Components/ui/modal";
 import toast from "react-hot-toast";
+import Radio from "@/Components/form/input/Radio";
 
 const InvoicesDataTable = ({
     data,
@@ -17,15 +18,21 @@ const InvoicesDataTable = ({
     pageSizeOptions = [10, 20, 50],
     workshops = [],
     paymentStatuses = [],
+    groups = [],
     initialWorkshopId = "",
     initialPaymentStatus = "",
+    initialGroupId = "",
     initialFilter = "",
 }) => {
     const [globalFilter, setGlobalFilter] = useState(initialFilter);
     const [workshopId, setWorkshopId] = useState(initialWorkshopId);
     const [paymentStatus, setPaymentStatus] = useState(initialPaymentStatus);
+    const [groupId, setGroupId] = useState(initialGroupId);
     const [isWorkshopDropdownOpen, setIsWorkshopDropdownOpen] = useState(false);
     const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+    const [isGroupDropdownOpen, setIsGroupDropdownOpen] = useState(false);
+
+    console.log(data);
     
 
     // Bulk selection state, list of selected invoice IDs
@@ -34,6 +41,55 @@ const InvoicesDataTable = ({
     // Modal state for confirmation
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [pendingAction, setPendingAction] = useState(null); // 'Plaćeno' or 'Otvoreno'
+
+    // Per-invoice details modal state
+    const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+    const [activeInvoice, setActiveInvoice] = useState(null);
+    const [modalStatus, setModalStatus] = useState("");
+
+    const openInvoiceDetails = (invoice) => {
+        console.log(invoice);
+        setActiveInvoice(invoice);
+        setModalStatus(invoice?.payment_status || "");
+        setShowInvoiceModal(true);
+    };
+
+    const closeInvoiceDetails = () => {
+        setShowInvoiceModal(false);
+        setActiveInvoice(null);
+        setModalStatus("");
+    };
+
+    const saveInvoiceStatus = () => {
+        if (!activeInvoice || !modalStatus) return;
+        if (modalStatus === "Plaćeno") {
+            router.patch(
+                route("invoices.markPaid", activeInvoice.id),
+                {},
+                {
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        toast.success("Status računa promjenjen");
+                        closeInvoiceDetails();
+                    },
+                    onError: () => toast.error("Greška pri ažuriranju statusa"),
+                },
+            );
+        } else {
+            router.patch(
+                route("invoices.updateStatus", activeInvoice.id),
+                { status: "Otvoreno" },
+                {
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        toast.success("Status računa promjenjen");
+                        closeInvoiceDetails();
+                    },
+                    onError: () => toast.error("Greška pri ažuriranju statusa"),
+                },
+            );
+        }
+    };
 
     const columns = useMemo(
         () => [
@@ -90,8 +146,8 @@ const InvoicesDataTable = ({
                 header: "",
                 cell: ({ row }) => (
                     <InvoiceActionsDropdown
-                        invoiceId={row.original.id}
-                        isPaid={row.original.payment_status === "Plaćeno"}
+                        invoice={row.original}
+                        onOpenDetails={(invoice) => openInvoiceDetails(invoice)}
                     />
                 ),
             },
@@ -197,13 +253,14 @@ const InvoicesDataTable = ({
                     filter: globalFilter,
                     workshop_id: workshopId,
                     payment_status: paymentStatus,
+                    group_id: groupId,
                 },
                 { preserveState: true },
             );
         }, 500);
 
         return () => clearTimeout(timeout);
-    }, [globalFilter, workshopId, paymentStatus, pagination.current_page, pagination.per_page]);
+    }, [globalFilter, workshopId, paymentStatus, groupId, pagination.current_page, pagination.per_page]);
 
     const table = useReactTable({
         data,
@@ -221,6 +278,7 @@ const InvoicesDataTable = ({
             filter: globalFilter,
             workshop_id: workshopId,
             payment_status: paymentStatus,
+            group_id: groupId,
         });
     };
 
@@ -231,6 +289,7 @@ const InvoicesDataTable = ({
             filter: globalFilter,
             workshop_id: workshopId,
             payment_status: paymentStatus,
+            group_id: groupId,
         });
     };
 
@@ -240,7 +299,8 @@ const InvoicesDataTable = ({
             {selectedRows.length > 0 && (
                 <div className="flex items-center justify-between gap-3 bg-brand-50 border-b border-brand-100 px-4 py-3 dark:bg-brand-900/20 dark:border-brand-800">
                     <span className="text-sm font-medium text-brand-700 dark:text-brand-300">
-                        Označeno {selectedRows.length} {selectedRows.length === 1 ? 'račun' : 'računa'}
+                        Označeno {selectedRows.length}{" "}
+                        {selectedRows.length === 1 ? "račun" : "računa"}
                     </span>
                     <div className="flex items-center gap-2">
                         <button
@@ -290,7 +350,7 @@ const InvoicesDataTable = ({
                     </div>
                 </div>
             )}
-            
+
             {/* Table header */}
             <div className="flex flex-col gap-4 px-4 py-4 border border-b-0 border-gray-100 dark:border-white/[0.05] rounded-t-xl">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -322,6 +382,7 @@ const InvoicesDataTable = ({
                                 setGlobalFilter("");
                                 setWorkshopId("");
                                 setPaymentStatus("");
+                                setGroupId("");
                             }}
                             className="inline-flex items-center gap-1 px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-dark dark:hover:bg-gray-800 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100 transition"
                             title="Poništi filtere"
@@ -522,6 +583,78 @@ const InvoicesDataTable = ({
                             </Dropdown>
                         </div>
 
+                        {/* Group Filter Dropdown */}
+                        <div className="relative inline-block">
+                            <button
+                                onClick={() => setIsStatusDropdownOpen(false) || setIsWorkshopDropdownOpen(false) || setIsGroupDropdownOpen(!isGroupDropdownOpen)}
+                                className="inline-flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium rounded-lg dropdown-toggle border border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-dark dark:hover:bg-gray-800 min-w-[180px]"
+                            >
+                                <span className="truncate">
+                                    {groupId ? (groups.find((g) => g.id == groupId)?.name || "Grupa") : "Sve grupe"}
+                                </span>
+                                <svg
+                                    className={`duration-200 ease-in-out stroke-current ${isGroupDropdownOpen ? "rotate-180" : ""}`}
+                                    width="20"
+                                    height="20"
+                                    viewBox="0 0 20 20"
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <path
+                                        d="M4.79199 7.396L10.0003 12.6043L15.2087 7.396"
+                                        stroke=""
+                                        strokeWidth="1.5"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                    />
+                                </svg>
+                            </button>
+
+                            <Dropdown
+                                className="absolute left-0 top-full z-40 mt-2 w-full min-w-[260px] rounded-2xl border border-gray-200 bg-white p-3 shadow-theme-lg dark:border-gray-800 dark:bg-[#1E2635]"
+                                isOpen={isGroupDropdownOpen}
+                                onClose={() => setIsGroupDropdownOpen(false)}
+                            >
+                                <ul className="flex flex-col gap-1 max-h-[300px] overflow-y-auto">
+                                    <li>
+                                        <DropdownItem
+                                            onClick={() => {
+                                                setGroupId("");
+                                                setIsGroupDropdownOpen(false);
+                                            }}
+                                            className={`flex rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5 ${
+                                                !groupId ? "bg-gray-100 text-gray-900 dark:bg-white/10 dark:text-white" : "text-gray-700 dark:text-gray-300"
+                                            }`}
+                                            baseClassName=""
+                                        >
+                                            Sve grupe
+                                        </DropdownItem>
+                                    </li>
+                                    {groups.length > 0 && (
+                                        <li>
+                                            <span className="my-1.5 block h-px w-full bg-gray-200 dark:bg-[#353C49]"></span>
+                                        </li>
+                                    )}
+                                    {groups.map((g) => (
+                                        <li key={g.id}>
+                                            <DropdownItem
+                                                onClick={() => {
+                                                    setGroupId(g.id.toString());
+                                                    setIsGroupDropdownOpen(false);
+                                                }}
+                                                className={`flex rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5 ${
+                                                    groupId == g.id.toString() ? "bg-gray-100 text-gray-900 dark:bg-white/10 dark:text-white" : "text-gray-700 dark:text-gray-300"
+                                                }`}
+                                                baseClassName=""
+                                            >
+                                                {g.name}
+                                            </DropdownItem>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </Dropdown>
+                        </div>
+
                         <input
                             type="text"
                             value={globalFilter}
@@ -558,7 +691,11 @@ const InvoicesDataTable = ({
                     </thead>
                     <tbody>
                         {table.getRowModel().rows.map((row) => (
-                            <tr key={row.id} className="hover:bg-gray-100">
+                            <tr
+                                key={row.id}
+                                className="hover:bg-gray-100 cursor-pointer"
+                                onClick={() => openInvoiceDetails(row.original)}
+                            >
                                 {row.getVisibleCells().map((cell) => (
                                     <td
                                         key={cell.id}
@@ -602,14 +739,16 @@ const InvoicesDataTable = ({
             </div>
 
             {/* Confirmation Modal */}
-            <Modal show={showConfirmModal} onClose={closeConfirmModal} maxWidth="md">
-                <div className="p-6">
+            <Modal isOpen={showConfirmModal} onClose={closeConfirmModal} className="max-w-md w-full mx-4 p-6">
+                <div>
                     <div className="flex items-center gap-4">
-                        <div className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center ${
-                            pendingAction === "Plaćeno" 
-                                ? "bg-green-100" 
-                                : "bg-yellow-100"
-                        }`}>
+                        <div
+                            className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center ${
+                                pendingAction === "Plaćeno"
+                                    ? "bg-green-100"
+                                    : "bg-yellow-100"
+                            }`}
+                        >
                             {pendingAction === "Plaćeno" ? (
                                 <svg
                                     className="w-6 h-6 text-green-600"
@@ -642,14 +781,14 @@ const InvoicesDataTable = ({
                         </div>
                         <div className="flex-1">
                             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                                {pendingAction === "Plaćeno" 
-                                    ? "Označi kao plaćeno" 
+                                {pendingAction === "Plaćeno"
+                                    ? "Označi kao plaćeno"
                                     : "Označi kao otvoreno"}
                             </h3>
                             <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
                                 {pendingAction === "Plaćeno"
-                                    ? `Označiti ${selectedRows.length} ${selectedRows.length === 1 ? 'račun' : 'računa'} kao plaćeno?`
-                                    : `Označiti ${selectedRows.length} ${selectedRows.length === 1 ? 'račun' : 'računa'} kao otvoreno?`}
+                                    ? `Označiti ${selectedRows.length} ${selectedRows.length === 1 ? "račun" : "računa"} kao plaćeno?`
+                                    : `Označiti ${selectedRows.length} ${selectedRows.length === 1 ? "račun" : "računa"} kao otvoreno?`}
                             </p>
                         </div>
                     </div>
@@ -673,6 +812,188 @@ const InvoicesDataTable = ({
                         </button>
                     </div>
                 </div>
+            </Modal>
+
+            {/* Invoice Details Modal */}
+            <Modal isOpen={showInvoiceModal} onClose={closeInvoiceDetails} className="max-w-5xl w-full mx-4 p-6">
+                {activeInvoice && (
+                    <div>
+                        <div className="flex items-start justify-between mb-4">
+                            <div>
+                                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                                    Detalji računa
+                                </h3>
+                                <p className="text-sm text-gray-500">
+                                    #{activeInvoice.reference_code}
+                                </p>
+                            </div>
+                            <button
+                                onClick={closeInvoiceDetails}
+                                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                aria-label="Zatvori"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                            {/* Left: Meta (2 columns, 3 items) */}
+                            <div className="sm:col-span-2">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <div className="text-xs uppercase text-gray-500">
+                                            Član
+                                        </div>
+                                        <div className="text-sm text-gray-900 dark:text-gray-100">
+                                            {activeInvoice.member?.first_name}{" "}
+                                            {activeInvoice.member?.last_name}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className="text-xs uppercase text-gray-500">
+                                            Radionica
+                                        </div>
+                                        <div className="text-sm text-gray-900 dark:text-gray-100">
+                                            {activeInvoice.workshop?.name ||
+                                                "-"}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className="text-xs uppercase text-gray-500">
+                                            Grupa
+                                        </div>
+                                        <div className="text-sm text-gray-900 dark:text-gray-100">
+                                            {(() => {
+                                                const wId =
+                                                    activeInvoice.workshop
+                                                        ?.id ||
+                                                    activeInvoice.workshop_id;
+                                                const groups =
+                                                    activeInvoice.member
+                                                        ?.workshop_groups ||
+                                                    activeInvoice.member
+                                                        ?.workshopGroups;
+                                                if (Array.isArray(groups)) {
+                                                    const match = groups.find(
+                                                        (g) =>
+                                                            g.workshop_id ===
+                                                            wId,
+                                                    );
+                                                    return (
+                                                        match?.group?.name ||
+                                                        match?.group_name ||
+                                                        "-"
+                                                    );
+                                                }
+                                                return "-";
+                                            })()}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className="text-xs uppercase text-gray-500">
+                                            Iznos
+                                        </div>
+                                        <div className="text-sm text-gray-900 dark:text-gray-100">
+                                            {Number(
+                                                activeInvoice.amount_due,
+                                            ).toFixed(2)}{" "}
+                                            €
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className="text-xs uppercase text-gray-500">
+                                            Dospijeće
+                                        </div>
+                                        <div className="text-sm text-gray-900 dark:text-gray-100">
+                                            {new Date(
+                                                activeInvoice.due_date,
+                                            ).toLocaleDateString("hr-HR")}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className="text-xs uppercase text-gray-500">
+                                            Referenca
+                                        </div>
+                                        <div className="text-sm text-gray-900 dark:text-gray-100">
+                                            {activeInvoice.reference_code}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="mt-4">
+                                    <div className="text-xs uppercase text-gray-500">
+                                        Napomena
+                                    </div>
+                                    <div className="text-sm text-gray-900 dark:text-gray-100">
+                                        {activeInvoice.notes || "—"}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Right: Actions with status toggle */}
+                            <div className="flex flex-col gap-4">
+                                <div>
+                                    <div className="text-xs uppercase text-gray-500 mb-2">
+                                        Status
+                                    </div>
+                                    <div className="flex items-center gap-6">
+                                        <Radio
+                                            id="status-paid"
+                                            name="invoice-status"
+                                            value="Plaćeno"
+                                            checked={modalStatus === "Plaćeno"}
+                                            label="Plaćeno"
+                                            onChange={setModalStatus}
+                                            className=""
+                                        />
+                                        <Radio
+                                            id="status-open"
+                                            name="invoice-status"
+                                            value="Otvoreno"
+                                            checked={modalStatus === "Otvoreno"}
+                                            label="Otvoreno"
+                                            onChange={setModalStatus}
+                                        />
+                                    </div>
+                                </div>
+
+                                <a
+                                    href={route(
+                                        "invoices.slip",
+                                        activeInvoice.id,
+                                    )}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium border rounded-lg hover:bg-gray-50 dark:border-gray-700"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    Uplatnica (PDF)
+                                </a>
+                                <button
+                                    disabled
+                                    className="inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium border rounded-lg text-gray-400 border-gray-200 dark:border-gray-700 cursor-not-allowed"
+                                    title="Uskoro dostupno"
+                                >
+                                    Pošalji e-mail
+                                </button>
+
+                                <div className="flex items-center justify-end gap-2 pt-2">
+                                    <button
+                                        onClick={closeInvoiceDetails}
+                                        className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700"
+                                    >
+                                        Zatvori
+                                    </button>
+                                    <button
+                                        onClick={saveInvoiceStatus}
+                                        className="px-3 py-2 text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg"
+                                    >
+                                        Spremi status
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </Modal>
         </div>
     );

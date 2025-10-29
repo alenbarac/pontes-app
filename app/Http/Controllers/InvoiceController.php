@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Invoice;
 use App\Models\Workshop;
+use App\Models\MemberGroup;
 use Inertia\Inertia;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Str;
@@ -18,8 +19,9 @@ class InvoiceController extends Controller
     $filter = $request->get('filter', '');
     $workshopId = $request->get('workshop_id', '');
     $paymentStatus = $request->get('payment_status', '');
+    $groupId = $request->get('group_id', '');
 
-    $query = Invoice::with(['member', 'workshop', 'membershipPlan'])
+    $query = Invoice::with(['member', 'member.workshopGroups.group', 'workshop', 'membershipPlan'])
         ->when($filter, function ($query, $filter) {
             $query->where(function ($q) use ($filter) {
                 $q->whereHas('member', fn($q) =>
@@ -39,6 +41,14 @@ class InvoiceController extends Controller
         ->when($paymentStatus, function ($query, $paymentStatus) {
             $query->where('payment_status', $paymentStatus);
         })
+        ->when($groupId, function ($query, $groupId) use ($workshopId) {
+            $query->whereHas('member.workshopGroups', function ($q) use ($groupId, $workshopId) {
+                $q->where('member_group_id', $groupId);
+                if ($workshopId) {
+                    $q->where('workshop_id', $workshopId);
+                }
+            });
+        })
         ->orderByDesc('due_date');
 
     $invoices = $query->paginate($perPage)->withQueryString();
@@ -48,6 +58,18 @@ class InvoiceController extends Controller
 
     // Payment status options
     $paymentStatuses = ['Otvoreno', 'Plaćeno', 'Opomeni'];
+
+    // Groups for filter (optionally scoped by workshop)
+    // Some schemas don't have workshop_id on member_groups, so fall back to the mapping table workshop_groups
+    $groups = MemberGroup::query()
+        ->select('member_groups.id', 'member_groups.name')
+        ->when($workshopId, function ($q) use ($workshopId) {
+            $q->join('workshop_groups', 'workshop_groups.member_group_id', '=', 'member_groups.id')
+              ->where('workshop_groups.workshop_id', $workshopId)
+              ->distinct();
+        })
+        ->orderBy('member_groups.name')
+        ->get();
 
     return Inertia::render('Invoices/Index', [
         'invoices' => $invoices,
@@ -60,8 +82,10 @@ class InvoiceController extends Controller
         'filter' => $filter,
         'workshopId' => $workshopId,
         'paymentStatus' => $paymentStatus,
+        'groupId' => $groupId,
         'workshops' => $workshops,
         'paymentStatuses' => $paymentStatuses,
+        'groups' => $groups,
     ]);
 }
 public function updateStatus(Request $request, Invoice $invoice)
