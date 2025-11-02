@@ -127,6 +127,8 @@ class MemberController extends Controller
         $member->load([
             'workshops.memberships',
             'workshopGroups.group',
+            'invoices.workshop',
+            'invoices.membershipPlan',
         ]);
 
         // Fetch all workshops for selection
@@ -141,11 +143,37 @@ class MemberController extends Controller
         // Fetch all membership plans grouped by workshop
         $membershipPlans = MembershipPlan::select('id', 'workshop_id', 'plan', 'total_fee')->get()->groupBy('workshop_id');
 
+        // Group invoices by workshop_id and convert to array format for Inertia
+        $invoicesByWorkshop = $member->invoices->groupBy('workshop_id')->map(function ($invoices, $workshopId) {
+            return $invoices->map(function ($invoice) {
+                return [
+                    'id' => $invoice->id,
+                    'reference_code' => $invoice->reference_code,
+                    'amount_due' => (float) $invoice->amount_due,
+                    'amount_paid' => (float) $invoice->amount_paid,
+                    'due_date' => $invoice->due_date,
+                    'payment_status' => $invoice->payment_status,
+                    'notes' => $invoice->notes,
+                    'workshop_id' => $invoice->workshop_id,
+                    'workshop' => $invoice->workshop ? [
+                        'id' => $invoice->workshop->id,
+                        'name' => $invoice->workshop->name,
+                    ] : null,
+                    'membership_plan' => $invoice->membershipPlan ? [
+                        'id' => $invoice->membershipPlan->id,
+                        'plan' => $invoice->membershipPlan->plan,
+                        'total_fee' => $invoice->membershipPlan->total_fee,
+                    ] : null,
+                ];
+            })->values()->all();
+        })->toArray();
+
         return inertia('Members/Show', [
             'member' => new MemberResource($member),
             'workshops' => $workshops,
             'groups' => $groups,
             'membershipPlans' => $membershipPlans,
+            'invoicesByWorkshop' => $invoicesByWorkshop,
         ]);
     }
 

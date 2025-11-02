@@ -5,7 +5,7 @@ import Breadcrumb from "@/Components/Breadcrumb";
 import MemberInfoCard from "@/Components/Member/MemberInfoCard";
 import MemberInfoWorkshops from "@/Components/Member/MemberInfoWorkshops";
 
-export default function Show({ member, workshops, groups, membershipPlans }) {
+export default function Show({ member, workshops, groups, membershipPlans, invoicesByWorkshop }) {
 
     return (
         <AuthenticatedLayout>
@@ -24,6 +24,7 @@ export default function Show({ member, workshops, groups, membershipPlans }) {
                         workshops={workshops}
                         groups={groups}
                         membershipPlans={membershipPlans}
+                        invoicesByWorkshop={invoicesByWorkshop || {}}
                     />
                 </div>
             </div>

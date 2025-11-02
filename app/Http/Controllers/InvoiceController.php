@@ -108,6 +108,11 @@ public function updateStatus(Request $request, Invoice $invoice)
     $invoice->payment_status = $status;
     $invoice->save();
 
+    // If coming from member page or Inertia request, return back instead of redirecting
+    if ($request->header('X-Inertia') || $request->has('stay_on_page')) {
+        return back()->with('success', 'Status uspješno promijenjen.');
+    }
+
     return redirect()->route('invoices.index')->with('success', 'Status uspješno promijenjen.');
 }
 /**
@@ -192,6 +197,10 @@ public function toggleBulkInvoiceStatus(Request $request)
 public function markAsPaid(Request $request, Invoice $invoice)
 {
     if ($invoice->payment_status === 'Plaćeno') {
+        // If coming from member page or Inertia request, return back instead of redirecting
+        if ($request->header('X-Inertia') || $request->has('stay_on_page')) {
+            return back()->with('info', 'Račun je već plaćen.');
+        }
         return redirect()->route('invoices.index')->with('info', 'Račun je već plaćen.');
     }
 
@@ -203,6 +212,11 @@ public function markAsPaid(Request $request, Invoice $invoice)
     $invoice->amount_paid    = $validated['amount_paid'] ?? $invoice->amount_due;
     $invoice->payment_status = 'Plaćeno';
     $invoice->save();
+
+    // If coming from member page or Inertia request, return back instead of redirecting
+    if ($request->header('X-Inertia') || $request->has('stay_on_page')) {
+        return back()->with('success', 'Račun označen kao plaćen.');
+    }
 
     return redirect()->route('invoices.index')->with('success', 'Račun označen kao plaćen.');
 }

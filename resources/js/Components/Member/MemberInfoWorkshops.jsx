@@ -8,12 +8,14 @@ import Button from "@/ui/button/Button";
 import { router } from "@inertiajs/react";
 import toast from "react-hot-toast";
 import MemberWorkshopAddForm from "./MemberWorkshopAddForm";
+import MemberWorkshopInvoices from "./MemberWorkshopInvoices";
 
 const MemberInfoWorkshops = ({
     memberData,
     workshops,
     groups,
     membershipPlans,
+    invoicesByWorkshop = {},
 }) => {
     const { isOpen, openModal, closeModal } = useModal();
     const confirmModal = useModal();
@@ -136,6 +138,13 @@ const MemberInfoWorkshops = ({
                                 </Button>
                             </div>
                         </div>
+                        
+                        {/* Display invoices for this workshop */}
+                        <MemberWorkshopInvoices
+                            invoices={invoicesByWorkshop[w.id.toString()] || invoicesByWorkshop[w.id] || []}
+                            member={memberData}
+                            workshop={w}
+                        />
                     </div>
                 );
             })}
