@@ -35,7 +35,12 @@ class InvoiceSeeder extends Seeder
                     default => Carbon::parse($startDate),
                 };
 
-                $referenceCode = 'PONTES-' . $dueDate->format('Ym') . '-R' . $mw->workshop_id . '-C' . $mw->member_id;
+                // Generate reference code using the model's helper method
+                $referenceCode = Invoice::generateReferenceCode(
+                    $mw->member_id,
+                    $mw->workshop_id,
+                    $dueDate
+                );
 
                 Invoice::create([
                     'member_id' => $mw->member_id,
