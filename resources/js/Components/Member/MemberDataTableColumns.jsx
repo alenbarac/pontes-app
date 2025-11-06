@@ -3,15 +3,17 @@ import { Link, router } from "@inertiajs/react";
 import Badge from "@/Components/ui/badge/Badge";
 
 export const groupColorMap = {
-    "Juniori 1": "bg-error-200 text-dark",
-    "Juniori 2": "bg-brand-200  text-dark",
-    "Srednjoškolci 1": "bg-brand-100 text-dark",
-    "Srednjoškolci 2": "bg-brand-200  text-dark",
+    "Grupa 1": "bg-error-200 text-dark",
+    "Grupa 2": "bg-brand-200  text-dark",
+    "Grupa 3": "bg-brand-100 text-dark",
+    "Grupa 4": "bg-brand-200  text-dark",
     "Memorabilije 1": "bg-warning-500 text-dark",
     "Memorabilije 2": "bg-warning-300 text-dark",
     "Memorabilije 3": "bg-warning-200 text-dark",
-    "Mini 1": "bg-error-300 text-dark",
-    "Mini 2": "bg-success-200 text-dark",
+    "Grupa 5": "bg-error-300 text-dark",
+    "Grupa 6": "bg-success-200 text-dark",
+    "Grupa 7": "bg-warning-500 text-dark",
+    "Grupa 8": "bg-warning-300 text-dark",
 };
 
 export const columns = [

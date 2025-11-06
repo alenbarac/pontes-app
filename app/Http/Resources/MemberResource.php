@@ -19,6 +19,7 @@ class MemberResource extends JsonResource
             'is_active'      => $this->is_active,
             'parent_contact' => $this->parent_contact,
             'parent_email'   => $this->parent_email,
+            'invoice_email'   => $this->invoice_email,
 
             // Include the workshopGroups with the pivot field (member_group_id)
             'workshopGroups' => $this->whenLoaded('workshopGroups', function () {

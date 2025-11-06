@@ -25,6 +25,7 @@ class MemberFactory extends Factory
             'is_active' => $this->faker->boolean(90), // 90% chance of being active
             'parent_contact' => $this->faker->optional()->phoneNumber,
             'parent_email' => $this->faker->optional()->safeEmail,
+            'invoice_email' => $this->faker->optional()->safeEmail,
         ];
     }
 }

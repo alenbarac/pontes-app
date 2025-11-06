@@ -21,6 +21,7 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->string('parent_contact')->nullable();
             $table->string('parent_email')->nullable();
+            $table->string('invoice_email')->nullable();
             $table->timestamps();
         });
     }

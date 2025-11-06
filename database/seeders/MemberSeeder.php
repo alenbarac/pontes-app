@@ -33,6 +33,7 @@ class MemberSeeder extends Seeder
                 'is_active' => $faker->boolean(90),
                 'parent_contact' => $faker->boolean(70) ? $faker->phoneNumber : null,
                 'parent_email' => $faker->boolean(70) ? $faker->email : null,
+                'invoice_email' => $faker->boolean(70) ? $faker->email : null,
             ]);
 
             // 80% of members join only one workshop

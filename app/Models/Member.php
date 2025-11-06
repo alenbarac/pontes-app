@@ -18,6 +18,7 @@ class Member extends Model
         'is_active',
         'parent_contact',
         'parent_email',
+        'invoice_email',
     ];
 
     /**

@@ -13,6 +13,7 @@ const MemberEditForm = ({ member, workshops, groups, membershipPlans }) => {
        is_active: member.is_active,
        parent_contact: member.parent_contact,
        parent_email: member.parent_email,
+       invoice_email: member.invoice_email,
        currentEnrollment: {
            workshop_id: member.workshops[0]?.id || "",
            // Force the pivot value to a string, or fallback to member.memberships[0].id if needed.
@@ -221,6 +222,26 @@ const MemberEditForm = ({ member, workshops, groups, membershipPlans }) => {
                     {errors.parent_email && (
                         <p className="text-red-500 text-sm">
                             {errors.parent_email}
+                        </p>
+                    )}
+                </div>
+
+                <div className="w-full xl:w-1/2">
+                    <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                        Email za račune
+                    </label>
+                    <input
+                        type="email"
+                        placeholder="email za račune"
+                        className="w-full rounded border px-5 py-3"
+                        value={data.invoice_email}
+                        onChange={(e) =>
+                            setData("invoice_email", e.target.value)
+                        }
+                    />
+                    {errors.invoice_email && (
+                        <p className="text-red-500 text-sm">
+                            {errors.invoice_email}
                         </p>
                     )}
                 </div>

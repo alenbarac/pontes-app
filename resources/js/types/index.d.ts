@@ -21,6 +21,7 @@ export interface MemberFormData {
     is_active: boolean;
     parent_contact?: string;
     parent_email?: string;
+    invoice_email?: string;
     group_ids?: number[]; // Array of selected group IDs
     workshop_ids?: number[]; // Array of selected workshop IDs
     membership_plan_id: number; // Single membership plan (if applicable)

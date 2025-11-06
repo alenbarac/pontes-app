@@ -20,6 +20,7 @@ export default function MemberDetailEditForm({ member, closeModal }) {
         email: member.email || "",
         parent_contact: member.parent_contact || "",
         parent_email: member.parent_email || "",
+        invoice_email: member.invoice_email || "",
     });
 
 
@@ -191,6 +192,25 @@ export default function MemberDetailEditForm({ member, closeModal }) {
                         {errors.parent_email && (
                             <p className="text-red-500 text-sm">
                                 {errors.parent_email}
+                            </p>
+                        )}
+                    </div>
+
+                    {/* Invoice Email */}
+                    <div>
+                        <Label htmlFor="invoice_email">Email za račune</Label>
+                        <Input
+                            type="email"
+                            id="invoice_email"
+                            placeholder="Email za račune"
+                            value={data.invoice_email}
+                            onChange={(e) =>
+                                setData("invoice_email", e.target.value)
+                            }
+                        />
+                        {errors.invoice_email && (
+                            <p className="text-red-500 text-sm">
+                                {errors.invoice_email}
                             </p>
                         )}
                     </div>

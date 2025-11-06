@@ -30,6 +30,7 @@ class StoreMemberRequest extends FormRequest
             'is_active' => 'boolean',
             'parent_contact' => 'nullable|string|max:20',
             'parent_email' => 'nullable|email|max:255',
+            'invoice_email' => 'nullable|email|max:255',
 
             // ✅ Ensure relationships exist
             'workshop_id' => 'required|exists:workshops,id',

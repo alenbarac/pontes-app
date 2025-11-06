@@ -301,6 +301,24 @@ export default function MemberCreateForm({
                         </p>
                     )}
                 </div>
+                {/* Invoice Email */}
+                <div className="sm:col-span-1">
+                    <Label htmlFor="invoice_email">Email za račune</Label>
+                    <Input
+                        type="email"
+                        id="invoice_email"
+                        placeholder="Email za račune"
+                        value={data.invoice_email}
+                        onChange={(e) =>
+                            setData("invoice_email", e.target.value)
+                        }
+                    />
+                    {errors.invoice_email && (
+                        <p className="text-red-500 text-sm">
+                            {errors.invoice_email}
+                        </p>
+                    )}
+                </div>
             </div>
 
             <div className="mt-6 flex justify-end gap-3">
