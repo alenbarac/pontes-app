@@ -28,8 +28,8 @@ class DatabaseSeeder extends Seeder
             MemberGroupSeeder::class,
             WorkshopGroupSeeder::class, 
             MembershipPlanSeeder::class,
-            MemberSeeder::class,
-            InvoiceSeeder::class,
+            /* MemberSeeder::class,
+            InvoiceSeeder::class, */
         ]);
     }
 }

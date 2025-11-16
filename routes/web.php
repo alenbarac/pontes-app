@@ -30,7 +30,9 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-     Route::get('/members/import', [MemberImportController::class, 'index']);
+    Route::get('/members/import', [MemberImportController::class, 'index'])->name('members.import.index');
+    Route::post('/members/import', [MemberImportController::class, 'store'])->name('members.import');
+    Route::get('/members/import/template', [MemberImportController::class, 'template'])->name('members.import.template');
 
     Route::resource('members', MemberController::class);
     Route::resource('member-groups', MemberGroupController::class);
