@@ -44,7 +44,10 @@ const navItems: NavItem[] = [
     {
         icon: <DocumentCurrencyEuroIcon className="w-5 h-5" />,
         name: "Članarine",
-        path: "/invoices",
+        subItems: [
+            { name: "Popis računa", path: "/invoices" },
+            { name: "Generiranje računa", path: "/invoices/generate" },
+        ],
     },
 
     {

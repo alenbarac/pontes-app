@@ -21,7 +21,11 @@ return new class extends Migration {
             $table->string('payment_status')->default('Otvoreno'); // Status: Pending, Paid, Overdue
             $table->string('reference_code')->unique(); // Unique invoice number
             $table->text('notes')->nullable(); // Additional notes for the invoice
+            $table->string('school_year', 9)->nullable(); // Format: "2025-2026"
             $table->timestamps();
+
+            // Index for school year queries
+            $table->index('school_year');
 
             // Foreign key constraints
             $table->foreign('member_id')->references('id')->on('members')->onDelete('cascade');

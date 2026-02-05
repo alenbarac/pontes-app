@@ -7,6 +7,7 @@ use App\Http\Controllers\MemberWorkshopController;
 use App\Http\Controllers\MemberImportController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\InvoiceGenerationController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -51,7 +52,17 @@ Route::middleware('auth')->group(function () {
         '/members/{member}/workshops',[MemberWorkshopController::class, 'destroyAll'])
         ->name('members.workshops.destroyAll');
 
-    Route::resource('invoices', InvoiceController::class);
+    // Invoice Generation Routes (must be before resource route to avoid conflict)
+    Route::get('/invoices/generate', [InvoiceGenerationController::class, 'index'])
+        ->name('invoices.generate.index');
+    Route::post('/invoices/generate/preview', [InvoiceGenerationController::class, 'preview'])
+        ->name('invoices.generate.preview');
+    Route::post('/invoices/generate', [InvoiceGenerationController::class, 'generate'])
+        ->name('invoices.generate');
+    Route::delete('/invoices/generate/month', [InvoiceGenerationController::class, 'deleteMonth'])
+        ->name('invoices.generate.deleteMonth');
+
+    Route::resource('invoices', InvoiceController::class)->except(['destroy']);
     Route::patch('/invoices/{invoice}/status', [InvoiceController::class, 'updateStatus'])->name('invoices.updateStatus');
     Route::patch('/invoices/{invoice}/mark-paid', [InvoiceController::class, 'markAsPaid'])->name('invoices.markPaid');
     Route::post('/invoices/toggle-bulk-status', [InvoiceController::class, 'toggleBulkInvoiceStatus'])->name('invoices.toggleBulkInvoiceStatus');
