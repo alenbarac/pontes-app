@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Invoice;
 use App\Models\MemberWorkshop;
 use App\Models\Member;
+use App\Models\Workshop;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -26,9 +27,13 @@ class InvoiceGenerationService
         $errors = [];
 
         // Get all active member-workshop relationships
+        // Exclude individual counseling workshops (type = 'Individualno')
         $query = MemberWorkshop::with(['member', 'workshop', 'membershipPlan'])
             ->whereHas('member', function ($q) {
                 $q->where('is_active', true);
+            })
+            ->whereHas('workshop', function ($q) {
+                $q->where('type', '!=', 'Individualno');
             })
             ->whereNotNull('membership_plan_id')
             ->whereNotNull('membership_start_date');
@@ -370,9 +375,13 @@ class InvoiceGenerationService
         $targetMonth = $targetMonth->copy()->startOfMonth();
         $previews = collect();
 
+        // Exclude individual counseling workshops from preview
         $query = MemberWorkshop::with(['member', 'workshop', 'membershipPlan'])
             ->whereHas('member', function ($q) {
                 $q->where('is_active', true);
+            })
+            ->whereHas('workshop', function ($q) {
+                $q->where('type', '!=', 'Individualno');
             })
             ->whereNotNull('membership_plan_id')
             ->whereNotNull('membership_start_date');
@@ -408,5 +417,81 @@ class InvoiceGenerationService
         }
 
         return $previews;
+    }
+
+    /**
+     * Calculate default session amount based on member's dramska radionica status.
+     * 
+     * @param Member $member
+     * @param Workshop $workshop
+     * @return float
+     */
+    public function calculateSessionAmount(Member $member, Workshop $workshop): float
+    {
+        // Check if member has dramska radionica workshop
+        $hasDramskaRadionica = $member->workshops()
+            ->whereHas('workshop', function ($q) {
+                $q->where('name', 'Dramska radionica')
+                  ->orWhere('type', 'Groupe');
+            })
+            ->exists();
+
+        // 50 EUR if member has dramska radionica, 60 EUR otherwise
+        return $hasDramskaRadionica ? 50.00 : 60.00;
+    }
+
+    /**
+     * Generate a session invoice for individual counseling.
+     * 
+     * @param Member $member
+     * @param Workshop $workshop
+     * @param Carbon $sessionDate
+     * @param float $amount
+     * @param string|null $notes
+     * @return Invoice
+     */
+    public function generateSessionInvoice(
+        Member $member,
+        Workshop $workshop,
+        Carbon $sessionDate,
+        float $amount,
+        ?string $notes = null
+    ): Invoice {
+        // Use session date as due date
+        $dueDate = $sessionDate->copy();
+
+        // Generate reference code
+        $referenceCode = Invoice::generateReferenceCode(
+            $member->id,
+            $workshop->id,
+            $dueDate
+        );
+
+        // Get school year
+        $schoolYear = SchoolYearService::getSchoolYearLabel($dueDate);
+
+        // Get membership plan for this workshop (should be "Po sastanku")
+        $membershipPlan = $member->workshops()
+            ->where('workshop_id', $workshop->id)
+            ->first()
+            ?->membershipPlan;
+
+        // Create session invoice
+        $invoice = Invoice::create([
+            'member_id' => $member->id,
+            'workshop_id' => $workshop->id,
+            'membership_plan_id' => $membershipPlan?->id,
+            'amount_due' => $amount,
+            'amount_paid' => 0,
+            'due_date' => $dueDate->toDateString(),
+            'payment_status' => 'Otvoreno',
+            'reference_code' => $referenceCode,
+            'school_year' => $schoolYear,
+            'invoice_type' => 'session',
+            'session_date' => $sessionDate->toDateString(),
+            'notes' => $notes ?? 'Individualno savjetovanje - ' . $sessionDate->format('d.m.Y'),
+        ]);
+
+        return $invoice;
     }
 }

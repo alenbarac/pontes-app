@@ -11,29 +11,38 @@ class WorkshopGroupSeeder extends Seeder
 {
     public function run()
     {
-        $workshops = Workshop::all();
+        // Get only group workshops (exclude individual counseling)
+        $groupWorkshops = Workshop::where('type', '!=', 'Individualno')
+            ->where(function ($query) {
+                $query->where('type', 'Groupe')
+                      ->orWhereNull('type')
+                      ->orWhere('name', 'LIKE', '%Dramska%');
+            })
+            ->get();
+        
         $groups = MemberGroup::all();
 
         // Ensure both workshops and groups exist
-        if ($workshops->isEmpty() || $groups->isEmpty()) {
-            $this->command->warn('Skipping workshop_groups seeding: No workshops or groups found.');
+        if ($groupWorkshops->isEmpty() || $groups->isEmpty()) {
+            $this->command->warn('Skipping workshop_groups seeding: No group workshops or groups found.');
             return;
         }
 
-        // ✅ Ensure every group is assigned to at least one workshop
+        // ✅ Ensure every group is assigned to at least one group workshop
         foreach ($groups as $group) {
-            $randomWorkshop = $workshops->random();
-            DB::table('workshop_groups')->insert([
+            $randomWorkshop = $groupWorkshops->random();
+            DB::table('workshop_groups')->updateOrInsert([
                 'workshop_id' => $randomWorkshop->id,
                 'member_group_id' => $group->id,
+            ], [
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
         }
 
-        // ✅ Also, randomly assign each workshop multiple groups
-        foreach ($workshops as $workshop) {
-            $randomGroups = $groups->random(rand(2, 4));
+        // ✅ Also, randomly assign each group workshop multiple groups
+        foreach ($groupWorkshops as $workshop) {
+            $randomGroups = $groups->random(rand(2, min(4, $groups->count())));
 
             foreach ($randomGroups as $group) {
                 DB::table('workshop_groups')->updateOrInsert([

@@ -22,6 +22,8 @@ class Invoice extends Model
         'reference_code',
         'notes',
         'school_year',
+        'invoice_type',
+        'session_date',
     ];
 
     public function member()
@@ -133,6 +135,28 @@ class Invoice extends Model
     {
         return $query->whereYear('due_date', $month->year)
                      ->whereMonth('due_date', $month->month);
+    }
+
+    /**
+     * Scope a query to only include membership invoices.
+     * 
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeMembership($query)
+    {
+        return $query->where('invoice_type', 'membership');
+    }
+
+    /**
+     * Scope a query to only include session invoices.
+     * 
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeSession($query)
+    {
+        return $query->where('invoice_type', 'session');
     }
 
     /**

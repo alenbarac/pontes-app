@@ -22,7 +22,12 @@ return new class extends Migration {
             $table->string('reference_code')->unique(); // Unique invoice number
             $table->text('notes')->nullable(); // Additional notes for the invoice
             $table->string('school_year', 9)->nullable(); // Format: "2025-2026"
+            $table->string('invoice_type', 20)->default('membership'); // 'membership' or 'session'
+            $table->date('session_date')->nullable(); // For session-based invoices (meeting date)
             $table->timestamps();
+
+            // Index for invoice type queries
+            $table->index('invoice_type');
 
             // Index for school year queries
             $table->index('school_year');

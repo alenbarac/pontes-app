@@ -79,41 +79,11 @@ const MemberInfoWorkshops = ({
                         key={w.id}
                         className="p-5 border border-gray-200 rounded-2xl dark:border-gray-800 lg:p-6"
                     >
-                        <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90 lg:mb-6">
-                            {w.name}
-                        </h4>
-                        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-                            <div className="flex flex-col gap-2">
-                                <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">
-                                    Grupa
-                                </p>
-                                <div className="text-sm font-medium text-gray-800 dark:text-white/90">
-                                    {currentGroup?.name}
-                                </div>
-                            </div>
-
-                            <div className="flex flex-col gap-2">
-                                <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">
-                                    Članarina
-                                </p>
-                                <div className="text-sm font-medium text-gray-800 dark:text-white/90">
-                                    {plan?.plan} ({plan?.total_fee} EUR)
-                                </div>
-                            </div>
-
-                            <div className="flex flex-col gap-2">
-                                <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">
-                                    Datum upisa
-                                </p>
-                                <div className="text-sm font-medium text-gray-800 dark:text-white/90">
-                                    {format(
-                                        new Date(plan?.start_date),
-                                        "dd.MM.yyyy.",
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="flex flex-col">
+                        <div className="flex items-start justify-between mb-6">
+                            <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90">
+                                {w.name}
+                            </h4>
+                            <div className="flex items-center gap-2">
                                 <Button
                                     onClick={() => handleEdit(w)}
                                     variant="primary"
@@ -121,7 +91,6 @@ const MemberInfoWorkshops = ({
                                     startIcon={
                                         <PencilIcon className="h-4 w-4" />
                                     }
-                                    className="mb-3"
                                 >
                                     Uredi
                                 </Button>
@@ -136,6 +105,38 @@ const MemberInfoWorkshops = ({
                                 >
                                     Ispis
                                 </Button>
+                            </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                            <div className="flex flex-col gap-2">
+                                <p className="text-xs leading-normal text-gray-500 dark:text-gray-400">
+                                    Grupa
+                                </p>
+                                <div className="text-sm font-medium text-gray-800 dark:text-white/90">
+                                    {currentGroup?.name || "—"}
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col gap-2">
+                                <p className="text-xs leading-normal text-gray-500 dark:text-gray-400">
+                                    Članarina
+                                </p>
+                                <div className="text-sm font-medium text-gray-800 dark:text-white/90">
+                                    {plan?.plan ? `${plan.plan} (${plan.total_fee} EUR)` : "—"}
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col gap-2">
+                                <p className="text-xs leading-normal text-gray-500 dark:text-gray-400">
+                                    Datum upisa
+                                </p>
+                                <div className="text-sm font-medium text-gray-800 dark:text-white/90">
+                                    {plan?.start_date ? format(
+                                        new Date(plan.start_date),
+                                        "dd.MM.yyyy.",
+                                    ) : "—"}
+                                </div>
                             </div>
                         </div>
                         

@@ -42,6 +42,7 @@ class MemberResource extends JsonResource
                     return [
                         'id'                 => $workshop->id,
                         'name'               => $workshop->name,
+                        'type'               => $workshop->type ?? null,
                         // Return the pivot data
                         'membership_plan_id' => $workshop->pivot->membership_plan_id ?? null,
                         // Return full details of the selected membership plan if found

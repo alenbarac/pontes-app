@@ -8,6 +8,7 @@ use App\Http\Controllers\MemberImportController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\InvoiceGenerationController;
+use App\Http\Controllers\MemberInvoiceController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -62,7 +63,14 @@ Route::middleware('auth')->group(function () {
     Route::delete('/invoices/generate/month', [InvoiceGenerationController::class, 'deleteMonth'])
         ->name('invoices.generate.deleteMonth');
 
+    // Member-specific invoice routes (for session invoices)
+    Route::post('/members/{member}/invoices/session', [MemberInvoiceController::class, 'generateSessionInvoice'])
+        ->name('members.invoices.session.generate');
+    Route::post('/members/{member}/invoices/session/preview', [MemberInvoiceController::class, 'previewSessionInvoice'])
+        ->name('members.invoices.session.preview');
+
     Route::resource('invoices', InvoiceController::class)->except(['destroy']);
+    Route::delete('/invoices/{invoice}', [InvoiceController::class, 'destroy'])->name('invoices.destroy');
     Route::patch('/invoices/{invoice}/status', [InvoiceController::class, 'updateStatus'])->name('invoices.updateStatus');
     Route::patch('/invoices/{invoice}/mark-paid', [InvoiceController::class, 'markAsPaid'])->name('invoices.markPaid');
     Route::post('/invoices/toggle-bulk-status', [InvoiceController::class, 'toggleBulkInvoiceStatus'])->name('invoices.toggleBulkInvoiceStatus');

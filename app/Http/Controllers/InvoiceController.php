@@ -343,4 +343,16 @@ public function slip(Invoice $invoice)
     return $pdf->stream($file);
 }
 
+public function destroy(Request $request, Invoice $invoice)
+{
+    $invoice->delete();
+
+    // If coming from member page or Inertia request, return back instead of redirecting
+    if ($request->header('X-Inertia')) {
+        return back()->with('success', 'Račun uspješno obrisan.');
+    }
+
+    return redirect()->route('invoices.index')->with('success', 'Račun uspješno obrisan.');
+}
+
 }

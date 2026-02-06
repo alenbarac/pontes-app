@@ -19,7 +19,8 @@ class MembershipPlanSeeder extends Seeder
             return;
         }
 
-        $membershipOptions = [
+        // Group workshop plans (Dramska radionica)
+        $groupWorkshopPlans = [
             [
                 'plan' => 'Mjesečna članarina',
                 'fee' => 50.00,
@@ -43,16 +44,40 @@ class MembershipPlanSeeder extends Seeder
             ],
         ];
 
+        // Individual counseling plan (Individualno savjetovanje)
+        $individualCounselingPlan = [
+            'plan' => 'Po sastanku',
+            'fee' => 50.00, // Base fee, actual amount determined per session (50 or 60 EUR)
+            'billing_frequency' => 'Po sastanku',
+            'discount_type' => null,
+            'total_fee' => 50.00,
+        ];
+
         foreach ($workshops as $workshop) {
-            foreach ($membershipOptions as $option) {
+            // Check if this is individual counseling workshop
+            if (strtolower($workshop->type) === 'individualno' || 
+                str_contains(strtolower($workshop->name), 'individualno')) {
+                // Create single per-session plan for individual counseling
                 MembershipPlan::create([
                     'workshop_id' => $workshop->id,
-                    'plan' => $option['plan'],
-                    'fee' => $option['fee'],
-                    'billing_frequency' => $option['billing_frequency'],
-                    'discount_type' => $option['discount_type'],
-                    'total_fee' => $option['total_fee'],
+                    'plan' => $individualCounselingPlan['plan'],
+                    'fee' => $individualCounselingPlan['fee'],
+                    'billing_frequency' => $individualCounselingPlan['billing_frequency'],
+                    'discount_type' => $individualCounselingPlan['discount_type'],
+                    'total_fee' => $individualCounselingPlan['total_fee'],
                 ]);
+            } else {
+                // Create standard plans for group workshops
+                foreach ($groupWorkshopPlans as $option) {
+                    MembershipPlan::create([
+                        'workshop_id' => $workshop->id,
+                        'plan' => $option['plan'],
+                        'fee' => $option['fee'],
+                        'billing_frequency' => $option['billing_frequency'],
+                        'discount_type' => $option['discount_type'],
+                        'total_fee' => $option['total_fee'],
+                    ]);
+                }
             }
         }
 

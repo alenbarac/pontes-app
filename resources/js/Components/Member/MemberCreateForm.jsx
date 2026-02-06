@@ -229,7 +229,7 @@ export default function MemberCreateForm({
                                 }
                                 options={filteredPlans.map((plan) => ({
                                     value: plan.id,
-                                    label: `${plan.plan} - ${parseFloat(plan.total_fee).toFixed(2)} kn`,
+                                    label: `${plan.plan} - ${parseFloat(plan.total_fee).toFixed(2)} EUR`,
                                 }))}
                             />
                             {errors.membership_plan_id && (
