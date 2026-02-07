@@ -25,10 +25,12 @@ class MemberController extends Controller
         $perPage = $request->input('per_page', 10);
         $page = $request->input('page', 1);
         $filter = $request->input('filter', '');
+        $workshopId = $request->input('workshop_id', '');
+        $groupId = $request->input('group_id', '');
 
         $query = Member::with([
             'workshops.memberships',
-            'workshopGroups',
+            'workshopGroups.group',
         ])->orderBy('created_at', 'desc');
 
         if (!empty($filter)) {
@@ -47,7 +49,38 @@ class MemberController extends Controller
             });
         }
 
-        $members = $query->paginate($perPage, ['*'], 'page', $page);
+        // Filter by workshop
+        if (!empty($workshopId)) {
+            $query->whereHas('workshops', function ($q) use ($workshopId) {
+                $q->where('workshops.id', $workshopId);
+            });
+        }
+
+        // Filter by group (optionally scoped by workshop)
+        if (!empty($groupId)) {
+            $query->whereHas('workshopGroups', function ($q) use ($groupId, $workshopId) {
+                $q->where('member_group_id', $groupId);
+                if ($workshopId) {
+                    $q->where('workshop_id', $workshopId);
+                }
+            });
+        }
+
+        $members = $query->paginate($perPage, ['*'], 'page', $page)->withQueryString();
+
+        // Get all workshops for the filter dropdown
+        $workshops = Workshop::select('id', 'name')->orderBy('name')->get();
+
+        // Groups for filter (optionally scoped by workshop)
+        $groups = MemberGroup::query()
+            ->select('member_groups.id', 'member_groups.name')
+            ->when($workshopId, function ($q) use ($workshopId) {
+                $q->join('workshop_groups', 'workshop_groups.member_group_id', '=', 'member_groups.id')
+                  ->where('workshop_groups.workshop_id', $workshopId)
+                  ->distinct();
+            })
+            ->orderBy('member_groups.name')
+            ->get();
 
         return inertia('Members/Index', [
             'members' => [
@@ -59,7 +92,11 @@ class MemberController extends Controller
                     'total' => $members->total(),
                 ],
             ],
-            'filters' => $request->only(['filter', 'per_page']),
+            'filter' => $filter,
+            'workshopId' => $workshopId,
+            'groupId' => $groupId,
+            'workshops' => $workshops,
+            'groups' => $groups,
         ]);
 
     }

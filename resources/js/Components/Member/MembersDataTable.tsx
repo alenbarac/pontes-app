@@ -14,6 +14,8 @@ import { Link, router } from "@inertiajs/react";
 import { useModal } from "@/hooks/useModal";
 import { Modal } from "@/Components/ui/modal";
 import Button from "@/Components/ui/button/Button";
+import { Dropdown } from "@/ui/dropdown/Dropdown";
+import { DropdownItem } from "@/ui/dropdown/DropdownItem";
 import toast from "react-hot-toast";
 
 
@@ -22,8 +24,17 @@ const MembersDataTable = ({
     columns,
     pagination,
     pageSizeOptions = [5, 10, 20, 50],
+    workshops = [],
+    groups = [],
+    initialWorkshopId = "",
+    initialGroupId = "",
+    initialFilter = "",
 }) => {
-    const [globalFilter, setGlobalFilter] = useState("");
+    const [globalFilter, setGlobalFilter] = useState(initialFilter);
+    const [workshopId, setWorkshopId] = useState(initialWorkshopId);
+    const [groupId, setGroupId] = useState(initialGroupId);
+    const [isWorkshopDropdownOpen, setIsWorkshopDropdownOpen] = useState(false);
+    const [isGroupDropdownOpen, setIsGroupDropdownOpen] = useState(false);
     const deleteModal = useModal();
     const [memberToDelete, setMemberToDelete] = useState(null);
 
@@ -78,6 +89,7 @@ const MembersDataTable = ({
         });
     }, [columns, deleteModal]);
 
+
     // 3) Inertia search & pagination handlers
     useEffect(() => {
         const timeout = setTimeout(() => {
@@ -87,12 +99,14 @@ const MembersDataTable = ({
                     page: pagination.current_page,
                     per_page: pagination.per_page,
                     filter: globalFilter,
+                    workshop_id: workshopId,
+                    group_id: groupId,
                 },
                 { preserveState: true },
             );
         }, 500);
         return () => clearTimeout(timeout);
-    }, [globalFilter, pagination.current_page, pagination.per_page]);
+    }, [globalFilter, workshopId, groupId, pagination.current_page, pagination.per_page]);
 
     const table = useReactTable({
         data,
@@ -108,6 +122,8 @@ const MembersDataTable = ({
             page,
             per_page: pagination.per_page,
             filter: globalFilter,
+            workshop_id: workshopId,
+            group_id: groupId,
         });
 
     const handlePageSizeChange = (size) =>
@@ -115,6 +131,8 @@ const MembersDataTable = ({
             page: 1,
             per_page: size,
             filter: globalFilter,
+            workshop_id: workshopId,
+            group_id: groupId,
         });
 
     return (
@@ -169,8 +187,219 @@ const MembersDataTable = ({
                         </span>
                     </div>
 
-                    {/* Right side: Global Search */}
+                    {/* Right side: Filters & Global Search */}
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                        {/* Reset Filters Button */}
+                        <button
+                            onClick={() => {
+                                setGlobalFilter("");
+                                setWorkshopId("");
+                                setGroupId("");
+                            }}
+                            className="inline-flex items-center gap-1 px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-dark dark:hover:bg-gray-800 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100 transition"
+                            title="Poništi filtere"
+                            type="button"
+                        >
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 20 20"
+                                className="w-4 h-4"
+                            >
+                                <path
+                                    stroke="currentColor"
+                                    strokeWidth="1.5"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M4.5 15.5 15.5 4.5M4.5 4.5l11 11"
+                                />
+                            </svg>
+                            Reset
+                        </button>
+
+                        {/* Workshop Filter Dropdown */}
+                        <div className="relative inline-block">
+                            <button
+                                onClick={() =>
+                                    setIsWorkshopDropdownOpen(
+                                        !isWorkshopDropdownOpen,
+                                    )
+                                }
+                                className="inline-flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium rounded-lg dropdown-toggle border border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-dark dark:hover:bg-gray-800 min-w-[180px]"
+                            >
+                                <span className="truncate">
+                                    {workshopId
+                                        ? workshops.find(
+                                              (w) => w.id == workshopId,
+                                          )?.name
+                                        : "Sve radionice"}
+                                </span>
+                                <svg
+                                    className={`duration-200 ease-in-out stroke-current ${
+                                        isWorkshopDropdownOpen
+                                            ? "rotate-180"
+                                            : ""
+                                    }`}
+                                    width="20"
+                                    height="20"
+                                    viewBox="0 0 20 20"
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <path
+                                        d="M4.79199 7.396L10.0003 12.6043L15.2087 7.396"
+                                        stroke=""
+                                        strokeWidth="1.5"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                    />
+                                </svg>
+                            </button>
+
+                            <Dropdown
+                                className="absolute left-0 top-full z-40 mt-2 w-full min-w-[260px] rounded-2xl border border-gray-200 bg-white p-3 shadow-theme-lg dark:border-gray-800 dark:bg-[#1E2635]"
+                                isOpen={isWorkshopDropdownOpen}
+                                onClose={() => setIsWorkshopDropdownOpen(false)}
+                            >
+                                <ul className="flex flex-col gap-1 max-h-[300px] overflow-y-auto">
+                                    <li>
+                                        <DropdownItem
+                                            onClick={() => {
+                                                setWorkshopId("");
+                                                setIsWorkshopDropdownOpen(
+                                                    false,
+                                                );
+                                            }}
+                                            className={`flex rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5 ${
+                                                !workshopId
+                                                    ? "bg-gray-100 text-gray-900 dark:bg-white/10 dark:text-white"
+                                                    : "text-gray-700 dark:text-gray-300"
+                                            }`}
+                                            baseClassName=""
+                                        >
+                                            Sve radionice
+                                        </DropdownItem>
+                                    </li>
+                                    {workshops.length > 0 && (
+                                        <li>
+                                            <span className="my-1.5 block h-px w-full bg-gray-200 dark:bg-[#353C49]"></span>
+                                        </li>
+                                    )}
+                                    {workshops.map((workshop) => (
+                                        <li key={workshop.id}>
+                                            <DropdownItem
+                                                onClick={() => {
+                                                    setWorkshopId(
+                                                        workshop.id.toString(),
+                                                    );
+                                                    // Reset group when workshop changes
+                                                    setGroupId("");
+                                                    setIsWorkshopDropdownOpen(
+                                                        false,
+                                                    );
+                                                }}
+                                                className={`flex rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5 ${
+                                                    workshopId ==
+                                                    workshop.id.toString()
+                                                        ? "bg-gray-100 text-gray-900 dark:bg-white/10 dark:text-white"
+                                                        : "text-gray-700 dark:text-gray-300"
+                                                }`}
+                                                baseClassName=""
+                                            >
+                                                {workshop.name}
+                                            </DropdownItem>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </Dropdown>
+                        </div>
+
+                        {/* Group Filter Dropdown */}
+                        <div className="relative inline-block">
+                            <button
+                                onClick={() => {
+                                    setIsWorkshopDropdownOpen(false);
+                                    setIsGroupDropdownOpen(!isGroupDropdownOpen);
+                                }}
+                                className="inline-flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium rounded-lg dropdown-toggle border border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-dark dark:hover:bg-gray-800 min-w-[180px]"
+                            >
+                                <span className="truncate">
+                                    {groupId
+                                        ? groups.find((g) => g.id == groupId)
+                                              ?.name || "Grupa"
+                                        : "Sve grupe"}
+                                </span>
+                                <svg
+                                    className={`duration-200 ease-in-out stroke-current ${
+                                        isGroupDropdownOpen ? "rotate-180" : ""
+                                    }`}
+                                    width="20"
+                                    height="20"
+                                    viewBox="0 0 20 20"
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <path
+                                        d="M4.79199 7.396L10.0003 12.6043L15.2087 7.396"
+                                        stroke=""
+                                        strokeWidth="1.5"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                    />
+                                </svg>
+                            </button>
+
+                            <Dropdown
+                                className="absolute left-0 top-full z-40 mt-2 w-full min-w-[260px] rounded-2xl border border-gray-200 bg-white p-3 shadow-theme-lg dark:border-gray-800 dark:bg-[#1E2635]"
+                                isOpen={isGroupDropdownOpen}
+                                onClose={() => setIsGroupDropdownOpen(false)}
+                            >
+                                <ul className="flex flex-col gap-1 max-h-[300px] overflow-y-auto">
+                                    <li>
+                                        <DropdownItem
+                                            onClick={() => {
+                                                setGroupId("");
+                                                setIsGroupDropdownOpen(false);
+                                            }}
+                                            className={`flex rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5 ${
+                                                !groupId
+                                                    ? "bg-gray-100 text-gray-900 dark:bg-white/10 dark:text-white"
+                                                    : "text-gray-700 dark:text-gray-300"
+                                            }`}
+                                            baseClassName=""
+                                        >
+                                            Sve grupe
+                                        </DropdownItem>
+                                    </li>
+                                    {groups.length > 0 && (
+                                        <li>
+                                            <span className="my-1.5 block h-px w-full bg-gray-200 dark:bg-[#353C49]"></span>
+                                        </li>
+                                    )}
+                                    {groups.map((g) => (
+                                        <li key={g.id}>
+                                            <DropdownItem
+                                                onClick={() => {
+                                                    setGroupId(g.id.toString());
+                                                    setIsGroupDropdownOpen(
+                                                        false,
+                                                    );
+                                                }}
+                                                className={`flex rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5 ${
+                                                    groupId == g.id.toString()
+                                                        ? "bg-gray-100 text-gray-900 dark:bg-white/10 dark:text-white"
+                                                        : "text-gray-700 dark:text-gray-300"
+                                                }`}
+                                                baseClassName=""
+                                            >
+                                                {g.name}
+                                            </DropdownItem>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </Dropdown>
+                        </div>
+
                         <div className="relative">
                             <button className="absolute text-gray-500 -translate-y-1/2 left-4 top-1/2 dark:text-gray-400">
                                 <svg
@@ -198,7 +427,6 @@ const MembersDataTable = ({
                                 className="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent py-2.5 pl-11 pr-4 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800 xl:w-[300px]"
                             />
                         </div>
-                        {/* Optional: Add a Download button here if needed */}
                     </div>
                 </div>
 

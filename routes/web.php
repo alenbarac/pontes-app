@@ -38,6 +38,8 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('members', MemberController::class);
     Route::resource('member-groups', MemberGroupController::class);
+    Route::post('/member-groups/{memberGroup}/bulk-reassign', [MemberGroupController::class, 'bulkReassign'])
+        ->name('member-groups.bulk-reassign');
     Route::resource('memberships', MembershipController::class);
 
     Route::post('/members/{member}/workshops',[MemberWorkshopController::class,'store'])

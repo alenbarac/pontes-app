@@ -6,7 +6,14 @@ import { columns } from "@/Components/Member/MemberDataTableColumns";
 import MembersDataTable from "@/Components/Member/MembersDataTable";
 import ComponentCard from "@/Components/common/ComponentCard";
 
-export default function Index({ members }) {
+export default function Index({ 
+    members, 
+    filter, 
+    workshopId, 
+    groupId,
+    workshops, 
+    groups,
+}) {
     console.log(members.data);
     return (
         <AuthenticatedLayout>
@@ -27,6 +34,11 @@ export default function Index({ members }) {
                                 data={members.data}
                                 columns={columns}
                                 pagination={members.pagination}
+                                initialFilter={filter}
+                                initialWorkshopId={workshopId}
+                                initialGroupId={groupId}
+                                workshops={workshops}
+                                groups={groups}
                             />
                         </ComponentCard>
                    

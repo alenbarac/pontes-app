@@ -105,7 +105,15 @@ export default function MemberGroupTable({ groups, workshops }) {
                         {data.map((group) => (
                             <TableRow key={group.id}>
                                 <TableCell className="px-5 py-4 text-start text-theme-sm dark:text-white/90">
-                                    {group.name}
+                                    <Link
+                                        href={route(
+                                            "member-groups.show",
+                                            group.id
+                                        )}
+                                        className="hover:text-brand-500 font-medium"
+                                    >
+                                        {group.name}
+                                    </Link>
                                 </TableCell>
                                 <TableCell className="px-5 py-4 text-start text-theme-sm text-gray-500 dark:text-gray-400">
                                     {group.description}
@@ -118,9 +126,20 @@ export default function MemberGroupTable({ groups, workshops }) {
                                 </TableCell>
                                 <TableCell className="px-5 py-4 text-start">
                                     <div className="flex gap-2">
+                                        <Link
+                                            href={route(
+                                                "member-groups.show",
+                                                group.id
+                                            )}
+                                            className="hover:text-blue-600"
+                                            title="Pregled grupe"
+                                        >
+                                            <EyeIcon className="h-5 w-5" />
+                                        </Link>
                                         <button
                                             onClick={() => handleEdit(group)}
                                             className="hover:text-blue-600"
+                                            title="Uredi grupu"
                                         >
                                             <Cog8ToothIcon className="h-5 w-5" />
                                         </button>
@@ -129,6 +148,7 @@ export default function MemberGroupTable({ groups, workshops }) {
                                                 handleTerminate(group)
                                             }
                                             className="hover:text-red-700"
+                                            title="Izbriši grupu"
                                         >
                                             <TrashIcon className="h-5 w-5" />
                                         </button>

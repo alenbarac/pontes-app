@@ -233,7 +233,7 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
     };
 
     return (
-        <div className="mt-6">
+        <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-800">
             <div className="flex items-center justify-between mb-4">
                 <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     Računi {hasInvoices && `(${invoices.length})`}
