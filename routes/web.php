@@ -9,6 +9,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\InvoiceGenerationController;
 use App\Http\Controllers\MemberInvoiceController;
+use App\Http\Controllers\DocumentTemplateController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -78,6 +79,42 @@ Route::middleware('auth')->group(function () {
     Route::post('/invoices/toggle-bulk-status', [InvoiceController::class, 'toggleBulkInvoiceStatus'])->name('invoices.toggleBulkInvoiceStatus');
     Route::get('/invoices/{invoice}/slip', [InvoiceController::class, 'slip'])
         ->name('invoices.slip');
+
+    // Document Templates Routes
+    Route::prefix('document-templates')->group(function () {
+        Route::get('/ispricnice', [DocumentTemplateController::class, 'index'])
+            ->defaults('type', 'ispricnica')
+            ->name('document-templates.ispricnice.index');
+        Route::get('/privole', [DocumentTemplateController::class, 'index'])
+            ->defaults('type', 'privola')
+            ->name('document-templates.privole.index');
+        Route::get('/ispricnice/create', [DocumentTemplateController::class, 'create'])
+            ->defaults('type', 'ispricnica')
+            ->name('document-templates.ispricnice.create');
+        Route::get('/privole/create', [DocumentTemplateController::class, 'create'])
+            ->defaults('type', 'privola')
+            ->name('document-templates.privole.create');
+    });
+    Route::post('/document-templates', [DocumentTemplateController::class, 'store'])
+        ->name('document-templates.store');
+    Route::get('/document-templates/{documentTemplate}', [DocumentTemplateController::class, 'show'])
+        ->name('document-templates.show');
+    Route::get('/document-templates/{documentTemplate}/edit', [DocumentTemplateController::class, 'edit'])
+        ->name('document-templates.edit');
+    Route::patch('/document-templates/{documentTemplate}', [DocumentTemplateController::class, 'update'])
+        ->name('document-templates.update');
+    Route::delete('/document-templates/{documentTemplate}', [DocumentTemplateController::class, 'destroy'])
+        ->name('document-templates.destroy');
+    Route::get('/document-templates/preview', [DocumentTemplateController::class, 'preview'])
+        ->name('document-templates.preview');
+    Route::get('/document-templates/{documentTemplate}/preview', [DocumentTemplateController::class, 'preview'])
+        ->name('document-templates.preview.with-id');
+    Route::post('/document-templates/{documentTemplate}/generate', [DocumentTemplateController::class, 'generate'])
+        ->name('document-templates.generate');
+    Route::post('/document-templates/{documentTemplate}/generate-bulk', [DocumentTemplateController::class, 'generateBulk'])
+        ->name('document-templates.generate-bulk');
+    Route::get('/document-templates/active/list', [DocumentTemplateController::class, 'getActiveTemplates'])
+        ->name('document-templates.active');
 
 });
 

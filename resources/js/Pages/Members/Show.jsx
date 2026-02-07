@@ -4,8 +4,9 @@ import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import Breadcrumb from "@/Components/Breadcrumb";
 import MemberInfoCard from "@/Components/Member/MemberInfoCard";
 import MemberInfoWorkshops from "@/Components/Member/MemberInfoWorkshops";
+import MemberDocuments from "@/Components/Member/MemberDocuments";
 
-export default function Show({ member, workshops, groups, membershipPlans, invoicesByWorkshop }) {
+export default function Show({ member, workshops, groups, membershipPlans, invoicesByWorkshop, documents = [] }) {
 
     return (
         <AuthenticatedLayout>
@@ -25,6 +26,11 @@ export default function Show({ member, workshops, groups, membershipPlans, invoi
                         groups={groups}
                         membershipPlans={membershipPlans}
                         invoicesByWorkshop={invoicesByWorkshop || {}}
+                    />
+                    
+                    <MemberDocuments
+                        documents={documents}
+                        memberId={member.id}
                     />
                 </div>
             </div>

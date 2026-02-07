@@ -55,6 +55,14 @@ class Member extends Model
     }
 
     /**
+     * A member has generated documents (One-to-Many)
+     */
+    public function documents()
+    {
+        return $this->hasMany(MemberDocument::class);
+    }
+
+    /**
      * Roll out a member from a specific workshop.
      *
      */

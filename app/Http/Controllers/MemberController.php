@@ -166,6 +166,7 @@ class MemberController extends Controller
             'workshopGroups.group',
             'invoices.workshop',
             'invoices.membershipPlan',
+            'documents.documentTemplate',
         ]);
 
         // Fetch all workshops for selection
@@ -205,12 +206,25 @@ class MemberController extends Controller
             })->values()->all();
         })->toArray();
 
+        // Format documents for Inertia
+        $documents = $member->documents->map(function ($doc) {
+            return [
+                'id' => $doc->id,
+                'template_id' => $doc->document_template_id,
+                'document_type' => $doc->document_type,
+                'template_name' => $doc->documentTemplate->name ?? '',
+                'created_at' => $doc->created_at->format('d.m.Y H:i'),
+                'additional_data' => $doc->additional_data,
+            ];
+        })->sortByDesc('created_at')->values();
+
         return inertia('Members/Show', [
             'member' => new MemberResource($member),
             'workshops' => $workshops,
             'groups' => $groups,
             'membershipPlans' => $membershipPlans,
             'invoicesByWorkshop' => $invoicesByWorkshop,
+            'documents' => $documents,
         ]);
     }
 

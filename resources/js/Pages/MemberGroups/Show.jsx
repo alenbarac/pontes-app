@@ -19,6 +19,7 @@ import {
 import Button from "@/Components/ui/button/Button";
 import { useModal } from "@/hooks/useModal";
 import BulkReassignModal from "@/Components/MemberGroup/BulkReassignModal";
+import TemplateSelectorModal from "@/Components/Documents/TemplateSelectorModal";
 import toast from "react-hot-toast";
 
 export default function Show({
@@ -32,6 +33,8 @@ export default function Show({
     const [selectedMembers, setSelectedMembers] = useState([]);
     const [search, setSearch] = useState(initialSearch);
     const bulkReassignModal = useModal();
+    const documentModal = useModal();
+    const [documentType, setDocumentType] = useState("ispricnica");
 
     const workshopId = group.workshop?.id;
 
@@ -74,11 +77,9 @@ export default function Show({
     };
 
     const handleGenerateExcuse = (member) => {
-        // Placeholder handler for document/excuse generation
-        toast.success(
-            `Generiranje dokumenta za ${member.first_name} ${member.last_name} - funkcionalnost će biti implementirana u budućnosti.`
-        );
-        console.log("Generate excuse for member:", member);
+        setSelectedMembers([member.id]);
+        setDocumentType(null); // Let user choose in modal
+        documentModal.openModal();
     };
 
     const handleBulkGenerateDocuments = () => {
@@ -86,14 +87,13 @@ export default function Show({
             toast.error("Molimo odaberite barem jednog člana.");
             return;
         }
-        // Placeholder handler for bulk document/excuse generation
-        const selectedMembersData = members.data.filter((m) =>
-            selectedMembers.includes(m.id)
-        );
-        toast.success(
-            `Generiranje dokumenata za ${selectedMembers.length} članova - funkcionalnost će biti implementirana u budućnosti.`
-        );
-        console.log("Generate bulk excuses for members:", selectedMembersData);
+        setDocumentType(null); // Let user choose in modal
+        documentModal.openModal();
+    };
+
+    const handleDocumentSuccess = () => {
+        setSelectedMembers([]);
+        documentModal.closeModal();
     };
 
     const handlePageChange = (page) => {
@@ -417,6 +417,16 @@ export default function Show({
                     setSelectedMembers([]);
                     bulkReassignModal.closeModal();
                 }}
+            />
+
+            {/* Document Generation Modal */}
+            <TemplateSelectorModal
+                isOpen={documentModal.isOpen}
+                onClose={documentModal.closeModal}
+                selectedMembers={selectedMembers}
+                members={members.data}
+                templateType={documentType}
+                onSuccess={handleDocumentSuccess}
             />
         </AuthenticatedLayout>
     );

@@ -7,6 +7,7 @@ import {
     SquaresPlusIcon,
     DocumentArrowUpIcon,
     DocumentCurrencyEuroIcon,
+    DocumentTextIcon,
 } from "@heroicons/react/24/outline";
 import { useSidebar } from "@/context/SidebarContext";
 
@@ -47,6 +48,15 @@ const navItems: NavItem[] = [
         subItems: [
             { name: "Popis računa", path: "/invoices" },
             { name: "Generiranje računa", path: "/invoices/generate" },
+        ],
+    },
+
+    {
+        icon: <DocumentTextIcon className="w-5 h-5" />,
+        name: "Dokumenti",
+        subItems: [
+            { name: "Ispričnice", path: route("document-templates.ispricnice.index") },
+            { name: "Privole", path: route("document-templates.privole.index") },
         ],
     },
 
