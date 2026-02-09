@@ -124,39 +124,14 @@ export default function TemplateSelectorModal({
         const templateName = selectedTemplate?.name || 'documents';
 
         try {
+            // For both single and bulk, just save to member profiles
+            await axios.post(routeName, data);
+
             if (isBulk) {
-                // For bulk, download ZIP file
-                const response = await axios.post(routeName, data, {
-                    responseType: 'blob',
-                });
-
-                // Create blob and download
-                const blob = new Blob([response.data], { type: 'application/zip' });
-                const url = window.URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `${templateName}_${Date.now()}.zip`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                window.URL.revokeObjectURL(url);
-
                 toast.success(
                     `Generirani dokumenti za ${selectedMembers.length} članova.`
                 );
             } else {
-                // For single member, stream PDF
-                const response = await axios.post(routeName, data, {
-                    responseType: 'blob',
-                });
-
-                // Create blob and open in new tab
-                const blob = new Blob([response.data], { type: 'application/pdf' });
-                const url = window.URL.createObjectURL(blob);
-                window.open(url, '_blank');
-                // Clean up after a delay to allow the browser to load it
-                setTimeout(() => window.URL.revokeObjectURL(url), 100);
-
                 toast.success("Dokument generiran.");
             }
 

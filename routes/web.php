@@ -115,6 +115,10 @@ Route::middleware('auth')->group(function () {
         ->name('document-templates.generate-bulk');
     Route::get('/document-templates/active/list', [DocumentTemplateController::class, 'getActiveTemplates'])
         ->name('document-templates.active');
+    Route::delete('/member-documents/{memberDocument}', [DocumentTemplateController::class, 'deleteMemberDocument'])
+        ->name('member-documents.destroy');
+    Route::get('/member-documents/{memberDocument}/download', [DocumentTemplateController::class, 'downloadMemberDocument'])
+        ->name('member-documents.download');
 
 });
 

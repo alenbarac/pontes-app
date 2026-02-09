@@ -35,12 +35,33 @@ const MemberInfoCard = ({memberData}) => {
   return (
       <div className="p-5 border border-gray-200 rounded-2xl dark:border-gray-800 lg:p-6">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-              <div>
-                  <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90 lg:mb-6">
-                      Osnovne informacije
-                  </h4>
+              <div className="flex-1">
+                  <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-5">
+                      <div className="flex items-start justify-between mb-6">
+                          <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90">
+                              Osnovne informacije
+                          </h4>
+                          <div className="flex items-center gap-2">
+                              <Button
+                                  onClick={openModal}
+                                  variant="primary"
+                                  size="xs"
+                                  startIcon={<PencilIcon className="h-4 w-4" />}
+                              >
+                                  Uredi
+                              </Button>
+                              <Button
+                                  variant="outline"
+                                  startIcon={<TrashIcon className="h-5 w-5" />}
+                                  onClick={handleDeleteMember}
+                                  size="xs"
+                              >
+                                  Obriši člana
+                              </Button>
+                          </div>
+                      </div>
 
-                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-4 lg:gap-7 2xl:gap-x-32">
+                      <div className="grid grid-cols-1 gap-4 lg:grid-cols-4 lg:gap-7 2xl:gap-x-32">
                       <div>
                           <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">
                               Ime
@@ -126,28 +147,9 @@ const MemberInfoCard = ({memberData}) => {
                               {memberData?.is_active ? "Aktivan" : "Neaktivan"}
                           </Badge>
                       </div>
+                      </div>
                   </div>
               </div>
-
-              <Button
-                  onClick={openModal}
-                  variant="primary"
-                  size="xs"
-                  startIcon={<PencilIcon className="h-4 w-4" />}
-                  className="mb-3"
-              >
-                  Uredi
-              </Button>
-          </div>
-          <div className="flex justify-end mt-4">
-              <Button
-                  variant="outline"
-                  startIcon={<TrashIcon className="h-5 w-5" />}
-                  onClick={handleDeleteMember}
-                  size="xs"
-              >
-                  Obriši člana
-              </Button>
           </div>
 
           <Modal

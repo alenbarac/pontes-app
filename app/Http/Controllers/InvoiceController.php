@@ -305,6 +305,9 @@ public function slip(Invoice $invoice)
             $tempFile = $tempDir . '/pdf417_' . $invoice->id . '_' . time() . '.png';
             file_put_contents($tempFile, $barcodePng);
             $barcodePath = $tempFile;
+            
+            // Clean up old temp files (older than 1 hour) to prevent storage bloat
+            $this->cleanupOldTempFiles($tempDir, 3600); // 1 hour
         } else {
             throw new \Exception('HUB-3 API returned status: ' . $response->status() . ' - ' . $response->body());
         }
@@ -355,4 +358,29 @@ public function destroy(Request $request, Invoice $invoice)
     return redirect()->route('invoices.index')->with('success', 'Račun uspješno obrisan.');
 }
 
+    /**
+     * Clean up old temporary files to prevent storage bloat.
+     * 
+     * @param string $directory
+     * @param int $maxAgeSeconds Maximum age in seconds (default: 1 hour)
+     * @return void
+     */
+    private function cleanupOldTempFiles(string $directory, int $maxAgeSeconds = 3600): void
+    {
+        if (!is_dir($directory)) {
+            return;
+        }
+
+        $files = glob($directory . '/*');
+        $now = time();
+
+        foreach ($files as $file) {
+            if (is_file($file)) {
+                $fileAge = $now - filemtime($file);
+                if ($fileAge > $maxAgeSeconds) {
+                    @unlink($file);
+                }
+            }
+        }
+    }
 }

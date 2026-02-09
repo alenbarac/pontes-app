@@ -259,14 +259,23 @@ class DocumentTemplateController extends Controller
             $additionalData['custom'] = $validated['custom'];
         }
 
-        // Save document record
-        MemberDocument::create([
-            'member_id' => $member->id,
-            'document_template_id' => $documentTemplate->id,
-            'document_type' => $documentTemplate->type,
-            'additional_data' => $additionalData,
-        ]);
+        // Check if document already exists for this member and template
+        $existingDocument = MemberDocument::where('member_id', $member->id)
+            ->where('document_template_id', $documentTemplate->id)
+            ->where('document_type', $documentTemplate->type)
+            ->first();
 
+        // Only create record if it doesn't exist
+        if (!$existingDocument) {
+            MemberDocument::create([
+                'member_id' => $member->id,
+                'document_template_id' => $documentTemplate->id,
+                'document_type' => $documentTemplate->type,
+                'additional_data' => $additionalData,
+            ]);
+        }
+
+        // Always generate PDF on-demand (no storage, just stream)
         $pdf = $this->documentService->generatePDF($documentTemplate, $member, $additionalData);
         $filename = str_replace([' ', '/', '\\'], '_', $documentTemplate->name . '_' . trim(($member->first_name ?? '') . '_' . ($member->last_name ?? ''))) . '.pdf';
 
@@ -295,25 +304,29 @@ class DocumentTemplateController extends Controller
             $additionalData['custom'] = $validated['custom'];
         }
 
-        // Save document records for all members
+        // Save document records for all members (only if they don't exist)
         foreach ($members as $member) {
-            MemberDocument::create([
-                'member_id' => $member->id,
-                'document_template_id' => $documentTemplate->id,
-                'document_type' => $documentTemplate->type,
-                'additional_data' => $additionalData,
-            ]);
+            $existingDocument = MemberDocument::where('member_id', $member->id)
+                ->where('document_template_id', $documentTemplate->id)
+                ->where('document_type', $documentTemplate->type)
+                ->first();
+
+            if (!$existingDocument) {
+                MemberDocument::create([
+                    'member_id' => $member->id,
+                    'document_template_id' => $documentTemplate->id,
+                    'document_type' => $documentTemplate->type,
+                    'additional_data' => $additionalData,
+                ]);
+            }
         }
 
-        $zipPath = $this->documentService->generateBulkPDFs(
-            $documentTemplate,
-            $members,
-            $additionalData
-        );
-
-        $filename = $documentTemplate->name . '_' . time() . '.zip';
-
-        return response()->download($zipPath, $filename)->deleteFileAfterSend(true);
+        // Return success response - documents are saved to member profiles
+        return response()->json([
+            'success' => true,
+            'message' => 'Dokumenti su uspješno generirani i spremljeni.',
+            'count' => $members->count(),
+        ]);
     }
 
     /**
@@ -329,5 +342,36 @@ class DocumentTemplateController extends Controller
             ->get(['id', 'name', 'type']);
 
         return response()->json($templates->toArray());
+    }
+
+    /**
+     * Delete a member document.
+     */
+    public function deleteMemberDocument(MemberDocument $memberDocument)
+    {
+        $memberDocument->delete();
+
+        if (request()->header('X-Inertia')) {
+            return back()->with('success', 'Dokument uspješno obrisan.');
+        }
+
+        return redirect()->back()->with('success', 'Dokument uspješno obrisan.');
+    }
+
+    /**
+     * Download/View a member document.
+     */
+    public function downloadMemberDocument(MemberDocument $memberDocument)
+    {
+        $memberDocument->load(['member', 'documentTemplate']);
+        
+        $member = $memberDocument->member;
+        $template = $memberDocument->documentTemplate;
+        $additionalData = $memberDocument->additional_data ?? [];
+
+        $pdf = $this->documentService->generatePDF($template, $member, $additionalData);
+        $filename = str_replace([' ', '/', '\\'], '_', $template->name . '_' . trim(($member->first_name ?? '') . '_' . ($member->last_name ?? ''))) . '.pdf';
+
+        return $pdf->stream($filename);
     }
 }

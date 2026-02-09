@@ -1,12 +1,20 @@
-import React from "react";
+import React, { useState } from "react";
 import { Head, Link } from "@inertiajs/react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import Breadcrumb from "@/Components/Breadcrumb";
 import MemberInfoCard from "@/Components/Member/MemberInfoCard";
 import MemberInfoWorkshops from "@/Components/Member/MemberInfoWorkshops";
 import MemberDocuments from "@/Components/Member/MemberDocuments";
+import { TabButton } from "@/Components/ui/tabs/TabWithUnderline";
 
 export default function Show({ member, workshops, groups, membershipPlans, invoicesByWorkshop, documents = [] }) {
+    const [activeTab, setActiveTab] = useState("radionice");
+
+    const tabs = [
+        { id: "radionice", label: "Radionice" },
+        { id: "dokumenti", label: "Dokumenti" },
+        { id: "osnovne-informacije", label: "Osnovne informacije" },
+    ];
 
     return (
         <AuthenticatedLayout>
@@ -17,21 +25,42 @@ export default function Show({ member, workshops, groups, membershipPlans, invoi
                 <h3 className="mb-5 text-lg font-semibold text-gray-800 dark:text-white/90 lg:mb-7">
                     Profil
                 </h3>
-                <div className="space-y-6">
-                    <MemberInfoCard memberData={member} />
+                
+                <div className="border-b border-gray-200 dark:border-gray-800 mb-6">
+                    <nav className="-mb-px flex space-x-2 overflow-x-auto [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-200 dark:[&::-webkit-scrollbar-thumb]:bg-gray-600 dark:[&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:h-1.5">
+                        {tabs.map((tab) => (
+                            <TabButton
+                                key={tab.id}
+                                id={tab.id}
+                                label={tab.label}
+                                isActive={activeTab === tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                            />
+                        ))}
+                    </nav>
+                </div>
+
+                <div className="pt-4">
+                    {activeTab === "radionice" && (
+                        <MemberInfoWorkshops
+                            memberData={member}
+                            workshops={workshops}
+                            groups={groups}
+                            membershipPlans={membershipPlans}
+                            invoicesByWorkshop={invoicesByWorkshop || {}}
+                        />
+                    )}
                     
-                    <MemberInfoWorkshops
-                        memberData={member}
-                        workshops={workshops}
-                        groups={groups}
-                        membershipPlans={membershipPlans}
-                        invoicesByWorkshop={invoicesByWorkshop || {}}
-                    />
+                    {activeTab === "dokumenti" && (
+                        <MemberDocuments
+                            documents={documents}
+                            memberId={member.id}
+                        />
+                    )}
                     
-                    <MemberDocuments
-                        documents={documents}
-                        memberId={member.id}
-                    />
+                    {activeTab === "osnovne-informacije" && (
+                        <MemberInfoCard memberData={member} />
+                    )}
                 </div>
             </div>
         </AuthenticatedLayout>
