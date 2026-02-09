@@ -90,6 +90,16 @@ class InvoiceController extends Controller
         'groups' => $groups,
     ]);
 }
+
+public function show(Invoice $invoice)
+{
+    // Redirect to invoices index with filter for this invoice's reference code
+    // This allows users to see the invoice in the table context
+    return redirect()->route('invoices.index', [
+        'filter' => $invoice->reference_code
+    ]);
+}
+
 public function updateStatus(Request $request, Invoice $invoice)
 {
     $validated = $request->validate([

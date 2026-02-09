@@ -7,20 +7,44 @@ import {
     TableCell,
     TableBody,
 } from "@/Components/ui/table";
-import { DocumentTextIcon, TrashIcon } from "@heroicons/react/24/outline";
+import { DocumentTextIcon, TrashIcon, PlusIcon } from "@heroicons/react/24/outline";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { Modal } from "@/Components/ui/modal";
 import { useModal } from "@/hooks/useModal";
 import Button from "@/Components/ui/button/Button";
+import TemplateSelectorModal from "@/Components/Documents/TemplateSelectorModal";
 
-export default function MemberDocuments({ documents, memberId }) {
+export default function MemberDocuments({ documents, memberId, member }) {
     const deleteModal = useModal();
+    const generateModal = useModal();
     const [documentToDelete, setDocumentToDelete] = useState(null);
 
     // Sort documents by created_at descending (newest first)
+    // Parse date string format "dd.MM.yyyy H:i" or use ISO format if available
     const sortedDocuments = [...documents].sort((a, b) => {
-        return new Date(b.created_at) - new Date(a.created_at);
+        // Try to parse the date string (format: "dd.MM.yyyy H:i")
+        const parseDate = (dateStr) => {
+            if (!dateStr) return 0;
+            // If it's already a Date object or ISO string, use it directly
+            if (dateStr instanceof Date) return dateStr.getTime();
+            if (dateStr.includes('T') || dateStr.includes('-')) {
+                return new Date(dateStr).getTime();
+            }
+            // Parse "dd.MM.yyyy H:i" format
+            const parts = dateStr.split(' ');
+            if (parts.length >= 1) {
+                const datePart = parts[0].split('.');
+                if (datePart.length === 3) {
+                    const [day, month, year] = datePart;
+                    const timePart = parts[1] || '00:00';
+                    const [hours, minutes] = timePart.split(':');
+                    return new Date(year, month - 1, day, hours || 0, minutes || 0).getTime();
+                }
+            }
+            return 0;
+        };
+        return parseDate(b.created_at) - parseDate(a.created_at);
     });
 
     const handleView = async (doc) => {
@@ -69,24 +93,58 @@ export default function MemberDocuments({ documents, memberId }) {
         });
     };
 
+    const handleDocumentSuccess = () => {
+        generateModal.closeModal();
+        // Reload the page to show the new document
+        router.reload({ only: ['documents'] });
+    };
+
     if (!documents || documents.length === 0) {
         return (
             <div className="p-5 border border-gray-200 rounded-2xl dark:border-gray-800 lg:p-6">
-                <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-4">
-                    Generirani dokumenti
-                </h4>
+                <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90">
+                        Generirani dokumenti
+                    </h4>
+                    <Button
+                        onClick={generateModal.openModal}
+                        variant="primary"
+                        size="xs"
+                        startIcon={<PlusIcon className="h-4 w-4" />}
+                    >
+                        Generiraj dokument
+                    </Button>
+                </div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                     Nema generiranih dokumenata za ovog člana.
                 </p>
+
+                <TemplateSelectorModal
+                    isOpen={generateModal.isOpen}
+                    onClose={generateModal.closeModal}
+                    selectedMembers={[memberId]}
+                    members={[member]}
+                    onSuccess={handleDocumentSuccess}
+                />
             </div>
         );
     }
 
     return (
         <div className="p-5 border border-gray-200 rounded-2xl dark:border-gray-800 lg:p-6">
-            <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-6">
-                Generirani dokumenti
-            </h4>
+            <div className="flex items-center justify-between mb-6">
+                <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90">
+                    Generirani dokumenti
+                </h4>
+                <Button
+                    onClick={generateModal.openModal}
+                    variant="primary"
+                    size="xs"
+                    startIcon={<PlusIcon className="h-4 w-4" />}
+                >
+                    Generiraj dokument
+                </Button>
+            </div>
             <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
                 <div className="max-w-full overflow-x-auto">
                     <Table>
@@ -231,6 +289,14 @@ export default function MemberDocuments({ documents, memberId }) {
                     </div>
                 </div>
             </Modal>
+
+            <TemplateSelectorModal
+                isOpen={generateModal.isOpen}
+                onClose={generateModal.closeModal}
+                selectedMembers={[memberId]}
+                members={[member]}
+                onSuccess={handleDocumentSuccess}
+            />
         </div>
     );
 }

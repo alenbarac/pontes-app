@@ -55,6 +55,7 @@ export default function Show({ member, workshops, groups, membershipPlans, invoi
                         <MemberDocuments
                             documents={documents}
                             memberId={member.id}
+                            member={member}
                         />
                     )}
                     
