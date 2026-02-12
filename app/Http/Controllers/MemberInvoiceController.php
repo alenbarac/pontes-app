@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Member;
 use App\Models\Workshop;
+use App\Models\MemberWorkshop;
 use App\Services\InvoiceGenerationService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -165,6 +166,88 @@ class MemberInvoiceController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to preview invoice: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Generate a membership invoice for a specific month.
+     * 
+     * @param Request $request
+     * @param Member $member
+     * @return JsonResponse
+     */
+    public function generateMembershipInvoice(Request $request, Member $member): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'workshop_id' => 'required|exists:workshops,id',
+            'target_month' => 'required|date_format:Y-m', // e.g., "2025-01"
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            // Get MemberWorkshop relationship
+            $memberWorkshop = MemberWorkshop::where('member_id', $member->id)
+                ->where('workshop_id', $request->workshop_id)
+                ->with(['member', 'workshop', 'membershipPlan'])
+                ->first();
+
+            if (!$memberWorkshop) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Member is not enrolled in this workshop.',
+                ], 422);
+            }
+
+            $targetMonth = Carbon::createFromFormat('Y-m', $request->target_month)->startOfMonth();
+
+            // Check if invoice already exists
+            if ($memberWorkshop->hasInvoiceForMonth($targetMonth)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invoice already exists for this month.',
+                ], 422);
+            }
+
+            // Check if should generate (respects membership period and billing cycle)
+            if (!$this->invoiceService->shouldGenerateInvoice($memberWorkshop, $targetMonth)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invoice cannot be generated for this month (outside membership period or billing cycle).',
+                ], 422);
+            }
+
+            // Create the invoice
+            $invoice = $this->invoiceService->createInvoice($memberWorkshop, $targetMonth);
+
+            if (!$invoice) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to create invoice. Membership plan may be missing.',
+                ], 422);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Invoice generated successfully.',
+                'invoice' => [
+                    'id' => $invoice->id,
+                    'reference_code' => $invoice->reference_code,
+                    'amount_due' => (float) $invoice->amount_due,
+                    'due_date' => $invoice->due_date,
+                    'payment_status' => $invoice->payment_status,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error generating invoice: ' . $e->getMessage(),
             ], 500);
         }
     }

@@ -27,6 +27,11 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
     const [generatingSession, setGeneratingSession] = useState(false);
     const [previewingSession, setPreviewingSession] = useState(false);
     
+    // Membership invoice generation state
+    const membershipInvoiceModal = useModal();
+    const [targetMonth, setTargetMonth] = useState("");
+    const [generatingMembership, setGeneratingMembership] = useState(false);
+    
     // Delete invoice state
     const deleteInvoiceModal = useModal();
     const [invoiceToDelete, setInvoiceToDelete] = useState(null);
@@ -93,6 +98,56 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
         setSessionDate("");
         setSessionAmount("");
         setDefaultAmount(0);
+    };
+
+    const openMembershipInvoiceModal = () => {
+        setTargetMonth("");
+        membershipInvoiceModal.openModal();
+    };
+
+    const closeMembershipInvoiceModal = () => {
+        membershipInvoiceModal.closeModal();
+        setTargetMonth("");
+    };
+
+    const handleTargetMonthChange = (dates) => {
+        if (dates && dates.length > 0) {
+            const date = dates[0];
+            const monthStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            setTargetMonth(monthStr);
+        }
+    };
+
+    const handleGenerateMembershipInvoice = async () => {
+        if (!targetMonth) {
+            toast.error("Molimo odaberite mjesec za račun.");
+            return;
+        }
+
+        setGeneratingMembership(true);
+        try {
+            const response = await axios.post(
+                route("members.invoices.generate", member.id),
+                {
+                    workshop_id: workshop.id,
+                    target_month: targetMonth,
+                }
+            );
+
+            if (response.data.success) {
+                toast.success("Račun uspješno generiran.");
+                closeMembershipInvoiceModal();
+                // Refresh the page to show new invoice
+                router.reload({ only: ['invoicesByWorkshop'] });
+            } else {
+                toast.error(response.data.message || "Greška pri generiranju računa.");
+            }
+        } catch (error) {
+            const errorMessage = error.response?.data?.message || "Greška pri generiranju računa.";
+            toast.error(errorMessage);
+        } finally {
+            setGeneratingMembership(false);
+        }
     };
 
     const handleGenerateSessionInvoice = () => {
@@ -238,9 +293,17 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                 <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     Računi {hasInvoices && `(${invoices.length})`}
                 </div>
-                {isIndividualCounseling && (
+                {isIndividualCounseling ? (
                     <Button
                         onClick={openSessionInvoiceModal}
+                        variant="primary"
+                        size="xs"
+                    >
+                        Generiraj račun
+                    </Button>
+                ) : (
+                    <Button
+                        onClick={openMembershipInvoiceModal}
                         variant="primary"
                         size="xs"
                     >
@@ -648,6 +711,75 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                         </div>
                     </div>
                 )}
+            </Modal>
+
+            {/* Membership Invoice Generation Modal */}
+            <Modal
+                isOpen={membershipInvoiceModal.isOpen}
+                onClose={closeMembershipInvoiceModal}
+                className="max-w-[600px] w-full mx-4 p-6"
+            >
+                <div>
+                    <div className="flex items-start justify-between mb-4">
+                        <div>
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                                Generiraj račun za članarinu
+                            </h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                Odaberite mjesec za koji želite generirati račun
+                            </p>
+                        </div>
+                        <button
+                            onClick={closeMembershipInvoiceModal}
+                            className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+                        >
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div>
+                            <Label htmlFor="target_month">Mjesec</Label>
+                            <div className="relative w-full flatpickr-wrapper mt-1">
+                                <Flatpickr
+                                    options={{
+                                        dateFormat: "Y-m",
+                                        mode: "single",
+                                        defaultDate: targetMonth || null,
+                                        onChange: handleTargetMonthChange,
+                                    }}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                                    placeholder="Odaberite mjesec (YYYY-MM)"
+                                />
+                            </div>
+                            {targetMonth && (
+                                <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                                    Odabrani mjesec: <strong>{targetMonth}</strong>
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                            <Button
+                                onClick={closeMembershipInvoiceModal}
+                                variant="outline"
+                                size="sm"
+                            >
+                                Odustani
+                            </Button>
+                            <Button
+                                onClick={handleGenerateMembershipInvoice}
+                                variant="primary"
+                                size="sm"
+                                disabled={!targetMonth || generatingMembership}
+                            >
+                                {generatingMembership ? "Generiranje..." : "Generiraj račun"}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
             </Modal>
 
             {/* Delete Invoice Confirmation Modal */}

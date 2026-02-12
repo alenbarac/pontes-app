@@ -8,6 +8,7 @@ use App\Models\MemberGroup;
 use App\Models\MembershipPlan;
 use App\Models\MemberWorkshop;
 use App\Models\MemberGroupWorkshop;
+use App\Services\SchoolYearService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
@@ -208,7 +209,7 @@ class MembersImport implements ToCollection, WithHeadingRow
                 // Attach member to workshop with membership plan
                 $member->workshops()->attach($workshop->id, [
                     'membership_plan_id' => $membershipPlan->id,
-                    'membership_start_date' => now(),
+                    'membership_start_date' => SchoolYearService::getCurrentSchoolYear()['start'],
                 ]);
 
                 // Assign member to the group within this workshop (if not already assigned)

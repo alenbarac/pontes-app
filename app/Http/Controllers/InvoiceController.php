@@ -22,6 +22,7 @@ class InvoiceController extends Controller
     $workshopId = $request->get('workshop_id', '');
     $paymentStatus = $request->get('payment_status', '');
     $groupId = $request->get('group_id', '');
+    $monthFilter = $request->get('month', ''); // Format: YYYY-MM
 
     $query = Invoice::with(['member', 'member.workshopGroups.group', 'workshop', 'membershipPlan'])
         ->when($filter, function ($query, $filter) {
@@ -50,6 +51,15 @@ class InvoiceController extends Controller
                     $q->where('workshop_id', $workshopId);
                 }
             });
+        })
+        ->when($monthFilter, function ($query, $monthFilter) {
+            // Filter by year and month (format: YYYY-MM)
+            if (preg_match('/^(\d{4})-(\d{2})$/', $monthFilter, $matches)) {
+                $year = (int) $matches[1];
+                $month = (int) $matches[2];
+                $query->whereYear('due_date', $year)
+                      ->whereMonth('due_date', $month);
+            }
         })
         ->orderByDesc('due_date');
 
@@ -85,6 +95,7 @@ class InvoiceController extends Controller
         'workshopId' => $workshopId,
         'paymentStatus' => $paymentStatus,
         'groupId' => $groupId,
+        'month' => $monthFilter,
         'workshops' => $workshops,
         'paymentStatuses' => $paymentStatuses,
         'groups' => $groups,
@@ -231,7 +242,13 @@ public function markAsPaid(Request $request, Invoice $invoice)
     return redirect()->route('invoices.index')->with('success', 'Račun označen kao plaćen.');
 }
 
-public function slip(Invoice $invoice)
+/**
+ * Generate PDF slip for an invoice (public method for reuse).
+ * 
+ * @param Invoice $invoice
+ * @return \Barryvdh\DomPDF\PDF
+ */
+public function generateSlipPDF(Invoice $invoice)
 {
     $invoice->load(['member', 'workshop', 'membershipPlan']);
 
@@ -239,6 +256,10 @@ public function slip(Invoice $invoice)
     $memberFullName = trim(($invoice->member->first_name ?? '') . ' ' . ($invoice->member->last_name ?? ''));
     $memberAddress  = trim($invoice->member->address ?? '');
     $notes          = $invoice->notes ?? 'Članarina';
+    
+    // For HUB3 API: combined description (max 35 chars)
+    // For PDF: separate variables for better layout
+    $descriptionForBarcode = trim($memberFullName . ' - ' . $notes);
 
     $org = config('pontes');
 
@@ -294,7 +315,7 @@ public function slip(Invoice $invoice)
                     'model' => mb_substr(str_replace('HR', '', $org['model']), 0, 2), // Remove HR prefix if present
                     'reference' => mb_substr($invoice->reference_code, 0, 22),
                 ],
-                'description' => mb_substr($notes, 0, 35),
+                'description' => mb_substr($descriptionForBarcode, 0, 35),
             ],
         ];
         
@@ -336,7 +357,8 @@ public function slip(Invoice $invoice)
         'currency'       => $org['currency'],
         'due_date'       => \Carbon\Carbon::parse($invoice->due_date)->format('d.m.Y.'),
         'reference'      => $invoice->reference_code,
-        'description'    => $notes,
+        'member_name_for_description' => $memberFullName,
+        'payment_notes'  => $notes,
         'recipient_name'    => $org['recipient_name'],
         'recipient_address' => $org['recipient_address'],
         'recipient_postal' => $org['recipient_postal'],
@@ -350,10 +372,31 @@ public function slip(Invoice $invoice)
     $pdf = Pdf::loadView('invoices.slip', $data)
         ->setPaper('a4', 'portrait');
 
-    $file = $invoice->reference_code . '.pdf';
+    return $pdf;
+}
+
+public function slip(Invoice $invoice)
+{
+    $pdf = $this->generateSlipPDF($invoice);
+
+    // Generate filename: firstname-lastname-referencecode.pdf
+    $firstName = trim($invoice->member->first_name ?? '');
+    $lastName = trim($invoice->member->last_name ?? '');
+    
+    // Transliterate Croatian characters to ASCII (before lowercasing to handle DŽ correctly)
+    $firstName = $this->transliterateCroatian($firstName);
+    $lastName = $this->transliterateCroatian($lastName);
+    
+    // Convert to lowercase and sanitize
+    $firstName = strtolower($firstName);
+    $lastName = strtolower($lastName);
+    // Remove special characters and replace spaces with hyphens
+    $firstName = preg_replace('/[^a-z0-9]+/', '-', $firstName);
+    $lastName = preg_replace('/[^a-z0-9]+/', '-', $lastName);
+    $fileName = trim($firstName . '-' . $lastName . '-' . $invoice->reference_code, '-') . '.pdf';
 
     // Stream in a new tab (nice for printing); change to download() if you prefer attachment
-    return $pdf->stream($file);
+    return $pdf->stream($fileName);
 }
 
 public function destroy(Request $request, Invoice $invoice)
@@ -367,6 +410,29 @@ public function destroy(Request $request, Invoice $invoice)
 
     return redirect()->route('invoices.index')->with('success', 'Račun uspješno obrisan.');
 }
+
+    /**
+     * Transliterate Croatian characters to ASCII equivalents.
+     * 
+     * @param string $text
+     * @return string
+     */
+    private function transliterateCroatian(string $text): string
+    {
+        // Handle multi-character sequences first (DŽ, dž)
+        $text = str_replace(['DŽ', 'dž', 'Dž'], ['DJ', 'dj', 'Dj'], $text);
+        
+        // Handle single characters
+        $transliteration = [
+            'Č' => 'C', 'č' => 'c',
+            'Ć' => 'C', 'ć' => 'c',
+            'Đ' => 'D', 'đ' => 'd',
+            'Š' => 'S', 'š' => 's',
+            'Ž' => 'Z', 'ž' => 'z',
+        ];
+        
+        return strtr($text, $transliteration);
+    }
 
     /**
      * Clean up old temporary files to prevent storage bloat.

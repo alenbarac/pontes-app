@@ -63,9 +63,11 @@
   .poziv_primatelja  { top: 30.5mm; left: 73mm; width: 64mm; letter-spacing: 0.5mm; font-size: 3.5mm; }
   .poziv_primatelja.right  { top: 32mm; left: 160mm; font-size: 2.5mm; letter-spacing: 0mm; }
 
-  /* Opis plaćanja */
-  .opis              { top: 39mm; left: 85mm;  width: 178mm; font-size: 3.2mm; }
-  .opis.right       { top: 40mm; left: 152mm; font-size: 2.5mm; }
+  /* Opis plaćanja - two lines: member name on top, notes below */
+  .opis_ime         { top: 39mm; left: 85mm;  width: 178mm; font-size: 3.2mm; }
+  .opis_ime.right   { top: 40mm; left: 152mm; font-size: 2.5mm; }
+  .opis_napomena    { top: 43mm; left: 85mm;  width: 178mm; font-size: 3.2mm; }
+  .opis_napomena.right { top: 44mm; left: 152mm; font-size: 2.5mm; }
 
   /* Datum izvršenja (we'll use due date) */
   .datum             { top: 56mm; left: 28mm; width: 26mm; text-align: center; }
@@ -121,9 +123,11 @@
     <div class="f poziv_primatelja">{{ $reference }}</div>
     <div class="f right poziv_primatelja">{{ $reference }}</div>
 
-    {{-- Opis plaćanja --}}
-    <div class="f opis">{{ $description }}</div>
-    <div class="f opis right">{{ $description }}</div>
+    {{-- Opis plaćanja - Member name on top row, notes on second row --}}
+    <div class="f opis_ime">{{ $member_name_for_description }}</div>
+    <div class="f opis_ime right">{{ $member_name_for_description }}</div>
+    <div class="f opis_napomena">{{ $payment_notes }}</div>
+    <div class="f opis_napomena right">{{ $payment_notes }}</div>
 
     {{-- PDF417 Barcode (2D barcode for HUB3 format - Croatian payment slip standard) --}}
     @if(isset($barcode_path) && !empty($barcode_path) && file_exists($barcode_path))

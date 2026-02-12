@@ -11,8 +11,10 @@ import { DropdownItem } from "@/ui/dropdown/DropdownItem";
 import { Modal } from "@/Components/ui/modal";
 import toast from "react-hot-toast";
 import Radio from "@/Components/form/input/Radio";
-import { TrashIcon } from "@heroicons/react/24/outline";
+import { TrashIcon, CalendarDaysIcon } from "@heroicons/react/24/outline";
 import { useModal } from "@/hooks/useModal";
+import Flatpickr from "react-flatpickr";
+import "flatpickr/dist/themes/light.css";
 
 const InvoicesDataTable = ({
     data,
@@ -25,11 +27,13 @@ const InvoicesDataTable = ({
     initialPaymentStatus = "",
     initialGroupId = "",
     initialFilter = "",
+    initialMonth = "",
 }) => {
     const [globalFilter, setGlobalFilter] = useState(initialFilter);
     const [workshopId, setWorkshopId] = useState(initialWorkshopId);
     const [paymentStatus, setPaymentStatus] = useState(initialPaymentStatus);
     const [groupId, setGroupId] = useState(initialGroupId);
+    const [monthFilter, setMonthFilter] = useState(initialMonth);
     const [isWorkshopDropdownOpen, setIsWorkshopDropdownOpen] = useState(false);
     const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
     const [isGroupDropdownOpen, setIsGroupDropdownOpen] = useState(false);
@@ -289,13 +293,14 @@ const InvoicesDataTable = ({
                     workshop_id: workshopId,
                     payment_status: paymentStatus,
                     group_id: groupId,
+                    month: monthFilter,
                 },
                 { preserveState: true },
             );
         }, 500);
 
         return () => clearTimeout(timeout);
-    }, [globalFilter, workshopId, paymentStatus, groupId, pagination.current_page, pagination.per_page]);
+    }, [globalFilter, workshopId, paymentStatus, groupId, monthFilter, pagination.current_page, pagination.per_page]);
 
     const table = useReactTable({
         data,
@@ -314,6 +319,7 @@ const InvoicesDataTable = ({
             workshop_id: workshopId,
             payment_status: paymentStatus,
             group_id: groupId,
+            month: monthFilter,
         });
     };
 
@@ -325,7 +331,13 @@ const InvoicesDataTable = ({
             workshop_id: workshopId,
             payment_status: paymentStatus,
             group_id: groupId,
+            month: monthFilter,
         });
+    };
+
+    const handleMonthChange = (selectedDates, dateStr) => {
+        // dateStr will be in Y-m format when dateFormat is "Y-m"
+        setMonthFilter(dateStr || "");
     };
 
     return (
@@ -411,6 +423,26 @@ const InvoicesDataTable = ({
                         </span>
                     </div>
                     <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                        {/* Month Filter */}
+                        <div className="relative inline-block">
+                            <div className="relative">
+                                <Flatpickr
+                                    value={monthFilter}
+                                    onChange={handleMonthChange}
+                                    options={{
+                                        dateFormat: "Y-m",
+                                        mode: "single",
+                                        defaultDate: monthFilter || null,
+                                    }}
+                                    placeholder="Mjesec (YYYY-MM)"
+                                    className="h-9 px-3 py-2 pr-10 text-sm border border-gray-200 rounded-lg bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-dark dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 min-w-[160px]"
+                                />
+                                <span className="absolute text-gray-500 -translate-y-1/2 pointer-events-none right-3 top-1/2 dark:text-gray-400">
+                                    <CalendarDaysIcon className="h-4 w-4" />
+                                </span>
+                            </div>
+                        </div>
+
                         {/* Reset Filters Button */}
                         <button
                             onClick={() => {
@@ -418,6 +450,7 @@ const InvoicesDataTable = ({
                                 setWorkshopId("");
                                 setPaymentStatus("");
                                 setGroupId("");
+                                setMonthFilter("");
                             }}
                             className="inline-flex items-center gap-1 px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-dark dark:hover:bg-gray-800 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100 transition"
                             title="Poništi filtere"

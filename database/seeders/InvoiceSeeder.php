@@ -38,7 +38,6 @@ class InvoiceSeeder extends Seeder
                 // Generate reference code using the model's helper method
                 $referenceCode = Invoice::generateReferenceCode(
                     $mw->member_id,
-                    $mw->workshop_id,
                     $dueDate
                 );
 

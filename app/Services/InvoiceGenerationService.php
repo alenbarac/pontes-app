@@ -200,7 +200,7 @@ class InvoiceGenerationService
      * @param Carbon $targetMonth
      * @return Invoice|null
      */
-    protected function createInvoice(MemberWorkshop $memberWorkshop, Carbon $targetMonth): ?Invoice
+    public function createInvoice(MemberWorkshop $memberWorkshop, Carbon $targetMonth): ?Invoice
     {
         $plan = $memberWorkshop->membershipPlan;
         if (!$plan) {
@@ -213,7 +213,6 @@ class InvoiceGenerationService
         // Generate reference code
         $referenceCode = Invoice::generateReferenceCode(
             $memberWorkshop->member_id,
-            $memberWorkshop->workshop_id,
             $dueDate
         );
 
@@ -463,7 +462,6 @@ class InvoiceGenerationService
         // Generate reference code
         $referenceCode = Invoice::generateReferenceCode(
             $member->id,
-            $workshop->id,
             $dueDate
         );
 

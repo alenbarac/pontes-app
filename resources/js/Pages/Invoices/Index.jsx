@@ -12,6 +12,7 @@ export default function Index({
     workshopId, 
     paymentStatus, 
     groupId,
+    month,
     workshops, 
     paymentStatuses,
     groups,
@@ -39,6 +40,7 @@ export default function Index({
                     initialWorkshopId={workshopId}
                     initialPaymentStatus={paymentStatus}
                     initialGroupId={groupId}
+                    initialMonth={month}
                     workshops={workshops}
                     paymentStatuses={paymentStatuses}
                     groups={groups}

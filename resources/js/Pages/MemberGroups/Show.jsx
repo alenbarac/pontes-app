@@ -15,10 +15,12 @@ import {
     ChevronRightIcon,
     DocumentTextIcon,
     EyeIcon,
+    ArrowDownTrayIcon,
 } from "@heroicons/react/24/outline";
 import Button from "@/Components/ui/button/Button";
 import { useModal } from "@/hooks/useModal";
 import BulkReassignModal from "@/Components/MemberGroup/BulkReassignModal";
+import BulkSlipsDownloadModal from "@/Components/MemberGroup/BulkSlipsDownloadModal";
 import TemplateSelectorModal from "@/Components/Documents/TemplateSelectorModal";
 import toast from "react-hot-toast";
 
@@ -34,6 +36,7 @@ export default function Show({
     const [search, setSearch] = useState(initialSearch);
     const bulkReassignModal = useModal();
     const documentModal = useModal();
+    const slipsDownloadModal = useModal();
     const [documentType, setDocumentType] = useState("ispricnica");
 
     const workshopId = group.workshop?.id;
@@ -91,9 +94,22 @@ export default function Show({
         documentModal.openModal();
     };
 
+    const handleBulkDownloadSlips = () => {
+        if (selectedMembers.length === 0) {
+            toast.error("Molimo odaberite barem jednog člana.");
+            return;
+        }
+        slipsDownloadModal.openModal();
+    };
+
     const handleDocumentSuccess = () => {
         setSelectedMembers([]);
         documentModal.closeModal();
+    };
+
+    const handleSlipsDownloadSuccess = () => {
+        setSelectedMembers([]);
+        slipsDownloadModal.closeModal();
     };
 
     const handlePageChange = (page) => {
@@ -172,6 +188,16 @@ export default function Show({
                                     size="sm"
                                 >
                                     Premjesti odabrane ({selectedMembers.length})
+                                </Button>
+                                <Button
+                                    onClick={handleBulkDownloadSlips}
+                                    variant="outline"
+                                    size="sm"
+                                    startIcon={
+                                        <ArrowDownTrayIcon className="h-4 w-4" />
+                                    }
+                                >
+                                    Preuzmi uplatnice
                                 </Button>
                                 <Button
                                     onClick={handleBulkGenerateDocuments}
@@ -427,6 +453,16 @@ export default function Show({
                 members={members.data}
                 templateType={documentType}
                 onSuccess={handleDocumentSuccess}
+            />
+
+            {/* Bulk Slips Download Modal */}
+            <BulkSlipsDownloadModal
+                isOpen={slipsDownloadModal.isOpen}
+                onClose={slipsDownloadModal.closeModal}
+                selectedMembers={selectedMembers}
+                members={members.data}
+                currentGroup={group}
+                onSuccess={handleSlipsDownloadSuccess}
             />
         </AuthenticatedLayout>
     );

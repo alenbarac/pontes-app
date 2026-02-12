@@ -8,7 +8,13 @@ use App\Http\Resources\MemberResource;
 use App\Models\MemberGroup;
 use App\Models\MemberGroupWorkshop;
 use App\Models\Workshop;
+use App\Models\Invoice;
+use App\Http\Controllers\InvoiceController;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use ZipArchive;
+use Carbon\Carbon;
 
 class MemberGroupController extends Controller
 {
@@ -52,7 +58,7 @@ class MemberGroupController extends Controller
     ]);
 
     // 2. Associate with a workshop via pivot table
-    \DB::table('workshop_groups')->insert([
+    DB::table('workshop_groups')->insert([
         'workshop_id' => $request->input('workshop_id'),
         'member_group_id' => $group->id,
         'created_at' => now(),
@@ -78,7 +84,7 @@ class MemberGroupController extends Controller
 
         // Get members in this group for the specific workshop
         // Members are linked through member_workshop_group table
-        $memberIdsQuery = \DB::table('member_workshop_group')
+        $memberIdsQuery = DB::table('member_workshop_group')
             ->where('member_group_id', $memberGroup->id)
             ->when($workshopId, function ($query) use ($workshopId) {
                 $query->where('workshop_id', $workshopId);
@@ -107,7 +113,7 @@ class MemberGroupController extends Controller
             ->paginate(20);
 
         // Calculate statistics
-        $allMemberIds = \DB::table('member_workshop_group')
+        $allMemberIds = DB::table('member_workshop_group')
             ->where('member_group_id', $memberGroup->id)
             ->when($workshopId, function ($query) use ($workshopId) {
                 $query->where('workshop_id', $workshopId);
@@ -177,7 +183,7 @@ class MemberGroupController extends Controller
         ]);
 
         // Ensure target group is in the same workshop
-        $targetGroupWorkshop = \DB::table('workshop_groups')
+        $targetGroupWorkshop = DB::table('workshop_groups')
             ->where('member_group_id', $request->target_group_id)
             ->where('workshop_id', $request->workshop_id)
             ->exists();
@@ -195,6 +201,188 @@ class MemberGroupController extends Controller
         return redirect()
             ->route('member-groups.show', $memberGroup)
             ->with('success', 'Members successfully reassigned to the new group.');
+    }
+
+    /**
+     * Bulk download payment slips for selected members.
+     */
+    public function bulkDownloadSlips(Request $request, MemberGroup $memberGroup)
+    {
+        try {
+            $request->validate([
+                'member_ids' => 'required|array',
+                'member_ids.*' => 'required|exists:members,id',
+                'month' => 'required|regex:/^\d{4}-\d{2}$/', // Format: YYYY-MM
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            // Return JSON error for API requests (axios sends X-Requested-With header)
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'message' => 'Validation failed',
+                    'errors' => $e->errors(),
+                ], 422);
+            }
+            return back()->withErrors($e->errors());
+        }
+
+        // Check if this is an AJAX/API request (axios sends X-Requested-With: XMLHttpRequest)
+        $isAjaxRequest = $request->ajax() || $request->wantsJson();
+
+        // Parse month
+        if (!preg_match('/^(\d{4})-(\d{2})$/', $request->month, $matches)) {
+            $error = ['month' => 'Nevažeći format mjeseca. Koristite YYYY-MM.'];
+            if ($isAjaxRequest) {
+                return response()->json(['message' => 'Validation failed', 'errors' => $error], 422);
+            }
+            return back()->withErrors($error);
+        }
+
+        $year = (int) $matches[1];
+        $month = (int) $matches[2];
+
+        // Validate month range
+        if ($month < 1 || $month > 12) {
+            $error = ['month' => 'Nevažeći mjesec.'];
+            if ($isAjaxRequest) {
+                return response()->json(['message' => 'Validation failed', 'errors' => $error], 422);
+            }
+            return back()->withErrors($error);
+        }
+
+        // Query invoices for selected members filtered by month
+        $invoices = Invoice::with(['member', 'workshop', 'membershipPlan'])
+            ->whereIn('member_id', $request->member_ids)
+            ->whereYear('due_date', $year)
+            ->whereMonth('due_date', $month)
+            ->get();
+
+        if ($invoices->isEmpty()) {
+            $error = ['month' => 'Nema računa za odabrane članove u tom mjesecu.'];
+            if ($isAjaxRequest) {
+                return response()->json(['message' => 'No invoices found', 'errors' => $error], 404);
+            }
+            return back()->withErrors($error);
+        }
+
+        // Create temporary directory for ZIP file
+        $tempDir = storage_path('app/temp/slips');
+        if (!is_dir($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
+
+        // Generate ZIP filename
+        $groupName = preg_replace('/[^a-z0-9]+/', '-', strtolower($memberGroup->name));
+        $zipFileName = 'uplatnice-grupa-' . $groupName . '-' . $request->month . '.zip';
+        $zipPath = $tempDir . '/' . $zipFileName;
+
+        // Create ZIP archive
+        $zip = new ZipArchive();
+        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+            $error = ['error' => 'Ne mogu kreirati ZIP datoteku.'];
+            if ($isAjaxRequest) {
+                return response()->json(['message' => 'Failed to create ZIP file', 'errors' => $error], 500);
+            }
+            return back()->withErrors($error);
+        }
+
+        // Generate PDFs and add to ZIP
+        $invoiceController = new InvoiceController();
+        $addedCount = 0;
+
+        foreach ($invoices as $invoice) {
+            try {
+                $pdf = $invoiceController->generateSlipPDF($invoice);
+                
+                // Generate filename: firstname-lastname-referencecode.pdf
+                $firstName = trim($invoice->member->first_name ?? '');
+                $lastName = trim($invoice->member->last_name ?? '');
+                
+                // Transliterate Croatian characters to ASCII (before lowercasing to handle DŽ correctly)
+                $firstName = $this->transliterateCroatian($firstName);
+                $lastName = $this->transliterateCroatian($lastName);
+                
+                // Convert to lowercase and sanitize
+                $firstName = strtolower($firstName);
+                $lastName = strtolower($lastName);
+                $firstName = preg_replace('/[^a-z0-9]+/', '-', $firstName);
+                $lastName = preg_replace('/[^a-z0-9]+/', '-', $lastName);
+                $fileName = trim($firstName . '-' . $lastName . '-' . $invoice->reference_code, '-') . '.pdf';
+                
+                $zip->addFromString($fileName, $pdf->output());
+                $addedCount++;
+            } catch (\Exception $e) {
+                Log::warning('Failed to generate slip PDF for invoice ' . $invoice->id . ': ' . $e->getMessage());
+                // Continue with other invoices
+            }
+        }
+
+        $zip->close();
+
+        if ($addedCount === 0) {
+            @unlink($zipPath); // Clean up empty ZIP
+            $error = ['error' => 'Ne mogu generirati nijedan PDF.'];
+            if ($isAjaxRequest) {
+                return response()->json(['message' => 'Failed to generate PDFs', 'errors' => $error], 500);
+            }
+            return back()->withErrors($error);
+        }
+
+        // Clean up old ZIP files (older than 1 hour)
+        $this->cleanupOldZipFiles($tempDir, 3600);
+
+        // Return ZIP file as download with proper headers
+        return response()->download($zipPath, $zipFileName, [
+            'Content-Type' => 'application/zip',
+        ])->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Transliterate Croatian characters to ASCII equivalents.
+     * 
+     * @param string $text
+     * @return string
+     */
+    private function transliterateCroatian(string $text): string
+    {
+        // Handle multi-character sequences first (DŽ, dž)
+        $text = str_replace(['DŽ', 'dž', 'Dž'], ['DJ', 'dj', 'Dj'], $text);
+        
+        // Handle single characters
+        $transliteration = [
+            'Č' => 'C', 'č' => 'c',
+            'Ć' => 'C', 'ć' => 'c',
+            'Đ' => 'D', 'đ' => 'd',
+            'Š' => 'S', 'š' => 's',
+            'Ž' => 'Z', 'ž' => 'z',
+        ];
+        
+        return strtr($text, $transliteration);
+    }
+
+    /**
+     * Clean up old ZIP files to prevent storage bloat.
+     * 
+     * @param string $directory
+     * @param int $maxAgeSeconds Maximum age in seconds (default: 1 hour)
+     * @return void
+     */
+    private function cleanupOldZipFiles(string $directory, int $maxAgeSeconds = 3600): void
+    {
+        if (!is_dir($directory)) {
+            return;
+        }
+
+        $files = glob($directory . '/*.zip');
+        $now = time();
+
+        foreach ($files as $file) {
+            if (is_file($file)) {
+                $fileAge = $now - filemtime($file);
+                if ($fileAge > $maxAgeSeconds) {
+                    @unlink($file);
+                }
+            }
+        }
     }
 
     /**

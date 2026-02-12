@@ -42,6 +42,8 @@ Route::middleware('auth')->group(function () {
     Route::resource('member-groups', MemberGroupController::class);
     Route::post('/member-groups/{memberGroup}/bulk-reassign', [MemberGroupController::class, 'bulkReassign'])
         ->name('member-groups.bulk-reassign');
+    Route::post('/member-groups/{memberGroup}/bulk-download-slips', [MemberGroupController::class, 'bulkDownloadSlips'])
+        ->name('member-groups.bulk-download-slips');
     Route::resource('memberships', MembershipController::class);
 
     Route::post('/members/{member}/workshops',[MemberWorkshopController::class,'store'])
@@ -72,6 +74,10 @@ Route::middleware('auth')->group(function () {
         ->name('members.invoices.session.generate');
     Route::post('/members/{member}/invoices/session/preview', [MemberInvoiceController::class, 'previewSessionInvoice'])
         ->name('members.invoices.session.preview');
+    
+    // Member-specific invoice routes (for membership invoices)
+    Route::post('/members/{member}/invoices/generate', [MemberInvoiceController::class, 'generateMembershipInvoice'])
+        ->name('members.invoices.generate');
 
     Route::resource('invoices', InvoiceController::class)->except(['destroy']);
     Route::delete('/invoices/{invoice}', [InvoiceController::class, 'destroy'])->name('invoices.destroy');
