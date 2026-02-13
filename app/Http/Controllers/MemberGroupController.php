@@ -293,19 +293,22 @@ class MemberGroupController extends Controller
             try {
                 $pdf = $invoiceController->generateSlipPDF($invoice);
                 
-                // Generate filename: firstname-lastname-referencecode.pdf
+                // Generate filename: Firstname-Lastname-referencecode.pdf
                 $firstName = trim($invoice->member->first_name ?? '');
                 $lastName = trim($invoice->member->last_name ?? '');
                 
-                // Transliterate Croatian characters to ASCII (before lowercasing to handle DŽ correctly)
+                // Transliterate Croatian characters to ASCII
                 $firstName = $this->transliterateCroatian($firstName);
                 $lastName = $this->transliterateCroatian($lastName);
                 
-                // Convert to lowercase and sanitize
+                // Convert to lowercase, sanitize, then capitalize first letter
                 $firstName = strtolower($firstName);
                 $lastName = strtolower($lastName);
                 $firstName = preg_replace('/[^a-z0-9]+/', '-', $firstName);
                 $lastName = preg_replace('/[^a-z0-9]+/', '-', $lastName);
+                // Capitalize first letter of each name
+                $firstName = ucfirst($firstName);
+                $lastName = ucfirst($lastName);
                 $fileName = trim($firstName . '-' . $lastName . '-' . $invoice->reference_code, '-') . '.pdf';
                 
                 $zip->addFromString($fileName, $pdf->output());

@@ -11,6 +11,7 @@ class WorkshopSeeder extends Seeder
     {
         $workshops = [
             ['name' => 'Dramska radionica', 'type' => 'Groupe', 'description' => 'Grupne dramske radionice za raznovrsni uzrast.'],
+            ['name' => 'Dramska 60+', 'type' => 'Groupe', 'description' => 'Grupne dramske radionice za umirovljenike.'],
             ['name' => 'Individualno savjetovanje', 'type' => 'Individualno', 'description' => 'Psihodramske tehniku u radu s djecom i mladima'],
         ];
 

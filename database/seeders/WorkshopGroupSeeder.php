@@ -28,31 +28,36 @@ class WorkshopGroupSeeder extends Seeder
             return;
         }
 
-        // ✅ Ensure every group is assigned to at least one group workshop
-        foreach ($groups as $group) {
-            $randomWorkshop = $groupWorkshops->random();
-            DB::table('workshop_groups')->updateOrInsert([
-                'workshop_id' => $randomWorkshop->id,
-                'member_group_id' => $group->id,
-            ], [
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-        }
+        // Get specific workshops
+        $dramskaRadionica = Workshop::where('name', 'Dramska radionica')->first();
+        $dramska60 = Workshop::where('name', 'Dramska 60+')->first();
+        
+        // Get regular groups (Grupa 1-8) and Memorabilije 1
+        $regularGroups = MemberGroup::where('name', 'LIKE', 'Grupa%')->get();
+        $memorabilije1 = MemberGroup::where('name', 'Memorabilije 1')->first();
 
-        // ✅ Also, randomly assign each group workshop multiple groups
-        foreach ($groupWorkshops as $workshop) {
-            $randomGroups = $groups->random(rand(2, min(4, $groups->count())));
-
-            foreach ($randomGroups as $group) {
+        // Assign regular groups (Grupa 1-8) to Dramska radionica
+        if ($dramskaRadionica && $regularGroups->isNotEmpty()) {
+            foreach ($regularGroups as $group) {
                 DB::table('workshop_groups')->updateOrInsert([
-                    'workshop_id' => $workshop->id,
+                    'workshop_id' => $dramskaRadionica->id,
                     'member_group_id' => $group->id,
                 ], [
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
             }
+        }
+
+        // Assign Memorabilije 1 ONLY to Dramska 60+
+        if ($dramska60 && $memorabilije1) {
+            DB::table('workshop_groups')->updateOrInsert([
+                'workshop_id' => $dramska60->id,
+                'member_group_id' => $memorabilije1->id,
+            ], [
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
         }
 
         $this->command->info('Workshop groups seeded successfully!');

@@ -18,9 +18,7 @@ class MemberGroupSeeder extends Seeder
             ['name' => 'Grupa 6', 'description' => 'Četvrtkom, 17:00 - 18:30'],
             ['name' => 'Grupa 7', 'description' => 'Četvrtkom, 19:00 - 20:30'],
             ['name' => 'Grupa 8', 'description' => 'Srijedom, 18:30 – 20:00'],   
-            ['name' => 'Memorabilije 1', 'description' => 'Dramske radionice za starije'],
-            ['name' => 'Memorabilije 2', 'description' => 'Dramske radionice za starije'],
-            ['name' => 'Memorabilije 3', 'description' => 'Dramske radionice za starije'],
+            ['name' => 'Memorabilije 1', 'description' => 'Dramske radionice za umirovljenike'],
         ];
 
         foreach ($groups as $group) {

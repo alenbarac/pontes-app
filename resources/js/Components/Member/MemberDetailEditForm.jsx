@@ -23,6 +23,9 @@ export default function MemberDetailEditForm({ member, closeModal }) {
         invoice_email: member.invoice_email || "",
     });
 
+    // Check if member is enrolled in Dramska 60+ workshop
+    const isDramska60 = member.workshops?.some(w => w.name?.includes('60+'));
+
 
     const handleSubmit = (e) => {
         console.log("Submitting form with data:", data);
@@ -156,45 +159,49 @@ export default function MemberDetailEditForm({ member, closeModal }) {
                 </div>
 
                 <div className="grid gap-6 sm:grid-cols-2 mb-4">
-                    {/* Parent Contact */}
-                    <div>
-                        <Label htmlFor="parent_contact">
-                            Kontakt roditelja
-                        </Label>
-                        <Input
-                            type="text"
-                            id="parent_contact"
-                            placeholder="Telefon roditelja"
-                            value={data.parent_contact}
-                            onChange={(e) =>
-                                setData("parent_contact", e.target.value)
-                            }
-                        />
-                        {errors.parent_contact && (
-                            <p className="text-red-500 text-sm">
-                                {errors.parent_contact}
-                            </p>
-                        )}
-                    </div>
+                    {/* Parent Contact - Hidden for Dramska 60+ */}
+                    {!isDramska60 && (
+                        <div>
+                            <Label htmlFor="parent_contact">
+                                Kontakt roditelja
+                            </Label>
+                            <Input
+                                type="text"
+                                id="parent_contact"
+                                placeholder="Telefon roditelja"
+                                value={data.parent_contact}
+                                onChange={(e) =>
+                                    setData("parent_contact", e.target.value)
+                                }
+                            />
+                            {errors.parent_contact && (
+                                <p className="text-red-500 text-sm">
+                                    {errors.parent_contact}
+                                </p>
+                            )}
+                        </div>
+                    )}
 
-                    {/* Parent Email */}
-                    <div>
-                        <Label htmlFor="parent_email">Email roditelja</Label>
-                        <Input
-                            type="email"
-                            id="parent_email"
-                            placeholder="Email roditelja"
-                            value={data.parent_email}
-                            onChange={(e) =>
-                                setData("parent_email", e.target.value)
-                            }
-                        />
-                        {errors.parent_email && (
-                            <p className="text-red-500 text-sm">
-                                {errors.parent_email}
-                            </p>
-                        )}
-                    </div>
+                    {/* Parent Email - Hidden for Dramska 60+ */}
+                    {!isDramska60 && (
+                        <div>
+                            <Label htmlFor="parent_email">Email roditelja</Label>
+                            <Input
+                                type="email"
+                                id="parent_email"
+                                placeholder="Email roditelja"
+                                value={data.parent_email}
+                                onChange={(e) =>
+                                    setData("parent_email", e.target.value)
+                                }
+                            />
+                            {errors.parent_email && (
+                                <p className="text-red-500 text-sm">
+                                    {errors.parent_email}
+                                </p>
+                            )}
+                        </div>
+                    )}
 
                     {/* Invoice Email */}
                     <div>

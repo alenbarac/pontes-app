@@ -28,7 +28,7 @@ class MembersImport implements ToCollection, WithHeadingRow
         // Debug: Log available keys from first row (only once)
         if ($rows->isNotEmpty()) {
             $firstRowKeys = $rows->first()->keys()->toArray();
-            \Log::info('Available header keys in Excel:', $firstRowKeys);
+            \Illuminate\Support\Facades\Log::info('Available header keys in Excel:', $firstRowKeys);
         }
 
         foreach ($rows as $index => $row) {
@@ -42,6 +42,7 @@ class MembersImport implements ToCollection, WithHeadingRow
             ]);
             $imePrezime = $this->getValue($row, [
                 'ime i prezime', 'IME I PREZIME', 'Ime i prezime',
+                'ime i prezime:', 'IME I PREZIME:', 'Ime i prezime:',
                 'ime_i_prezime', 'ime_i_prezime_', '_ime_i_prezime',
                 'ime i prezime_', '_ime i prezime'
             ]);
@@ -103,8 +104,14 @@ class MembersImport implements ToCollection, WithHeadingRow
             // Split full name
             [$firstName, $lastName] = $this->splitFullName($imePrezime);
 
-            // Find member group by name (case-insensitive)
-            $memberGroup = MemberGroup::whereRaw('LOWER(name) = ?', [strtolower(trim($grupa))])->first();
+            // Find member group by name (case-insensitive, space-normalized)
+            // This allows matching "Memorabilije 1", "Memorabilije1", "memorabilije 1", etc.
+            // Remove all spaces for flexible matching
+            $normalizedGrupa = str_replace(' ', '', strtolower(trim($grupa)));
+            $memberGroup = MemberGroup::all()->first(function ($group) use ($normalizedGrupa) {
+                $normalizedGroupName = str_replace(' ', '', strtolower(trim($group->name)));
+                return $normalizedGroupName === $normalizedGrupa;
+            });
 
             if (!$memberGroup) {
                 $this->failedCount++;
@@ -158,10 +165,29 @@ class MembersImport implements ToCollection, WithHeadingRow
                 continue;
             }
 
-            // Find membership plan by exact name (case-insensitive, within the workshop)
+            // Find membership plan by name (case-insensitive, within the workshop)
+            // Handle partial matches like "mjesečna" matching "Mjesečna članarina"
+            $normalizedClanarina = strtolower(trim($clanarina));
             $membershipPlan = MembershipPlan::where('workshop_id', $workshop->id)
-                ->whereRaw('LOWER(plan) = ?', [strtolower(trim($clanarina))])
-                ->first();
+                ->get()
+                ->first(function ($plan) use ($normalizedClanarina) {
+                    $normalizedPlanName = strtolower(trim($plan->plan));
+                    // Exact match
+                    if ($normalizedPlanName === $normalizedClanarina) {
+                        return true;
+                    }
+                    // Partial match: check if the input is contained in the plan name
+                    // e.g., "mjesečna" matches "mjesečna članarina"
+                    if (strpos($normalizedPlanName, $normalizedClanarina) !== false) {
+                        return true;
+                    }
+                    // Reverse partial match: check if plan name is contained in input
+                    // e.g., "mjesečna članarina" matches "mjesečna"
+                    if (strpos($normalizedClanarina, $normalizedPlanName) !== false) {
+                        return true;
+                    }
+                    return false;
+                });
 
             if (!$membershipPlan) {
                 $this->failedCount++;
@@ -279,6 +305,9 @@ class MembersImport implements ToCollection, WithHeadingRow
     {
         // Convert to lowercase
         $key = mb_strtolower($key, 'UTF-8');
+        
+        // Remove colons and other punctuation
+        $key = str_replace([':', ';', ',', '.'], '', $key);
         
         // Replace spaces and hyphens with underscores
         $key = str_replace([' ', '-', '_'], '_', $key);

@@ -53,6 +53,15 @@ class MembershipPlanSeeder extends Seeder
             'total_fee' => 50.00,
         ];
 
+        // Dramska 60+ monthly plan (for senior citizens)
+        $dramska60Plan = [
+            'plan' => 'Mjesečna članarina',
+            'fee' => 35.00,
+            'billing_frequency' => 'Mjesečno',
+            'discount_type' => null,
+            'total_fee' => 35.00,
+        ];
+
         foreach ($workshops as $workshop) {
             // Check if this is individual counseling workshop
             if (strtolower($workshop->type) === 'individualno' || 
@@ -66,8 +75,18 @@ class MembershipPlanSeeder extends Seeder
                     'discount_type' => $individualCounselingPlan['discount_type'],
                     'total_fee' => $individualCounselingPlan['total_fee'],
                 ]);
+            } elseif (str_contains($workshop->name, '60+')) {
+                // Create single monthly plan for Dramska 60+
+                MembershipPlan::create([
+                    'workshop_id' => $workshop->id,
+                    'plan' => $dramska60Plan['plan'],
+                    'fee' => $dramska60Plan['fee'],
+                    'billing_frequency' => $dramska60Plan['billing_frequency'],
+                    'discount_type' => $dramska60Plan['discount_type'],
+                    'total_fee' => $dramska60Plan['total_fee'],
+                ]);
             } else {
-                // Create standard plans for group workshops
+                // Create standard plans for group workshops (Dramska radionica)
                 foreach ($groupWorkshopPlans as $option) {
                     MembershipPlan::create([
                         'workshop_id' => $workshop->id,

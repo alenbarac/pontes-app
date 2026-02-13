@@ -75,6 +75,12 @@ const MemberEditForm = ({ member, workshops, groups, membershipPlans }) => {
         );
     };
 
+    // Check if current enrollment workshop is Dramska 60+
+    const currentWorkshop = workshops.find(
+        (w) => w.id === data.currentEnrollment.workshop_id,
+    );
+    const isDramska60 = currentWorkshop?.name?.includes('60+');
+
     const handleSubmit = (e) => {
         e.preventDefault();
 
@@ -187,44 +193,50 @@ const MemberEditForm = ({ member, workshops, groups, membershipPlans }) => {
 
             {/* Third ROW */}
             <div className="mb-5 flex flex-col gap-6 xl:flex-row">
-                <div className="w-full xl:w-1/2">
-                    <label className="mb-3 block text-sm font-medium text-black dark:text-white">
-                        Kontakt roditelja
-                    </label>
-                    <input
-                        type="text"
-                        placeholder="telefon/mobitel roditelja"
-                        className="w-full rounded border px-5 py-3"
-                        value={data.parent_contact}
-                        onChange={(e) =>
-                            setData("parent_contact", e.target.value)
-                        }
-                    />
-                    {errors.parent_contact && (
-                        <p className="text-red-500 text-sm">
-                            {errors.parent_contact}
-                        </p>
-                    )}
-                </div>
-                <div className="w-full xl:w-1/2">
-                    <label className="mb-3 block text-sm font-medium text-black dark:text-white">
-                        Email roditelja
-                    </label>
-                    <input
-                        type="email"
-                        placeholder="email adresa"
-                        className="w-full rounded border px-5 py-3"
-                        value={data.parent_email}
-                        onChange={(e) =>
-                            setData("parent_email", e.target.value)
-                        }
-                    />
-                    {errors.parent_email && (
-                        <p className="text-red-500 text-sm">
-                            {errors.parent_email}
-                        </p>
-                    )}
-                </div>
+                {/* Parent Contact - Hidden for Dramska 60+ */}
+                {!isDramska60 && (
+                    <div className="w-full xl:w-1/2">
+                        <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                            Kontakt roditelja
+                        </label>
+                        <input
+                            type="text"
+                            placeholder="telefon/mobitel roditelja"
+                            className="w-full rounded border px-5 py-3"
+                            value={data.parent_contact}
+                            onChange={(e) =>
+                                setData("parent_contact", e.target.value)
+                            }
+                        />
+                        {errors.parent_contact && (
+                            <p className="text-red-500 text-sm">
+                                {errors.parent_contact}
+                            </p>
+                        )}
+                    </div>
+                )}
+                {/* Parent Email - Hidden for Dramska 60+ */}
+                {!isDramska60 && (
+                    <div className="w-full xl:w-1/2">
+                        <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                            Email roditelja
+                        </label>
+                        <input
+                            type="email"
+                            placeholder="email adresa"
+                            className="w-full rounded border px-5 py-3"
+                            value={data.parent_email}
+                            onChange={(e) =>
+                                setData("parent_email", e.target.value)
+                            }
+                        />
+                        {errors.parent_email && (
+                            <p className="text-red-500 text-sm">
+                                {errors.parent_email}
+                            </p>
+                        )}
+                    </div>
+                )}
 
                 <div className="w-full xl:w-1/2">
                     <label className="mb-3 block text-sm font-medium text-black dark:text-white">

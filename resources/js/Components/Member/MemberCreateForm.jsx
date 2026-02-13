@@ -42,6 +42,10 @@ export default function MemberCreateForm({
         setData("membership_plan_id", "");
     };
 
+    // Check if selected workshop is Dramska 60+
+    const selectedWorkshop = workshops.find(w => String(w.id) === String(data.workshop_id));
+    const isDramska60 = selectedWorkshop?.name?.includes('60+');
+
     const handleSubmit = (e) => {
         e.preventDefault();
 
@@ -264,43 +268,47 @@ export default function MemberCreateForm({
             </div>
 
             <div className="grid gap-6 sm:grid-cols-2">
-                {/* Parent Contact */}
-                <div className="sm:col-span-1">
-                    <Label htmlFor="parent_contact">Kontakt roditelja</Label>
-                    <Input
-                        type="text"
-                        id="parent_contact"
-                        placeholder="Telefon roditelja"
-                        value={data.parent_contact}
-                        onChange={(e) =>
-                            setData("parent_contact", e.target.value)
-                        }
-                    />
-                    {errors.parent_contact && (
-                        <p className="text-red-500 text-sm">
-                            {errors.parent_contact}
-                        </p>
-                    )}
-                </div>
+                {/* Parent Contact - Hidden for Dramska 60+ */}
+                {!isDramska60 && (
+                    <div className="sm:col-span-1">
+                        <Label htmlFor="parent_contact">Kontakt roditelja</Label>
+                        <Input
+                            type="text"
+                            id="parent_contact"
+                            placeholder="Telefon roditelja"
+                            value={data.parent_contact}
+                            onChange={(e) =>
+                                setData("parent_contact", e.target.value)
+                            }
+                        />
+                        {errors.parent_contact && (
+                            <p className="text-red-500 text-sm">
+                                {errors.parent_contact}
+                            </p>
+                        )}
+                    </div>
+                )}
 
-                {/* Parent Email */}
-                <div className="sm:col-span-1">
-                    <Label htmlFor="parent_email">Email roditelja</Label>
-                    <Input
-                        type="email"
-                        id="parent_email"
-                        placeholder="Email roditelja"
-                        value={data.parent_email}
-                        onChange={(e) =>
-                            setData("parent_email", e.target.value)
-                        }
-                    />
-                    {errors.parent_email && (
-                        <p className="text-red-500 text-sm">
-                            {errors.parent_email}
-                        </p>
-                    )}
-                </div>
+                {/* Parent Email - Hidden for Dramska 60+ */}
+                {!isDramska60 && (
+                    <div className="sm:col-span-1">
+                        <Label htmlFor="parent_email">Email roditelja</Label>
+                        <Input
+                            type="email"
+                            id="parent_email"
+                            placeholder="Email roditelja"
+                            value={data.parent_email}
+                            onChange={(e) =>
+                                setData("parent_email", e.target.value)
+                            }
+                        />
+                        {errors.parent_email && (
+                            <p className="text-red-500 text-sm">
+                                {errors.parent_email}
+                            </p>
+                        )}
+                    </div>
+                )}
                 {/* Invoice Email */}
                 <div className="sm:col-span-1">
                     <Label htmlFor="invoice_email">Email za račune</Label>
