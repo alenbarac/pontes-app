@@ -11,6 +11,8 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\PaymentSlipMailable;
 
 class InvoiceController extends Controller
 {
@@ -400,6 +402,84 @@ public function slip(Invoice $invoice)
 
     // Stream in a new tab (nice for printing); change to download() if you prefer attachment
     return $pdf->stream($fileName);
+}
+
+/**
+ * Send payment slip via email to the member.
+ * 
+ * @param Request $request
+ * @param Invoice $invoice
+ * @return \Illuminate\Http\RedirectResponse
+ */
+public function sendEmail(Request $request, Invoice $invoice)
+{
+    // Load invoice with all necessary relationships for PDF generation
+    $invoice->load(['member', 'workshop', 'membershipPlan']);
+
+    // Determine recipient email using priority: invoice_email > email > parent_email
+    $recipientEmail = null;
+    $emailSource = null;
+
+    if (!empty($invoice->member->invoice_email)) {
+        $recipientEmail = $invoice->member->invoice_email;
+        $emailSource = 'invoice_email';
+    } elseif (!empty($invoice->member->email)) {
+        $recipientEmail = $invoice->member->email;
+        $emailSource = 'email';
+    } elseif (!empty($invoice->member->parent_email)) {
+        $recipientEmail = $invoice->member->parent_email;
+        $emailSource = 'parent_email';
+    }
+
+    // Validate email exists
+    if (!$recipientEmail) {
+        $errorMessage = 'Član nema unesenu e-mail adresu. Molimo dodajte e-mail adresu u podatke člana.';
+        
+        if ($request->header('X-Inertia') || $request->has('stay_on_page')) {
+            return back()->with('error', $errorMessage);
+        }
+
+        return redirect()->route('invoices.index')->with('error', $errorMessage);
+    }
+
+    try {
+        // Generate PDF and send email
+        $mailable = new PaymentSlipMailable($invoice, $recipientEmail);
+        Mail::to($recipientEmail)->send($mailable);
+
+        $successMessage = "Uplatnica je uspješno poslana na e-mail adresu: {$recipientEmail}";
+        
+        // Log the email send for debugging
+        Log::info('Payment slip email sent', [
+            'invoice_id' => $invoice->id,
+            'reference_code' => $invoice->reference_code,
+            'recipient_email' => $recipientEmail,
+            'email_source' => $emailSource,
+        ]);
+
+        if ($request->header('X-Inertia') || $request->has('stay_on_page')) {
+            return back()->with('success', $successMessage);
+        }
+
+        return redirect()->route('invoices.index')->with('success', $successMessage);
+
+    } catch (\Exception $e) {
+        // Log the error
+        Log::error('Failed to send payment slip email', [
+            'invoice_id' => $invoice->id,
+            'reference_code' => $invoice->reference_code,
+            'recipient_email' => $recipientEmail,
+            'error' => $e->getMessage(),
+        ]);
+
+        $errorMessage = 'Došlo je do greške pri slanju e-maila. Molimo pokušajte ponovno.';
+        
+        if ($request->header('X-Inertia') || $request->has('stay_on_page')) {
+            return back()->with('error', $errorMessage);
+        }
+
+        return redirect()->route('invoices.index')->with('error', $errorMessage);
+    }
 }
 
 public function destroy(Request $request, Invoice $invoice)

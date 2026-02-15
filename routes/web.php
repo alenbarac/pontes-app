@@ -88,6 +88,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/invoices/toggle-bulk-status', [InvoiceController::class, 'toggleBulkInvoiceStatus'])->name('invoices.toggleBulkInvoiceStatus');
     Route::get('/invoices/{invoice}/slip', [InvoiceController::class, 'slip'])
         ->name('invoices.slip');
+    Route::post('/invoices/{invoice}/send-email', [InvoiceController::class, 'sendEmail'])
+        ->name('invoices.sendEmail');
 
     // Document Templates Routes
     Route::prefix('document-templates')->group(function () {

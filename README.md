@@ -61,6 +61,74 @@ In order to ensure that the Laravel community is welcoming to all, please review
 
 If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
 
+## Email Testing (Local Development)
+
+For testing email functionality locally, configure the mail driver in your `.env` file:
+
+### Option 1: Log Driver (Default - Recommended for Development)
+Emails are written to `storage/logs/laravel.log`:
+
+```env
+MAIL_MAILER=log
+MAIL_FROM_ADDRESS=noreply@example.com
+MAIL_FROM_NAME="Pontes App"
+```
+
+View emails by checking `storage/logs/laravel.log` after sending.
+
+### Option 2: Mailtrap (Recommended for Testing)
+Use Mailtrap to catch and preview emails in a web interface:
+
+1. Sign up at [mailtrap.io](https://mailtrap.io)
+2. Create an inbox and get SMTP credentials
+3. Configure `.env`:
+
+```env
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.mailtrap.io
+MAIL_PORT=2525
+MAIL_USERNAME=your_mailtrap_username
+MAIL_PASSWORD=your_mailtrap_password
+MAIL_ENCRYPTION=tls
+MAIL_FROM_ADDRESS=noreply@example.com
+MAIL_FROM_NAME="Pontes App"
+```
+
+**Testing Email Sending:**
+
+Use the test command to verify your email configuration:
+
+```bash
+# Send a simple test email
+php artisan mail:test --to=your-email@example.com
+
+# Test with an actual invoice (sends payment slip)
+php artisan mail:test --invoice=334 --to=your-email@example.com
+# Or use the member's email from the invoice
+php artisan mail:test --invoice=334
+```
+
+After running the command, check your Mailtrap inbox to see the email.
+
+### Option 3: Array Driver (For Unit Testing)
+Emails are stored in memory (useful for testing):
+
+```env
+MAIL_MAILER=array
+MAIL_FROM_ADDRESS=noreply@example.com
+MAIL_FROM_NAME="Pontes App"
+```
+
+Access sent emails in tests using `Mail::assertSent()`.
+
+### Payment Slip Email Feature
+The payment slip email feature sends PDF attachments to members. Email priority:
+1. `invoice_email` (if set)
+2. `email` (fallback)
+3. `parent_email` (last resort)
+
+If no email is found, an error message is displayed to the user.
+
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).

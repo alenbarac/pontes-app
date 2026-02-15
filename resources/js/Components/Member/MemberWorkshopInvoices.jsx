@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { Modal } from "@/Components/ui/modal";
 import Radio from "@/Components/form/input/Radio";
-import { router } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import toast from "react-hot-toast";
 import Button from "@/ui/button/Button";
 import { useModal } from "@/hooks/useModal";
@@ -10,10 +10,11 @@ import axios from "axios";
 import Flatpickr from "react-flatpickr";
 import Label from "@/Components/form/Label";
 import Input from "@/Components/form/input/InputField";
-import { CalendarDaysIcon, TrashIcon, Cog8ToothIcon } from "@heroicons/react/24/outline";
+import { CalendarDaysIcon, TrashIcon, Cog8ToothIcon, EnvelopeIcon } from "@heroicons/react/24/outline";
 import { Table, TableHeader, TableBody, TableRow, TableCell } from "@/Components/ui/table";
 
 const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
+    const { props } = usePage();
     const [showInvoiceModal, setShowInvoiceModal] = useState(false);
     const [activeInvoice, setActiveInvoice] = useState(null);
     const [modalStatus, setModalStatus] = useState("");
@@ -35,6 +36,19 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
     // Delete invoice state
     const deleteInvoiceModal = useModal();
     const [invoiceToDelete, setInvoiceToDelete] = useState(null);
+    
+    // Send email state
+    const [sendingEmail, setSendingEmail] = useState(false);
+
+    // Listen for flash messages
+    useEffect(() => {
+        if (props.flash?.success) {
+            toast.success(props.flash.success);
+        }
+        if (props.flash?.error) {
+            toast.error(props.flash.error);
+        }
+    }, [props.flash]);
     
     // Check if this is an individual counseling workshop
     const isIndividualCounseling = workshop?.type === 'Individualno' || 
@@ -238,6 +252,40 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
         setShowInvoiceModal(false);
         setActiveInvoice(null);
         setModalStatus("");
+    };
+
+    const handleSendEmail = (invoice) => {
+        if (!invoice) return;
+
+        setSendingEmail(true);
+        router.post(
+            route("invoices.sendEmail", invoice.id),
+            {},
+            {
+                preserveScroll: true,
+                preserveState: false,
+                onSuccess: (page) => {
+                    setSendingEmail(false);
+                    // Close the modal
+                    closeInvoiceDetails();
+                    // Show success message from flash or default message
+                    const successMessage = page?.props?.flash?.success || 
+                                         "Uplatnica je uspješno poslana na e-mail.";
+                    toast.success(successMessage);
+                },
+                onError: (errors) => {
+                    setSendingEmail(false);
+                    const errorMessage = 
+                        errors?.message || 
+                        errors?.error ||
+                        "Greška pri slanju e-maila. Molimo pokušajte ponovno.";
+                    toast.error(errorMessage);
+                },
+                onFinish: () => {
+                    setSendingEmail(false);
+                }
+            }
+        );
     };
 
     const saveInvoiceStatus = () => {
@@ -673,11 +721,25 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                                     Uplatnica (PDF)
                                 </a>
                                 <button
-                                    disabled
-                                    className="inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium border rounded-lg text-gray-400 border-gray-200 dark:border-gray-700 cursor-not-allowed"
-                                    title="Uskoro dostupno"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleSendEmail(activeInvoice);
+                                    }}
+                                    disabled={sendingEmail}
+                                    className="inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium border rounded-lg hover:bg-gray-50 dark:border-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                                    title={sendingEmail ? "Slanje u tijeku..." : "Pošalji uplatnicu na e-mail"}
                                 >
-                                    Pošalji e-mail
+                                    {sendingEmail ? (
+                                        <>
+                                            <Cog8ToothIcon className="h-4 w-4 animate-spin" />
+                                            Slanje...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <EnvelopeIcon className="h-4 w-4" />
+                                            Pošalji e-mail
+                                        </>
+                                    )}
                                 </button>
                                 <button
                                     onClick={() => {
