@@ -7,6 +7,7 @@ use App\Models\Invoice;
 use App\Models\MemberGroup;
 use App\Models\Workshop;
 use App\Models\User;
+use App\Http\Resources\MemberGroupResource;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -66,10 +67,19 @@ class DashboardController extends Controller
                 ];
             });
 
+        // Get all groups with member count
+        $groups = MemberGroup::with('assignedWorkshop')
+            ->withCount('members')
+            ->get()
+            ->map(function ($group) {
+                return new MemberGroupResource($group);
+            });
+
         return Inertia::render('Dashboard', [
             'stats' => $stats,
             'recent_invoices' => $recentInvoices,
             'recent_members' => $recentMembers,
+            'groups' => $groups,
         ]);
     }
 }

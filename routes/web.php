@@ -11,6 +11,7 @@ use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\InvoiceGenerationController;
 use App\Http\Controllers\MemberInvoiceController;
 use App\Http\Controllers\DocumentTemplateController;
+use App\Http\Controllers\WorkshopController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -39,6 +40,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/members/import/template', [MemberImportController::class, 'template'])->name('members.import.template');
 
     Route::resource('members', MemberController::class);
+    Route::resource('workshops', WorkshopController::class);
     Route::resource('member-groups', MemberGroupController::class);
     Route::post('/member-groups/{memberGroup}/bulk-reassign', [MemberGroupController::class, 'bulkReassign'])
         ->name('member-groups.bulk-reassign');

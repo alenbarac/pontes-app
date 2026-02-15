@@ -8,6 +8,7 @@ import {
     DocumentArrowUpIcon,
     DocumentCurrencyEuroIcon,
     DocumentTextIcon,
+    AcademicCapIcon,
 } from "@heroicons/react/24/outline";
 import { useSidebar } from "@/context/SidebarContext";
 
@@ -31,6 +32,14 @@ const navItems: NavItem[] = [
         subItems: [
             { name: "Popis članova", path: "/members" },
             { name: "Novi upis", path: "/members/create" },
+        ],
+    },
+    {
+        icon: <AcademicCapIcon className="w-5 h-5" />,
+        name: "Radionice",
+        subItems: [
+            { name: "Popis radionica", path: "/workshops" },
+            { name: "Nova radionica", path: "/workshops/create" },
         ],
     },
     {

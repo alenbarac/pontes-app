@@ -30,4 +30,27 @@ class Workshop extends Model
     {
         return $this->hasMany(MembershipPlan::class);
     }
+
+    /**
+     * A workshop has many groups through pivot table `workshop_groups`.
+     */
+    public function workshopGroups()
+    {
+        return $this->hasMany(WorkshopGroup::class);
+    }
+
+    /**
+     * A workshop has many groups through pivot table `workshop_groups`.
+     */
+    public function groups()
+    {
+        return $this->hasManyThrough(
+            MemberGroup::class,
+            WorkshopGroup::class,
+            'workshop_id', // Foreign key on workshop_groups
+            'id',          // Local key on member_groups
+            'id',          // Local key on workshops
+            'member_group_id' // Foreign key on workshop_groups
+        );
+    }
 }
