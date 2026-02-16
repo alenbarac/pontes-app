@@ -10,22 +10,45 @@ use App\Models\MembershipPlan;
 use App\Models\MemberWorkshop;
 use App\Models\MemberGroupWorkshop;
 use Carbon\Carbon;
+use Faker\Factory as Faker;
+
 class MemberSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     * 
-     * Note: This seeder is kept for reference but is not used in production.
-     * Members are imported via CSV import functionality.
-     */
     public function run()
     {
-        // Seeder disabled - use CSV import for members instead
-        // This seeder is kept for reference purposes only
-        return;
-        
-        // Original Faker-based seeding code removed
-        // Members should be imported via the CSV import feature
+        $faker = Faker::create();
+        $workshops = Workshop::all();
+        $groups = MemberGroup::all();
+
+        // Ensure membership plans exist per workshop
+        $membershipPlans = MembershipPlan::all()->groupBy('workshop_id');
+
+        for ($i = 0; $i < 50; $i++) {
+            $member = Member::create([
+                'first_name' => $faker->firstName,
+                'last_name' => $faker->lastName,
+                'date_of_birth' => $faker->date(),
+                'phone_number' => $faker->phoneNumber,
+                'email' => $faker->unique()->safeEmail,
+                'is_active' => $faker->boolean(90),
+                'parent_contact' => $faker->boolean(70) ? $faker->phoneNumber : null,
+                'parent_email' => $faker->boolean(70) ? $faker->email : null,
+                'invoice_email' => $faker->boolean(70) ? $faker->email : null,
+            ]);
+
+            // 80% of members join only one workshop
+            if ($faker->boolean(80)) {
+                $selectedWorkshop = $workshops->random();
+                $this->assignWorkshopAndMembership($member, $selectedWorkshop, $groups, $membershipPlans);
+            } else {
+                // 20% join multiple workshops
+                $selectedWorkshops = $workshops->count() > 1 ? $workshops->random(min($workshops->count(), rand(2, 3))) : collect([$workshops->first()]);
+
+                foreach ($selectedWorkshops as $selectedWorkshop) {
+                    $this->assignWorkshopAndMembership($member, $selectedWorkshop, $groups, $membershipPlans);
+                }
+            }
+        }
     }
 
     private function assignWorkshopAndMembership($member, $workshop, $groups, $membershipPlans)
