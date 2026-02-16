@@ -21,6 +21,9 @@
         "resources/js/**/*.tsx",
         "resources/js/**/*.d.ts",
         "resources/js/**/*.js", // Include JavaScript files
-        "resources/js/**/*.jsx" // Include JSX files
-    ]
+        "resources/js/**/*.jsx", // Include JSX files
+        "resources/icons/**/*.ts", // Include icon type declarations
+        "resources/icons/index.ts" // Include icon index
+    ],
+    "typeRoots": ["./node_modules/@types", "./resources/js/types"]
 }

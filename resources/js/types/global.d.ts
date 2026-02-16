@@ -15,3 +15,14 @@ declare global {
 declare module '@inertiajs/core' {
     interface PageProps extends InertiaPageProps, AppPageProps {}
 }
+
+// Icon module declarations
+declare module '@/icons';
+declare module '../../../icons';
+declare module '../../icons';
+declare module '../icons';
+
+// ComponentCard module declarations
+declare module '../../common/ComponentCard';
+declare module '../common/ComponentCard';
+declare module '@/Components/common/ComponentCard';

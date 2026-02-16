@@ -69,7 +69,7 @@ export default function ExampleFormTwo() {
               options={optionsGender}
               placeholder="Select an option"
               onChange={handleSelectGender}
-              defaultValue=""
+              value=""
               className="bg-gray-50 dark:bg-gray-800"
             />
           </div>
@@ -95,7 +95,7 @@ export default function ExampleFormTwo() {
               options={categoryOptions}
               placeholder="Select an option"
               onChange={handleSelectGender}
-              defaultValue=""
+              value=""
               className="bg-gray-50 dark:bg-gray-800"
             />
           </div>
@@ -126,7 +126,7 @@ export default function ExampleFormTwo() {
               options={country}
               placeholder="--Select Country--"
               onChange={handleSelectGender}
-              defaultValue=""
+              value=""
               className="bg-gray-50 dark:bg-gray-800"
             />
           </div>

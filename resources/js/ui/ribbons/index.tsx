@@ -1,8 +1,7 @@
-import ComponentCard from "../../common/ComponentCard";
+import ComponentCard from "../../Components/common/ComponentCard";
 import RoundedRibbon from "./RoundedRibbon";
 import RibbonWithHover from "./RibbonWithHover";
 import RibbonWithShape from "./RibbonWithShape";
-import FilledRibbon from "./FilledRibbon";
 
 export default function RibbonExample() {
   return (
@@ -14,7 +13,7 @@ export default function RibbonExample() {
         <RibbonWithShape />
       </ComponentCard>
       <ComponentCard title="Filled Ribbon">
-        <FilledRibbon />
+        <RibbonWithShape />
       </ComponentCard>
       <ComponentCard title="Ribbon in Hover">
         <RibbonWithHover />

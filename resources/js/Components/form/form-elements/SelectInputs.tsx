@@ -31,6 +31,7 @@ export default function SelectInputs() {
             options={options}
             placeholder="Select Option"
             onChange={handleSelectChange}
+            value=""
             className="dark:bg-dark-900"
           />
         </div>

@@ -3,6 +3,8 @@ import {
     useReactTable,
     getCoreRowModel,
     flexRender,
+    ColumnDef,
+    Row,
 } from "@tanstack/react-table";
 import {
     ChevronLeftIcon,
@@ -17,9 +19,38 @@ import Button from "@/Components/ui/button/Button";
 import { Dropdown } from "@/ui/dropdown/Dropdown";
 import { DropdownItem } from "@/ui/dropdown/DropdownItem";
 import toast from "react-hot-toast";
+import { Member } from "@/types";
 
+interface Workshop {
+    id: number;
+    name: string;
+}
 
-const MembersDataTable = ({
+interface Group {
+    id: number;
+    name: string;
+}
+
+interface Pagination {
+    current_page: number;
+    per_page: number;
+    last_page: number;
+    total: number;
+}
+
+interface MembersDataTableProps {
+    data: Member[];
+    columns: ColumnDef<Member>[];
+    pagination: Pagination;
+    pageSizeOptions?: number[];
+    workshops?: Workshop[];
+    groups?: Group[];
+    initialWorkshopId?: string;
+    initialGroupId?: string;
+    initialFilter?: string;
+}
+
+const MembersDataTable: React.FC<MembersDataTableProps> = ({
     data,
     columns,
     pagination,
@@ -36,10 +67,11 @@ const MembersDataTable = ({
     const [isWorkshopDropdownOpen, setIsWorkshopDropdownOpen] = useState(false);
     const [isGroupDropdownOpen, setIsGroupDropdownOpen] = useState(false);
     const deleteModal = useModal();
-    const [memberToDelete, setMemberToDelete] = useState(null);
+    const [memberToDelete, setMemberToDelete] = useState<Member | null>(null);
 
     // 1) When you confirm deletion, call your existing resource destroy:
     function confirmDelete() {
+        if (!memberToDelete) return;
         router.delete(route("members.destroy", { member: memberToDelete.id }), {
             onSuccess: () => {
                 setMemberToDelete(null);
@@ -55,11 +87,11 @@ const MembersDataTable = ({
 
     // 2) Override only the "actions" column cell
     const displayColumns = useMemo(() => {
-        return columns.map((col) => {
-            if (col.accessorKey === "actions") {
+        return columns.map((col: ColumnDef<Member>) => {
+            if ('accessorKey' in col && col.accessorKey === "actions") {
                 return {
                     ...col,
-                    cell: ({ row }) => {
+                    cell: ({ row }: { row: Row<Member> }) => {
                         const m = row.original;
                         return (
                             <div className="flex items-center space-x-2">
@@ -117,7 +149,7 @@ const MembersDataTable = ({
         pageCount: pagination.last_page,
     });
 
-    const handlePageChange = (page) =>
+    const handlePageChange = (page: number) =>
         router.get(route("members.index"), {
             page,
             per_page: pagination.per_page,
@@ -126,7 +158,7 @@ const MembersDataTable = ({
             group_id: groupId,
         });
 
-    const handlePageSizeChange = (size) =>
+    const handlePageSizeChange = (size: number) =>
         router.get(route("members.index"), {
             page: 1,
             per_page: size,
@@ -230,7 +262,7 @@ const MembersDataTable = ({
                                 <span className="truncate">
                                     {workshopId
                                         ? workshops.find(
-                                              (w) => w.id == workshopId,
+                                              (w) => w.id.toString() === workshopId,
                                           )?.name
                                         : "Sve radionice"}
                                 </span>
@@ -325,7 +357,7 @@ const MembersDataTable = ({
                             >
                                 <span className="truncate">
                                     {groupId
-                                        ? groups.find((g) => g.id == groupId)
+                                        ? groups.find((g) => g.id.toString() === groupId)
                                               ?.name || "Grupa"
                                         : "Sve grupe"}
                                 </span>
@@ -386,7 +418,7 @@ const MembersDataTable = ({
                                                     );
                                                 }}
                                                 className={`flex rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5 ${
-                                                    groupId == g.id.toString()
+                                                    groupId === g.id.toString()
                                                         ? "bg-gray-100 text-gray-900 dark:bg-white/10 dark:text-white"
                                                         : "text-gray-700 dark:text-gray-300"
                                                 }`}
