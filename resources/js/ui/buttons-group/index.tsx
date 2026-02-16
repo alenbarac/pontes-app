@@ -1,4 +1,4 @@
-import ComponentCard from "../../common/ComponentCard";
+import ComponentCard from "@/Components/common/ComponentCard";
 import PrimaryButtonGroup from "./PrimaryButtonGroup";
 import ButtonGroupWithLeftIcon from "./ButtonGroupWithLeftIcon";
 import ButtonGroupWithRightIcon from "./ButtonGroupWithRightIcon";

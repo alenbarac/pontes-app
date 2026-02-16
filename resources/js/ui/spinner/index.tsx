@@ -1,4 +1,4 @@
-import ComponentCard from "../../common/ComponentCard";
+import ComponentCard from "@/Components/common/ComponentCard";
 import SpinnerOne from "./SpinnerOne";
 import SpinnerTwo from "./SpinnerTwo";
 import SpinnerThree from "./SpinnerThree";

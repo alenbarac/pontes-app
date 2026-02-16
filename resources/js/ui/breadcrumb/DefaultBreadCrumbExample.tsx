@@ -1,4 +1,4 @@
-import ComponentCard from "../../common/ComponentCard";
+import ComponentCard from "@/Components/common/ComponentCard";
 import { Link } from "react-router";
 
 export default function DefaultBreadCrumbExample() {

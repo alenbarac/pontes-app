@@ -7,7 +7,7 @@ import {
   EnvelopeIcon,
   LockIcon,
   UserIcon,
-} from "../../../icons";
+} from "@/icons";
 import Checkbox from "../input/Checkbox";
 import Label from "../Label";
 import Button from "../../ui/button/Button";

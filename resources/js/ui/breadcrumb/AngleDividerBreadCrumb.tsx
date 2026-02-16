@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import ComponentCard from "../../common/ComponentCard";
+import ComponentCard from "@/Components/common/ComponentCard";
 
 export default function AngleDividerBreadCrumb() {
   return (

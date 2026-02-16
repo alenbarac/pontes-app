@@ -1,4 +1,4 @@
-import ComponentCard from "../../common/ComponentCard";
+import ComponentCard from "@/Components/common/ComponentCard";
 import DefaultTooltip from "./DefaultTooltip";
 import WhiteAndDarkTooltip from "./WhiteAndDarkTooltip";
 import TooltipPlacement from "./TooltipPlacement";

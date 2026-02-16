@@ -1,4 +1,4 @@
-import ComponentCard from "../../common/ComponentCard";
+import ComponentCard from "@/Components/common/ComponentCard";
 import DefaultTab from "./DefaultTab";
 import TabWithUnderline from "./TabWithUnderline";
 import TabWithUnderlineAndIcon from "./TabWithUnderlineAndIcon";
