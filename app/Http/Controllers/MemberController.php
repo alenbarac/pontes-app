@@ -109,7 +109,7 @@ class MemberController extends Controller
     {
         $workshops = Workshop::select('id', 'name')->get();
         $groups = MemberGroup::join('workshop_groups', 'member_groups.id', '=', 'workshop_groups.member_group_id')
-            ->select('member_groups.id', 'member_groups.name', 'workshop_groups.workshop_id')
+            ->select('member_groups.id', 'member_groups.name', 'member_groups.description', 'workshop_groups.workshop_id')
             ->get()
             ->groupBy('workshop_id');
 
@@ -174,7 +174,7 @@ class MemberController extends Controller
 
         // Fetch all groups linked to workshops
         $groups = MemberGroup::join('workshop_groups', 'member_groups.id', '=', 'workshop_groups.member_group_id')
-            ->select('member_groups.id', 'member_groups.name', 'workshop_groups.workshop_id')
+            ->select('member_groups.id', 'member_groups.name', 'member_groups.description', 'workshop_groups.workshop_id')
             ->get()
             ->groupBy('workshop_id');
 

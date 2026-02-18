@@ -58,12 +58,22 @@ export const columns = [
             return (
                 <div className="flex flex-wrap gap-1">
                     {groups.map((group) => (
-                        <span
-                            key={group.id}
-                            className={`px-2 text-xs py-1 rounded ${groupColorMap[group.group.name]}`}
-                        >
-                            {group.group.name}
-                        </span>
+                        group.group?.id ? (
+                            <Link
+                                key={group.id}
+                                href={route("member-groups.show", group.group.id)}
+                                className={`px-2 text-xs py-1 rounded ${groupColorMap[group.group.name]} hover:opacity-80 transition-opacity cursor-pointer`}
+                            >
+                                {group.group.name}
+                            </Link>
+                        ) : (
+                            <span
+                                key={group.id}
+                                className={`px-2 text-xs py-1 rounded ${groupColorMap[group.group.name]}`}
+                            >
+                                {group.group.name}
+                            </span>
+                        )
                     ))}
                 </div>
             );

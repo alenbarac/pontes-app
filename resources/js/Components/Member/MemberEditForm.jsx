@@ -275,9 +275,30 @@ const MemberEditForm = ({ member, workshops, groups, membershipPlans }) => {
                                 )?.name
                             }
                         </span>
-                        {/* Current Group Selection */}
+                        {/* Current Group Display and Selection */}
                         <div className="flex flex-col gap-1">
                             <label className="text-sm">Grupa:</label>
+                            {data.currentEnrollment.group_id ? (
+                                <>
+                                    {(() => {
+                                        const currentGroup = currentEnrollmentGroups.find(
+                                            (g) => String(g.id) === String(data.currentEnrollment.group_id)
+                                        );
+                                        return currentGroup ? (
+                                            <div className="mb-2">
+                                                <div className="text-sm font-medium text-gray-800 dark:text-white/90">
+                                                    {currentGroup.name}
+                                                </div>
+                                                {currentGroup.description && (
+                                                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                                        {currentGroup.description}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ) : null;
+                                    })()}
+                                </>
+                            ) : null}
                             <select
                                 value={data.currentEnrollment.group_id}
                                 onChange={(e) =>
@@ -291,7 +312,7 @@ const MemberEditForm = ({ member, workshops, groups, membershipPlans }) => {
                                 <option value="">Odaberi grupu</option>
                                 {currentEnrollmentGroups.map((group) => (
                                     <option key={group.id} value={group.id}>
-                                        {group.name}
+                                        {group.description ? `${group.name} - ${group.description}` : group.name}
                                     </option>
                                 ))}
                             </select>
@@ -372,7 +393,7 @@ const MemberEditForm = ({ member, workshops, groups, membershipPlans }) => {
                                 <option value="">Odaberi grupu</option>
                                 {newEnrollmentGroups.map((group) => (
                                     <option key={group.id} value={group.id}>
-                                        {group.name}
+                                        {group.description ? `${group.name} - ${group.description}` : group.name}
                                     </option>
                                 ))}
                             </select>

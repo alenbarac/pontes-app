@@ -7,8 +7,11 @@ import MemberEditForm from "@/Components/Member/MemberEditForm";
 export default function Edit({ member, workshops, groups, membershipPlans }) {
     return (
         <AuthenticatedLayout>
-            <Head title="Članovi" />
-            <Breadcrumb pageName="Članovi" />
+            <Head title="Uredi člana" />
+            <Breadcrumb items={[
+                { label: "Članovi", href: route("members.index") },
+                { label: "Uredi člana" }
+            ]} />
 
             <div className="flex flex-col gap-9">
                 <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">

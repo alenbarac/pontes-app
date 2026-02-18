@@ -28,8 +28,9 @@ class MemberResource extends JsonResource
                     'workshop_id'     => $wGroup->workshop_id, 
                     'member_group_id' => $wGroup->member_group_id, // from pivot table
                     'group'           => [
-                        'id'   => $wGroup->group->id ?? null,
-                        'name' => $wGroup->group->name ?? '',
+                        'id'          => $wGroup->group->id ?? null,
+                        'name'        => $wGroup->group->name ?? '',
+                        'description' => $wGroup->group->description ?? '',
                     ],
                 ]);
             }),

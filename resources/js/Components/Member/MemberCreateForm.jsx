@@ -206,7 +206,7 @@ export default function MemberCreateForm({
                             onChange={(value) => setData("group_id", value)}
                             options={filteredGroups.map((group) => ({
                                 value: group.id,
-                                label: group.name,
+                                label: group.description ? `${group.name} - ${group.description}` : group.name,
                             }))}
                         />
                         {errors.group_id && (

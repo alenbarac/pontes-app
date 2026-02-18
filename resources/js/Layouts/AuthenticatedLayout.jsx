@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { usePage } from "@inertiajs/react";
 import { SidebarProvider, useSidebar } from "@/context/SidebarContext"; // Adjust the import paths as needed
 import Sidebar from "@/Layouts/AppSidebar";
@@ -7,6 +7,17 @@ import Backdrop from "@/Layouts/Backdrop";
 
 const LayoutContent = ({ children }) => {
     const { isExpanded, isHovered, isMobileOpen } = useSidebar();
+    const { csrf_token } = usePage().props;
+
+    // Update CSRF token in meta tag when it changes (proper Laravel Inertia way)
+    useEffect(() => {
+        if (csrf_token) {
+            const metaTag = document.head.querySelector('meta[name="csrf-token"]');
+            if (metaTag) {
+                metaTag.setAttribute('content', csrf_token);
+            }
+        }
+    }, [csrf_token]);
 
     return (
         <div className="min-h-screen xl:flex dark:bg-boxdark-2 dark:text-bodydark">

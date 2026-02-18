@@ -125,7 +125,10 @@ export default function Show({
     return (
         <AuthenticatedLayout>
             <Head title={`Grupa: ${group.name}`} />
-            <Breadcrumb pageName={`Grupa: ${group.name}`} />
+            <Breadcrumb items={[
+                { label: "Grupe", href: route("member-groups.index") },
+                { label: `Grupa: ${group.name}` }
+            ]} />
 
             <div className="space-y-6">
                 {/* Group Info Card */}

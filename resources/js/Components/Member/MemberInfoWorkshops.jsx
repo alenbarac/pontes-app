@@ -5,7 +5,7 @@ import { Modal } from "../ui/modal";
 import MemberWorkshopEditForm from "./MemberWorkshopEditForm";
 import { PencilIcon, PlusIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import Button from "@/ui/button/Button";
-import { router } from "@inertiajs/react";
+import { router, Link } from "@inertiajs/react";
 import toast from "react-hot-toast";
 import MemberWorkshopAddForm from "./MemberWorkshopAddForm";
 import MemberWorkshopInvoices from "./MemberWorkshopInvoices";
@@ -117,7 +117,21 @@ const MemberInfoWorkshops = ({
                                         Grupa
                                     </p>
                                     <div className="text-sm font-medium text-gray-800 dark:text-white/90">
-                                        {currentGroup?.name || "—"}
+                                        {currentGroup?.id ? (
+                                            <Link
+                                                href={route("member-groups.show", currentGroup.id)}
+                                                className="hover:text-brand-500 hover:underline"
+                                            >
+                                                {currentGroup.name}
+                                            </Link>
+                                        ) : (
+                                            currentGroup?.name || "—"
+                                        )}
+                                        {currentGroup?.description && (
+                                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-normal">
+                                                {currentGroup.description}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 

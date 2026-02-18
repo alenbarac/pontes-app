@@ -72,7 +72,7 @@ export default function MemberWorkshopAddForm({
                         onChange={(v) => setData("group_id", v)}
                         options={filteredGroups.map((g) => ({
                             value: String(g.id),
-                            label: g.name,
+                            label: g.description ? `${g.name} - ${g.description}` : g.name,
                         }))}
                     />
                     {errors.group_id && (
