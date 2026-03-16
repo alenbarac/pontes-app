@@ -57,6 +57,7 @@ const navItems: NavItem[] = [
         subItems: [
             { name: "Popis računa", path: "/invoices" },
             { name: "Generiranje računa", path: "/invoices/generate" },
+            { name: "Uvoz - mBanking", path: "/invoices/import-mbanking" },
         ],
     },
 

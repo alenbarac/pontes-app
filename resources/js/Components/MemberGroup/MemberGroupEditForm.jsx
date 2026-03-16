@@ -1,16 +1,15 @@
 import React from "react";
-import { useForm } from "@inertiajs/react";
+import { router, useForm } from "@inertiajs/react";
 import Button from "@/ui/button/Button";
 import Label from "../form/Label";
 import Input from "../form/input/InputField";
 import toast from "react-hot-toast";
 
 export default function MemberGroupEditForm({ group, workshops, onClose }) {
-    console.log("Editing group:", group);
   const { data, setData, put, processing, errors } = useForm({
     name: group.name || "",
     description: group.description || "",
-    workshop_id: group.workshop_id || "",
+    workshop_id: group.workshop_id || group.workshop?.id || "",
   });
 
 
@@ -20,8 +19,12 @@ export default function MemberGroupEditForm({ group, workshops, onClose }) {
     put(route("member-groups.update", group.id), {
         preserveScroll: true,
         onSuccess: () => {
+            onClose?.();
             toast.success("Grupa uspješno ažurirana.");
-            onClose();
+            router.reload({
+                preserveScroll: true,
+                preserveState: false,
+            });
         },
         onError: () => {
             toast.error("Došlo je do pogreške.");

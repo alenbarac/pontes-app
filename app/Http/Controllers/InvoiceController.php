@@ -71,7 +71,7 @@ class InvoiceController extends Controller
     $workshops = Workshop::select('id', 'name')->orderBy('name')->get();
 
     // Payment status options
-    $paymentStatuses = ['Otvoreno', 'Plaćeno', 'Opomeni'];
+    $paymentStatuses = ['Otvoreno', 'Plaćeno', 'Neusklađeno', 'Opomeni'];
 
     // Groups for filter (optionally scoped by workshop)
     // Some schemas don't have workshop_id on member_groups, so fall back to the mapping table workshop_groups
@@ -116,7 +116,7 @@ public function show(Invoice $invoice)
 public function updateStatus(Request $request, Invoice $invoice)
 {
     $validated = $request->validate([
-        'status' => ['required', 'in:Plaćeno,Otvoreno'],
+        'status' => ['required', 'in:Plaćeno,Otvoreno,Neusklađeno'],
     ]);
 
     $status = $validated['status'];
@@ -124,7 +124,7 @@ public function updateStatus(Request $request, Invoice $invoice)
     if ($status === 'Plaćeno') {
         // If you hit this endpoint instead of markPaid, set amount_paid to full
         $invoice->amount_paid = $invoice->amount_due;
-    } else { // Otvoreno
+    } elseif ($status === 'Otvoreno') {
         $invoice->amount_paid = 0;
     }
 
@@ -139,7 +139,7 @@ public function updateStatus(Request $request, Invoice $invoice)
     return redirect()->route('invoices.index')->with('success', 'Status uspješno promijenjen.');
 }
 /**
- * Bulk update status for many invoices (Otvoreno or Plaćeno)
+ * Bulk update status for many invoices
  */
 public function markBulkAsPaid(Request $request)
 {
@@ -178,7 +178,7 @@ public function toggleBulkInvoiceStatus(Request $request)
     $validated = $request->validate([
         'invoice_ids' => ['required', 'array', 'min:1'],
         'invoice_ids.*' => ['integer', 'exists:invoices,id'],
-        'status' => ['required', 'in:Plaćeno,Otvoreno'],
+        'status' => ['required', 'in:Plaćeno,Otvoreno,Neusklađeno'],
     ]);
 
     $status = $validated['status'];
@@ -191,7 +191,7 @@ public function toggleBulkInvoiceStatus(Request $request)
         if ($invoice->payment_status !== $status) {
             if ($status === 'Plaćeno') {
                 $invoice->amount_paid = $invoice->amount_due;
-            } else { // Otvoreno
+            } elseif ($status === 'Otvoreno') {
                 $invoice->amount_paid = 0;
             }
             $invoice->payment_status = $status;
@@ -211,7 +211,11 @@ public function toggleBulkInvoiceStatus(Request $request)
         );
     }
 
-    $statusText = $status === 'Plaćeno' ? 'plaćenih' : 'otvorenih';
+    $statusText = match ($status) {
+        'Plaćeno' => 'plaćenih',
+        'Otvoreno' => 'otvorenih',
+        default => 'neusklađenih',
+    };
 
     return redirect()->route('invoices.index')
         ->with('success', "Ažurirano kao {$statusText}: {$updatedCount}/{$total} računa.");

@@ -24,7 +24,9 @@ class MemberGroupRequest extends FormRequest
         return [
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'workshop_id' => 'required|exists:workshops,id',
+            'workshop_id' => $this->isMethod('post')
+                ? 'required|exists:workshops,id'
+                : 'nullable|exists:workshops,id',
         ];
     }
 }

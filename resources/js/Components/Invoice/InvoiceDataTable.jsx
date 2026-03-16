@@ -88,7 +88,7 @@ const InvoicesDataTable = ({
         } else {
             router.patch(
                 route("invoices.updateStatus", activeInvoice.id),
-                { status: "Otvoreno" },
+                { status: modalStatus },
                 {
                     preserveScroll: true,
                     onSuccess: () => {
@@ -170,6 +170,8 @@ const InvoicesDataTable = ({
                             className={`inline-block px-2 py-1 text-xs rounded ${
                                 status === "Plaćeno"
                                     ? "bg-green-100 text-green-800"
+                                    : status === "Neusklađeno"
+                                      ? "bg-orange-100 text-orange-800"
                                     : status === "Opomeni"
                                       ? "bg-red-100 text-red-800"
                                       : "bg-yellow-100 text-yellow-800"
@@ -1019,6 +1021,14 @@ const InvoicesDataTable = ({
                                             value="Otvoreno"
                                             checked={modalStatus === "Otvoreno"}
                                             label="Otvoreno"
+                                            onChange={setModalStatus}
+                                        />
+                                        <Radio
+                                            id="status-mismatch"
+                                            name="invoice-status"
+                                            value="Neusklađeno"
+                                            checked={modalStatus === "Neusklađeno"}
+                                            label="Neusklađeno"
                                             onChange={setModalStatus}
                                         />
                                     </div>

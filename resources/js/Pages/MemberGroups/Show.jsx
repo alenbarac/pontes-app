@@ -13,14 +13,17 @@ import {
 import {
     ChevronLeftIcon,
     ChevronRightIcon,
+    Cog8ToothIcon,
     DocumentTextIcon,
     EyeIcon,
     ArrowDownTrayIcon,
 } from "@heroicons/react/24/outline";
 import Button from "@/Components/ui/button/Button";
 import { useModal } from "@/hooks/useModal";
+import { Modal } from "@/Components/ui/modal";
 import BulkReassignModal from "@/Components/MemberGroup/BulkReassignModal";
 import BulkSlipsDownloadModal from "@/Components/MemberGroup/BulkSlipsDownloadModal";
+import MemberGroupEditForm from "@/Components/MemberGroup/MemberGroupEditForm";
 import TemplateSelectorModal from "@/Components/Documents/TemplateSelectorModal";
 import toast from "react-hot-toast";
 
@@ -30,6 +33,7 @@ export default function Show({
     membersMeta,
     statistics,
     otherGroups,
+    workshops = [],
     search: initialSearch = "",
 }) {
     const [selectedMembers, setSelectedMembers] = useState([]);
@@ -37,6 +41,7 @@ export default function Show({
     const bulkReassignModal = useModal();
     const documentModal = useModal();
     const slipsDownloadModal = useModal();
+    const editGroupModal = useModal();
     const [documentType, setDocumentType] = useState("ispricnica");
 
     const workshopId = group.workshop?.id;
@@ -132,7 +137,20 @@ export default function Show({
 
             <div className="space-y-6">
                 {/* Group Info Card */}
-                <ComponentCard title="Informacije o grupi">
+                <ComponentCard
+                    title="Informacije o grupi"
+                    headerAction={
+                        <Button
+                            onClick={editGroupModal.openModal}
+                            variant="outline"
+                            size="sm"
+                            startIcon={<Cog8ToothIcon className="h-4 w-4" />}
+                            title="Uredi grupu"
+                        >
+                            Uredi
+                        </Button>
+                    }
+                >
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                         <div>
                             <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
@@ -467,6 +485,24 @@ export default function Show({
                 currentGroup={group}
                 onSuccess={handleSlipsDownloadSuccess}
             />
+
+            {/* Edit Group Modal */}
+            <Modal
+                isOpen={editGroupModal.isOpen}
+                onClose={editGroupModal.closeModal}
+                className="max-w-[700px] m-4"
+            >
+                <div className="no-scrollbar relative w-full max-w-[700px] overflow-y-auto rounded-3xl bg-white p-4 dark:bg-gray-900 lg:p-11">
+                    <h5 className="text-xl mb-5 font-semibold text-gray-800 dark:text-white/90">
+                        Uredi grupu
+                    </h5>
+                    <MemberGroupEditForm
+                        group={group}
+                        workshops={workshops}
+                        onClose={editGroupModal.closeModal}
+                    />
+                </div>
+            </Modal>
         </AuthenticatedLayout>
     );
 }

@@ -145,6 +145,8 @@ class MemberGroupController extends Controller
                 ->get();
         }
 
+        $workshops = Workshop::select('id', 'name')->get();
+
         return inertia('MemberGroups/Show', [
             'group' => new MemberGroupResource($memberGroup),
             'members' => MemberResource::collection($members),
@@ -156,6 +158,7 @@ class MemberGroupController extends Controller
             ],
             'statistics' => $stats,
             'otherGroups' => $otherGroups,
+            'workshops' => $workshops,
             'search' => $request->search ?? '',
         ]);
     }
@@ -165,9 +168,11 @@ class MemberGroupController extends Controller
      */
     public function update(MemberGroupRequest $request, MemberGroup $memberGroup)
     {
-        $memberGroup->update($request->validated());
+        $validated = $request->validated();
+        unset($validated['workshop_id']);
+        $memberGroup->update($validated);
 
-        return redirect()->route('member-groups.index')->with('success', 'Group updated successfully.');
+        return redirect()->back()->with('success', 'Group updated successfully.');
     }
 
     /**

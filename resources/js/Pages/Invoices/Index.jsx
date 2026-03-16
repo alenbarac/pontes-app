@@ -26,7 +26,7 @@ export default function Index({
                 title="Članarine"
                 headerAction={
                     <Link
-                        href="#"
+                        href={route("invoices.importMbanking.index")}
                         className="inline-flex items-center justify-center gap-2 rounded-lg transition px-4 py-3 text-sm bg-brand-500 text-white shadow-theme-xs hover:bg-brand-600 disabled:bg-brand-300"
                     >
                         Uvoz uplata

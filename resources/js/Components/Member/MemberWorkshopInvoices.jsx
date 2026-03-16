@@ -318,7 +318,7 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
         } else {
             router.patch(
                 route("invoices.updateStatus", invoiceToUpdate.id),
-                { status: "Otvoreno", stay_on_page: true },
+                { status: currentStatus, stay_on_page: true },
                 {
                     preserveScroll: true,
                     preserveState: false, // Allow page to refresh with new data
@@ -402,6 +402,8 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                                             className={`inline-block px-2 py-1 text-xs rounded ${
                                                 invoice.payment_status === "Plaćeno"
                                                     ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                                                    : invoice.payment_status === "Neusklađeno"
+                                                      ? "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400"
                                                     : invoice.payment_status === "Opomeni"
                                                       ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
                                                       : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"
@@ -706,6 +708,14 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                                             value="Otvoreno"
                                             checked={modalStatus === "Otvoreno"}
                                             label="Otvoreno"
+                                            onChange={setModalStatus}
+                                        />
+                                        <Radio
+                                            id="status-mismatch"
+                                            name="invoice-status"
+                                            value="Neusklađeno"
+                                            checked={modalStatus === "Neusklađeno"}
+                                            label="Neusklađeno"
                                             onChange={setModalStatus}
                                         />
                                     </div>

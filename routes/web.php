@@ -8,6 +8,7 @@ use App\Http\Controllers\MemberWorkshopController;
 use App\Http\Controllers\MemberImportController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\InvoiceImportController;
 use App\Http\Controllers\InvoiceGenerationController;
 use App\Http\Controllers\MemberInvoiceController;
 use App\Http\Controllers\DocumentTemplateController;
@@ -70,6 +71,10 @@ Route::middleware('auth')->group(function () {
         ->name('invoices.generate');
     Route::delete('/invoices/generate/month', [InvoiceGenerationController::class, 'deleteMonth'])
         ->name('invoices.generate.deleteMonth');
+    Route::get('/invoices/import-mbanking', [InvoiceImportController::class, 'index'])
+        ->name('invoices.importMbanking.index');
+    Route::post('/invoices/import-mbanking', [InvoiceImportController::class, 'store'])
+        ->name('invoices.importMbanking.store');
 
     // Member-specific invoice routes (for session invoices)
     Route::post('/members/{member}/invoices/session', [MemberInvoiceController::class, 'generateSessionInvoice'])
