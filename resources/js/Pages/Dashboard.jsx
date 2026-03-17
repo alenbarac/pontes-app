@@ -1,11 +1,10 @@
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { Head } from "@inertiajs/react";
-import DashboardMetrics from "@/Components/Dashboard/DashboardMetrics";
+import RevenueInsights from "@/Components/Dashboard/RevenueInsights";
+import RevenueTrendChart from "@/Components/Dashboard/RevenueTrendChart";
 import GroupCards from "@/Components/Dashboard/GroupCards";
-import RecentInvoicesTable from "@/Components/Dashboard/RecentInvoicesTable";
-import RecentMembersTable from "@/Components/Dashboard/RecentMembersTable";
 
-export default function Dashboard({ stats, recent_invoices, recent_members, groups }) {
+export default function Dashboard({ revenue, groups }) {
     return (
         <AuthenticatedLayout
             header={
@@ -17,17 +16,12 @@ export default function Dashboard({ stats, recent_invoices, recent_members, grou
             <Head title="Dashboard" />
 
             <div className="space-y-6">
-                {/* Metrics Cards */}
-                <DashboardMetrics stats={stats} />
+                {/* Revenue & Invoice Insights */}
+                <RevenueInsights revenue={revenue} />
+                <RevenueTrendChart trend={revenue?.trend} />
 
                 {/* Groups Cards */}
                 <GroupCards groups={groups} />
-
-                {/* Recent Data Tables */}
-                <div className="space-y-6">
-                    <RecentInvoicesTable invoices={recent_invoices} />
-                    <RecentMembersTable members={recent_members} />
-                </div>
             </div>
         </AuthenticatedLayout>
     );

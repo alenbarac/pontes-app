@@ -2,14 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Member;
 use App\Models\Invoice;
 use App\Models\MemberGroup;
-use App\Models\Workshop;
-use App\Models\User;
 use App\Http\Resources\MemberGroupResource;
 use Carbon\Carbon;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -20,52 +16,47 @@ class DashboardController extends Controller
      */
     public function index(): Response
     {
-        // Get statistics
-        $stats = [
-            'total_members' => Member::count(),
-            'opened_invoices' => Invoice::where('payment_status', 'Otvoreno')->count(),
-            'total_invoices' => Invoice::count(),
-            'total_groups' => MemberGroup::count(),
-            'total_workshops' => Workshop::count(),
+        $now = Carbon::now();
+        $currentMonth = $now->copy()->startOfMonth();
+        $today = $now->copy()->startOfDay();
+
+        $currentMonthGenerated = Invoice::forMonth($currentMonth);
+        $currentMonthPaid = Invoice::forMonth($currentMonth)->where('payment_status', 'Plaćeno');
+        $dueInvoices = Invoice::where('payment_status', '!=', 'Plaćeno')
+            ->whereDate('due_date', '<', $today);
+
+        $revenue = [
+            // Revenue based on payments recorded in current month.
+            'current_month_revenue' => (float) Invoice::where('amount_paid', '>', 0)
+                ->whereMonth('updated_at', $currentMonth->month)
+                ->whereYear('updated_at', $currentMonth->year)
+                ->sum('amount_paid'),
+            'current_month_generated_count' => (int) (clone $currentMonthGenerated)->count(),
+            'current_month_generated_amount' => (float) (clone $currentMonthGenerated)->sum('amount_due'),
+            'current_month_paid_count' => (int) (clone $currentMonthPaid)->count(),
+            'current_month_paid_amount' => (float) (clone $currentMonthPaid)->sum('amount_paid'),
+            'due_invoices_count' => (int) (clone $dueInvoices)->count(),
+            'due_invoices_amount' => (float) (clone $dueInvoices)->sum(\Illuminate\Support\Facades\DB::raw('GREATEST(amount_due - amount_paid, 0)')),
         ];
 
-        // Get recent invoices (last 5)
-        $recentInvoices = Invoice::with(['member', 'workshop'])
-            ->orderBy('created_at', 'desc')
-            ->limit(5)
-            ->get()
-            ->map(function ($invoice) {
-                $dueDate = $invoice->due_date;
-                if ($dueDate && !($dueDate instanceof Carbon)) {
-                    $dueDate = Carbon::parse($dueDate);
-                }
-                
-                return [
-                    'id' => $invoice->id,
-                    'reference_code' => $invoice->reference_code,
-                    'member_name' => $invoice->member ? $invoice->member->first_name . ' ' . $invoice->member->last_name : 'N/A',
-                    'workshop_name' => $invoice->workshop ? $invoice->workshop->name : 'N/A',
-                    'amount_due' => number_format($invoice->amount_due, 2, ',', '.'),
-                    'amount_paid' => number_format($invoice->amount_paid, 2, ',', '.'),
-                    'payment_status' => $invoice->payment_status,
-                    'due_date' => $dueDate ? $dueDate->format('d.m.Y') : null,
-                    'created_at' => $invoice->created_at ? $invoice->created_at->format('d.m.Y') : null,
-                ];
-            });
+        $labels = [];
+        $generatedSeries = [];
+        $paidSeries = [];
 
-        // Get recent members (last 5)
-        $recentMembers = Member::orderBy('created_at', 'desc')
-            ->limit(5)
-            ->get()
-            ->map(function ($member) {
-                return [
-                    'id' => $member->id,
-                    'first_name' => $member->first_name,
-                    'last_name' => $member->last_name,
-                    'email' => $member->email,
-                    'created_at' => $member->created_at ? $member->created_at->format('d.m.Y') : null,
-                ];
-            });
+        for ($i = 11; $i >= 0; $i--) {
+            $month = $now->copy()->startOfMonth()->subMonths($i);
+            $labels[] = $month->format('M Y');
+            $generatedSeries[] = (float) Invoice::forMonth($month)->sum('amount_due');
+            $paidSeries[] = (float) Invoice::forMonth($month)
+                ->where('payment_status', 'Plaćeno')
+                ->sum('amount_paid');
+        }
+
+        $revenue['trend'] = [
+            'labels' => $labels,
+            'generated' => $generatedSeries,
+            'paid' => $paidSeries,
+        ];
 
         // Get all groups with member count
         $groups = MemberGroup::with('assignedWorkshop')
@@ -76,9 +67,7 @@ class DashboardController extends Controller
             });
 
         return Inertia::render('Dashboard', [
-            'stats' => $stats,
-            'recent_invoices' => $recentInvoices,
-            'recent_members' => $recentMembers,
+            'revenue' => $revenue,
             'groups' => $groups,
         ]);
     }
