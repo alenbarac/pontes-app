@@ -38,9 +38,6 @@ const InvoicesDataTable = ({
     const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
     const [isGroupDropdownOpen, setIsGroupDropdownOpen] = useState(false);
 
-    console.log(data);
-    
-
     // Bulk selection state, list of selected invoice IDs
     const [selectedRows, setSelectedRows] = useState([]);
     
@@ -57,8 +54,17 @@ const InvoicesDataTable = ({
     const deleteInvoiceModal = useModal();
     const [invoiceToDelete, setInvoiceToDelete] = useState(null);
 
+    const shouldIgnoreRowClick = (target) => {
+        if (!(target instanceof Element)) return false;
+
+        return Boolean(
+            target.closest(
+                'input, button, a, label, [role="button"], [data-no-row-open]'
+            )
+        );
+    };
+
     const openInvoiceDetails = (invoice) => {
-        console.log(invoice);
         setActiveInvoice(invoice);
         setModalStatus(invoice?.payment_status || "");
         setShowInvoiceModal(true);
@@ -169,12 +175,12 @@ const InvoicesDataTable = ({
                         <span
                             className={`inline-block px-2 py-1 text-xs rounded ${
                                 status === "Plaćeno"
-                                    ? "bg-green-100 text-green-800"
+                                    ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400"
                                     : status === "Neusklađeno"
-                                      ? "bg-orange-100 text-orange-800"
+                                      ? "bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400"
                                     : status === "Opomeni"
-                                      ? "bg-red-100 text-red-800"
-                                      : "bg-yellow-100 text-yellow-800"
+                                      ? "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400"
+                                      : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400"
                             }`}
                         >
                             {status}
@@ -262,6 +268,7 @@ const InvoicesDataTable = ({
                             }
                         }}
                         onChange={handleSelectAll}
+                        onClick={(e) => e.stopPropagation()}
                         aria-label="Select all rows"
                         className="accent-brand-500 size-4"
                     />
@@ -271,6 +278,7 @@ const InvoicesDataTable = ({
                         type="checkbox"
                         checked={selectedRows.includes(row.original.id)}
                         onChange={e => handleSelectRow(e, row.original.id)}
+                        onClick={(e) => e.stopPropagation()}
                         aria-label={`Odaberi redak #${row.original.id}`}
                         className="accent-brand-500 size-4"
                     />
@@ -412,10 +420,10 @@ const InvoicesDataTable = ({
                             onChange={(e) =>
                                 handlePageSizeChange(Number(e.target.value))
                             }
-                            className="h-9 py-2 pl-3 pr-8 text-sm border rounded-lg"
+                            className="h-9 py-2 pl-3 pr-8 text-sm text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-800 rounded-lg bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                         >
                             {pageSizeOptions.map((size) => (
-                                <option key={size} value={size}>
+                                <option key={size} value={size} className="text-gray-700 dark:bg-gray-900 dark:text-gray-200">
                                     {size}
                                 </option>
                             ))}
@@ -482,7 +490,7 @@ const InvoicesDataTable = ({
                                         !isWorkshopDropdownOpen,
                                     )
                                 }
-                                className="inline-flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium rounded-lg dropdown-toggle border border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-dark dark:hover:bg-gray-800 min-w-[180px]"
+                                className="inline-flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 rounded-lg dropdown-toggle border border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-dark dark:hover:bg-gray-800 min-w-[180px]"
                             >
                                 <span className="truncate">
                                     {workshopId
@@ -577,7 +585,7 @@ const InvoicesDataTable = ({
                                         !isStatusDropdownOpen,
                                     )
                                 }
-                                className="inline-flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium rounded-lg dropdown-toggle border border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-dark dark:hover:bg-gray-800 min-w-[180px]"
+                                className="inline-flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 rounded-lg dropdown-toggle border border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-dark dark:hover:bg-gray-800 min-w-[180px]"
                             >
                                 <span className="truncate">
                                     {paymentStatus || "Svi statusi"}
@@ -657,7 +665,7 @@ const InvoicesDataTable = ({
                         <div className="relative inline-block">
                             <button
                                 onClick={() => setIsStatusDropdownOpen(false) || setIsWorkshopDropdownOpen(false) || setIsGroupDropdownOpen(!isGroupDropdownOpen)}
-                                className="inline-flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium rounded-lg dropdown-toggle border border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-dark dark:hover:bg-gray-800 min-w-[180px]"
+                                className="inline-flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 rounded-lg dropdown-toggle border border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-dark dark:hover:bg-gray-800 min-w-[180px]"
                             >
                                 <span className="truncate">
                                     {groupId ? (groups.find((g) => g.id == groupId)?.name || "Grupa") : "Sve grupe"}
@@ -730,7 +738,7 @@ const InvoicesDataTable = ({
                             value={globalFilter}
                             onChange={(e) => setGlobalFilter(e.target.value)}
                             placeholder="Pretraga..."
-                            className="h-11 px-4 py-2 rounded-lg border w-full sm:w-[300px]"
+                            className="h-11 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-800 dark:text-white/90 placeholder:text-gray-400 dark:placeholder:text-gray-500 w-full sm:w-[300px]"
                         />
                     </div>
                 </div>
@@ -745,7 +753,7 @@ const InvoicesDataTable = ({
                                 {hg.headers.map((header) => (
                                     <th
                                         key={header.id}
-                                        className="px-4 py-3 border text-left text-sm font-medium bg-gray-50"
+                                        className="px-4 py-3 border border-gray-200 dark:border-gray-800 text-left text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/80"
                                     >
                                         {header.isPlaceholder
                                             ? null
@@ -763,13 +771,16 @@ const InvoicesDataTable = ({
                         {table.getRowModel().rows.map((row) => (
                             <tr
                                 key={row.id}
-                                className="hover:bg-gray-100 cursor-pointer"
-                                onClick={() => openInvoiceDetails(row.original)}
+                                className="cursor-pointer transition-colors hover:bg-gray-100 dark:hover:bg-white/[0.03]"
+                                onClick={(e) => {
+                                    if (shouldIgnoreRowClick(e.target)) return;
+                                    openInvoiceDetails(row.original);
+                                }}
                             >
                                 {row.getVisibleCells().map((cell) => (
                                     <td
                                         key={cell.id}
-                                        className="px-4 py-4 border text-sm whitespace-nowrap"
+                                        className="px-4 py-4 border border-gray-200 dark:border-gray-800 text-sm text-gray-700 dark:text-white/90 whitespace-nowrap"
                                     >
                                         {flexRender(
                                             cell.column.columnDef.cell,
@@ -790,11 +801,11 @@ const InvoicesDataTable = ({
                         handlePageChange(pagination.current_page - 1)
                     }
                     disabled={pagination.current_page === 1}
-                    className="px-3 py-1 border rounded"
+                    className="px-3 py-1 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                     &laquo;
                 </button>
-                <span className="text-sm">
+                <span className="text-sm text-gray-700 dark:text-gray-300">
                     Stranica {pagination.current_page} od {pagination.last_page}
                 </span>
                 <button
@@ -802,7 +813,7 @@ const InvoicesDataTable = ({
                         handlePageChange(pagination.current_page + 1)
                     }
                     disabled={pagination.current_page === pagination.last_page}
-                    className="px-3 py-1 border rounded"
+                    className="px-3 py-1 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                     &raquo;
                 </button>
@@ -893,7 +904,7 @@ const InvoicesDataTable = ({
                                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                                     Detalji računa
                                 </h3>
-                                <p className="text-sm text-gray-500">
+                                <p className="text-sm text-gray-500 dark:text-gray-400">
                                     #{activeInvoice.reference_code}
                                 </p>
                             </div>
@@ -911,7 +922,7 @@ const InvoicesDataTable = ({
                             <div className="sm:col-span-2">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
-                                        <div className="text-xs uppercase text-gray-500">
+                                        <div className="text-xs uppercase text-gray-500 dark:text-gray-400">
                                             Član
                                         </div>
                                         <div className="text-sm text-gray-900 dark:text-gray-100">
@@ -920,7 +931,7 @@ const InvoicesDataTable = ({
                                         </div>
                                     </div>
                                     <div>
-                                        <div className="text-xs uppercase text-gray-500">
+                                        <div className="text-xs uppercase text-gray-500 dark:text-gray-400">
                                             Radionica
                                         </div>
                                         <div className="text-sm text-gray-900 dark:text-gray-100">
@@ -929,7 +940,7 @@ const InvoicesDataTable = ({
                                         </div>
                                     </div>
                                     <div>
-                                        <div className="text-xs uppercase text-gray-500">
+                                        <div className="text-xs uppercase text-gray-500 dark:text-gray-400">
                                             Grupa
                                         </div>
                                         <div className="text-sm text-gray-900 dark:text-gray-100">
@@ -960,7 +971,7 @@ const InvoicesDataTable = ({
                                         </div>
                                     </div>
                                     <div>
-                                        <div className="text-xs uppercase text-gray-500">
+                                        <div className="text-xs uppercase text-gray-500 dark:text-gray-400">
                                             Iznos
                                         </div>
                                         <div className="text-sm text-gray-900 dark:text-gray-100">
@@ -971,7 +982,7 @@ const InvoicesDataTable = ({
                                         </div>
                                     </div>
                                     <div>
-                                        <div className="text-xs uppercase text-gray-500">
+                                        <div className="text-xs uppercase text-gray-500 dark:text-gray-400">
                                             Dospijeće
                                         </div>
                                         <div className="text-sm text-gray-900 dark:text-gray-100">
@@ -981,7 +992,7 @@ const InvoicesDataTable = ({
                                         </div>
                                     </div>
                                     <div>
-                                        <div className="text-xs uppercase text-gray-500">
+                                        <div className="text-xs uppercase text-gray-500 dark:text-gray-400">
                                             Referenca
                                         </div>
                                         <div className="text-sm text-gray-900 dark:text-gray-100">
@@ -990,7 +1001,7 @@ const InvoicesDataTable = ({
                                     </div>
                                 </div>
                                 <div className="mt-4">
-                                    <div className="text-xs uppercase text-gray-500">
+                                    <div className="text-xs uppercase text-gray-500 dark:text-gray-400">
                                         Napomena
                                     </div>
                                     <div className="text-sm text-gray-900 dark:text-gray-100">
@@ -1002,7 +1013,7 @@ const InvoicesDataTable = ({
                             {/* Right: Actions with status toggle */}
                             <div className="flex flex-col gap-4">
                                 <div>
-                                    <div className="text-xs uppercase text-gray-500 mb-2">
+                                    <div className="text-xs uppercase text-gray-500 dark:text-gray-400 mb-2">
                                         Status
                                     </div>
                                     <div className="flex items-center gap-6">
@@ -1041,7 +1052,7 @@ const InvoicesDataTable = ({
                                     )}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium border rounded-lg hover:bg-gray-50 dark:border-gray-700"
+                                    className="inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                                     onClick={(e) => e.stopPropagation()}
                                 >
                                     Uplatnica (PDF)

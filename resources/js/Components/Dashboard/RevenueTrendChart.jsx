@@ -121,7 +121,7 @@ export default function RevenueTrendChart({ trend }) {
     <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
-          Trend računa i naplate (12 mjeseci)
+          Trend računa i naplate
         </h3>
 
         <div className="inline-flex w-fit items-center gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-900">

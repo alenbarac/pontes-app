@@ -49,7 +49,7 @@ export default function Index({ templates, type }) {
                 <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
                     <div className="max-w-full overflow-x-auto">
                         <Table>
-                            <TableHeader className="border-b border-gray-200 dark:border-white/[0.05] bg-gray-50">
+                            <TableHeader className="border-b border-gray-200 dark:border-white/[0.05] bg-gray-50 dark:bg-white/[0.02]">
                                 <TableRow>
                                     <TableCell
                                         isHeader

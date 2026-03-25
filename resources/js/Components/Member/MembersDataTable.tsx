@@ -190,7 +190,7 @@ const MembersDataTable: React.FC<MembersDataTableProps> = ({
                                     <option
                                         key={size}
                                         value={size}
-                                        className="text-gray-500 dark:bg-gray-900 dark:text-gray-400"
+                                        className="text-gray-600 dark:bg-gray-900 dark:text-gray-200"
                                     >
                                         {size}
                                     </option>
@@ -257,7 +257,7 @@ const MembersDataTable: React.FC<MembersDataTableProps> = ({
                                         !isWorkshopDropdownOpen,
                                     )
                                 }
-                                className="inline-flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium rounded-lg dropdown-toggle border border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-dark dark:hover:bg-gray-800 min-w-[180px]"
+                                className="inline-flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 rounded-lg dropdown-toggle border border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-dark dark:hover:bg-gray-800 min-w-[180px]"
                             >
                                 <span className="truncate">
                                     {workshopId
@@ -353,7 +353,7 @@ const MembersDataTable: React.FC<MembersDataTableProps> = ({
                                     setIsWorkshopDropdownOpen(false);
                                     setIsGroupDropdownOpen(!isGroupDropdownOpen);
                                 }}
-                                className="inline-flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium rounded-lg dropdown-toggle border border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-dark dark:hover:bg-gray-800 min-w-[180px]"
+                                className="inline-flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 rounded-lg dropdown-toggle border border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-dark dark:hover:bg-gray-800 min-w-[180px]"
                             >
                                 <span className="truncate">
                                     {groupId
@@ -471,7 +471,7 @@ const MembersDataTable: React.FC<MembersDataTableProps> = ({
                                     {hg.headers.map((header) => (
                                         <th
                                             key={header.id}
-                                            className="px-4 py-3 border text-left text-sm font-medium text-gray-700 dark:text-gray-400 bg-gray-50 dark:bg-gray-800"
+                                    className="px-4 py-3 border border-gray-200 dark:border-gray-800 text-left text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/80"
                                         >
                                             {header.isPlaceholder
                                                 ? null
@@ -487,11 +487,11 @@ const MembersDataTable: React.FC<MembersDataTableProps> = ({
                         </thead>
                         <tbody>
                             {table.getRowModel().rows.map((row) => (
-                                <tr key={row.id} className="hover:bg-gray-100">
+                                <tr key={row.id} className="transition-colors hover:bg-gray-100 dark:hover:bg-white/[0.03]">
                                     {row.getVisibleCells().map((cell) => (
                                         <td
                                             key={cell.id}
-                                            className="px-4 py-4 border text-sm dark:text-white/90 whitespace-nowrap"
+                                            className="px-4 py-4 border border-gray-200 dark:border-gray-800 text-sm text-gray-700 dark:text-white/90 whitespace-nowrap"
                                         >
                                             {flexRender(
                                                 cell.column.columnDef.cell,
@@ -544,7 +544,7 @@ const MembersDataTable: React.FC<MembersDataTableProps> = ({
                                         className={`flex items-center justify-center w-10 h-10 text-sm font-medium rounded-lg ${
                                             pagination.current_page === page
                                                 ? "bg-brand-500 text-white"
-                                                : "bg-white text-gray-700 hover:bg-brand-500 hover:text-white dark:text-gray-400 dark:hover:text-white"
+                                                : "bg-white text-gray-700 hover:bg-brand-500 hover:text-white dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-brand-500 dark:hover:text-white"
                                         }`}
                                     >
                                         {page}
@@ -580,8 +580,8 @@ const MembersDataTable: React.FC<MembersDataTableProps> = ({
                 }}
                 className="max-w-md p-6"
             >
-                <h4 className="text-xl font-semibold mb-4">Brisanje člana</h4>
-                <p className="mb-6">
+                <h4 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Brisanje člana</h4>
+                <p className="mb-6 text-gray-600 dark:text-gray-400">
                     Jeste li sigurni da želite obrisati ovog člana?
                 </p>
                 <div className="flex justify-end gap-2">
