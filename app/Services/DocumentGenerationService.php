@@ -91,7 +91,25 @@ class DocumentGenerationService
             'member' => $member,
         ];
 
-        $pdf = Pdf::loadView('documents.template', $data)
+        $view = 'documents.template';
+
+        if ($template->type === 'ispricnica') {
+            $view = 'documents.ispricnica';
+            $data = array_merge($data, [
+                'documentTitle' => 'Ispričnica',
+                'todayDate' => Carbon::now()->format('d.m.Y.'),
+                'logoPath' => public_path('images/documents/ispricnica-logo.png'),
+                'signaturePath' => public_path('images/documents/ispricnica-signature.png'),
+                'footerRecipientName' => (string) config('pontes.recipient_name', ''),
+                'footerRecipientAddress' => (string) config('pontes.recipient_address', ''),
+                'footerRecipientPostal' => (string) config('pontes.recipient_postal', ''),
+                'footerWebUrl' => (string) config('pontes.web_url', env('PONTES_WEB_URL', '')),
+                'footerEmail' => (string) config('pontes.email', env('PONTES_EMAIL', '')),
+                'footerPhone' => (string) config('pontes.phone', env('PONTES_PHONE', '')),
+            ]);
+        }
+
+        $pdf = Pdf::loadView($view, $data)
             ->setPaper('a4', 'portrait')
             ->setOption('enable-local-file-access', true);
 

@@ -10,4 +10,8 @@ return [
     'model'             => env('PONTES_MODEL', 'HR00'),
     // Currency
     'currency'          => env('PONTES_CURRENCY', 'EUR'),
+    // Contact details
+    'web_url'           => env('PONTES_WEB_URL', ''),
+    'email'             => env('PONTES_EMAIL', ''),
+    'phone'             => env('PONTES_PHONE', ''),
 ];
