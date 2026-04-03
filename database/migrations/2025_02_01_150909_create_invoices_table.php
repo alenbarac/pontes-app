@@ -24,6 +24,7 @@ return new class extends Migration {
             $table->string('school_year', 9)->nullable(); // Format: "2025-2026"
             $table->string('invoice_type', 20)->default('membership'); // 'membership' or 'session'
             $table->date('session_date')->nullable(); // For session-based invoices (meeting date)
+            $table->decimal('hours', 5, 2)->nullable(); // For hourly individual counseling invoices
             $table->timestamps();
 
             // Index for invoice type queries

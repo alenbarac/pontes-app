@@ -32,8 +32,7 @@ class MemberInvoiceController extends Controller
         $validator = Validator::make($request->all(), [
             'workshop_id' => 'required|exists:workshops,id',
             'session_date' => 'required|date',
-            'amount' => 'required|numeric|min:0',
-            'notes' => 'nullable|string|max:1000',
+            'hours' => 'required|numeric|min:0.5|max:24',
         ]);
 
         if ($validator->fails()) {
@@ -68,14 +67,17 @@ class MemberInvoiceController extends Controller
             }
 
             $sessionDate = Carbon::parse($request->session_date);
-            $amount = (float) $request->amount;
-            $notes = $request->notes;
+            $hours = (float) $request->hours;
+            $hourlyRate = $this->invoiceService->calculateSessionAmount($member, $workshop);
+            $amount = round($hourlyRate * $hours, 2);
+            $notes = 'Individualno savjetovanje - ' . $this->formatHoursLabel($hours);
 
             $invoice = $this->invoiceService->generateSessionInvoice(
                 $member,
                 $workshop,
                 $sessionDate,
                 $amount,
+                $hours,
                 $notes
             );
 
@@ -88,6 +90,8 @@ class MemberInvoiceController extends Controller
                     'amount_due' => (float) $invoice->amount_due,
                     'due_date' => $invoice->due_date,
                     'session_date' => $invoice->session_date,
+                    'hours' => $invoice->hours,
+                    'hourly_rate' => $hourlyRate,
                 ],
             ]);
         } catch (\Exception $e) {
@@ -110,7 +114,7 @@ class MemberInvoiceController extends Controller
         $validator = Validator::make($request->all(), [
             'workshop_id' => 'required|exists:workshops,id',
             'session_date' => 'required|date',
-            'amount' => 'nullable|numeric|min:0',
+            'hours' => 'nullable|numeric|min:0.5|max:24',
         ]);
 
         if ($validator->fails()) {
@@ -145,11 +149,9 @@ class MemberInvoiceController extends Controller
             }
 
             $sessionDate = Carbon::parse($request->session_date);
-            
-            // Calculate default amount if not provided
-            $amount = $request->amount 
-                ? (float) $request->amount 
-                : $this->invoiceService->calculateSessionAmount($member, $workshop);
+            $hourlyRate = $this->invoiceService->calculateSessionAmount($member, $workshop);
+            $hours = $request->filled('hours') ? (float) $request->hours : 1.0;
+            $amount = round($hourlyRate * $hours, 2);
 
             return response()->json([
                 'success' => true,
@@ -158,8 +160,10 @@ class MemberInvoiceController extends Controller
                     'workshop_name' => $workshop->name,
                     'session_date' => $sessionDate->format('Y-m-d'),
                     'session_date_formatted' => $sessionDate->format('d.m.Y'),
+                    'hours' => $hours,
+                    'hourly_rate' => $hourlyRate,
                     'amount' => $amount,
-                    'default_amount' => $this->invoiceService->calculateSessionAmount($member, $workshop),
+                    'default_amount' => $hourlyRate,
                 ],
             ]);
         } catch (\Exception $e) {
@@ -250,5 +254,22 @@ class MemberInvoiceController extends Controller
                 'message' => 'Error generating invoice: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    private function formatHoursLabel(float $hours): string
+    {
+        $formatted = rtrim(rtrim(number_format($hours, 2, '.', ''), '0'), '.');
+        $whole = (int) $hours;
+        $isWhole = $hours == $whole;
+
+        if ($isWhole && $whole === 1) {
+            $unit = 'sat';
+        } elseif ($isWhole && $whole >= 2 && $whole <= 4) {
+            $unit = 'sata';
+        } else {
+            $unit = 'sati';
+        }
+
+        return $formatted . ' ' . $unit;
     }
 }

@@ -24,6 +24,11 @@ class Invoice extends Model
         'school_year',
         'invoice_type',
         'session_date',
+        'hours',
+    ];
+
+    protected $casts = [
+        'hours' => 'decimal:2',
     ];
 
     public function member()

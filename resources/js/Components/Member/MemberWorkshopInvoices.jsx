@@ -21,10 +21,10 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
     
     // Session invoice generation state
     const sessionInvoiceModal = useModal();
-    const confirmSessionInvoiceModal = useModal();
     const [sessionDate, setSessionDate] = useState("");
-    const [sessionAmount, setSessionAmount] = useState("");
-    const [defaultAmount, setDefaultAmount] = useState(0);
+    const [sessionHours, setSessionHours] = useState("1");
+    const [hourlyRate, setHourlyRate] = useState(0);
+    const [estimatedTotal, setEstimatedTotal] = useState(0);
     const [generatingSession, setGeneratingSession] = useState(false);
     const [previewingSession, setPreviewingSession] = useState(false);
     
@@ -54,13 +54,6 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
     const isIndividualCounseling = workshop?.type === 'Individualno' || 
                                    (workshop?.name && workshop.name.toLowerCase().includes('individualno'));
 
-    // Load default amount when opening session invoice modal
-    useEffect(() => {
-        if (sessionInvoiceModal.isOpen && isIndividualCounseling && !defaultAmount) {
-            previewSessionInvoice();
-        }
-    }, [sessionInvoiceModal.isOpen]);
-
     const previewSessionInvoice = async () => {
         if (!sessionDate) {
             return;
@@ -73,17 +66,29 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                 {
                     workshop_id: workshop.id,
                     session_date: sessionDate,
-                }
+                    hours: Number(sessionHours) || 1,
+                },
+                {
+                    headers: {
+                        Accept: "application/json",
+                        "X-Requested-With": "XMLHttpRequest",
+                    },
+                },
             );
 
             if (response.data.success) {
-                setDefaultAmount(response.data.preview.default_amount);
-                if (!sessionAmount) {
-                    setSessionAmount(response.data.preview.default_amount.toString());
-                }
+                setHourlyRate(Number(response.data.preview.hourly_rate || response.data.preview.default_amount || 0));
+                setEstimatedTotal(Number(response.data.preview.amount || 0));
             }
         } catch (error) {
             console.error("Preview error:", error);
+            setHourlyRate(0);
+            setEstimatedTotal(0);
+            if (error.response?.status === 401 || error.response?.status === 419) {
+                toast.error("Sesija je istekla. Osvježite stranicu i prijavite se ponovno.");
+                return;
+            }
+            toast.error("Greška pri izračunu cijene po satu.");
         } finally {
             setPreviewingSession(false);
         }
@@ -93,26 +98,30 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
         if (dates && dates.length > 0) {
             const dateStr = dates[0].toISOString().split('T')[0];
             setSessionDate(dateStr);
-            // Auto-preview when date changes
-            if (isIndividualCounseling) {
-                setTimeout(() => previewSessionInvoice(), 300);
-            }
         }
     };
 
     const openSessionInvoiceModal = () => {
         setSessionDate("");
-        setSessionAmount("");
-        setDefaultAmount(0);
+        setSessionHours("1");
+        setHourlyRate(0);
+        setEstimatedTotal(0);
         sessionInvoiceModal.openModal();
     };
 
     const closeSessionInvoiceModal = () => {
         sessionInvoiceModal.closeModal();
         setSessionDate("");
-        setSessionAmount("");
-        setDefaultAmount(0);
+        setSessionHours("1");
+        setHourlyRate(0);
+        setEstimatedTotal(0);
     };
+
+    useEffect(() => {
+        if (sessionInvoiceModal.isOpen && isIndividualCounseling && sessionDate) {
+            previewSessionInvoice();
+        }
+    }, [sessionDate, sessionHours, sessionInvoiceModal.isOpen, isIndividualCounseling]);
 
     const openMembershipInvoiceModal = () => {
         setTargetMonth("");
@@ -164,23 +173,18 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
         }
     };
 
-    const handleGenerateSessionInvoice = () => {
+    const handleGenerateSessionInvoice = async () => {
         if (!sessionDate) {
             toast.error("Molimo odaberite datum sastanka.");
             return;
         }
 
-        if (!sessionAmount || parseFloat(sessionAmount) <= 0) {
-            toast.error("Molimo unesite valjani iznos.");
+        if (!sessionHours || parseFloat(sessionHours) <= 0) {
+            toast.error("Molimo unesite valjani broj sati.");
             return;
         }
 
-        confirmSessionInvoiceModal.openModal();
-    };
-
-    const confirmGenerateSessionInvoice = async () => {
         setGeneratingSession(true);
-        confirmSessionInvoiceModal.closeModal();
 
         try {
             const response = await axios.post(
@@ -188,8 +192,14 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                 {
                     workshop_id: workshop.id,
                     session_date: sessionDate,
-                    amount: parseFloat(sessionAmount),
-                }
+                    hours: parseFloat(sessionHours),
+                },
+                {
+                    headers: {
+                        Accept: "application/json",
+                        "X-Requested-With": "XMLHttpRequest",
+                    },
+                },
             );
 
             if (response.data.success) {
@@ -201,6 +211,10 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                 toast.error(response.data.message || "Greška pri generiranju računa.");
             }
         } catch (error) {
+            if (error.response?.status === 401 || error.response?.status === 419) {
+                toast.error("Sesija je istekla. Osvježite stranicu i prijavite se ponovno.");
+                return;
+            }
             const errorMessage =
                 error.response?.data?.message ||
                 error.response?.data?.error ||
@@ -495,20 +509,25 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                         </div>
 
                         <div>
-                            <Label htmlFor="session-amount">Iznos (EUR) *</Label>
+                            <Label htmlFor="session-hours">Broj sati *</Label>
                             <Input
                                 type="number"
-                                id="session-amount"
-                                value={sessionAmount}
-                                onChange={(e) => setSessionAmount(e.target.value)}
-                                placeholder={defaultAmount ? `${defaultAmount.toFixed(2)}` : "0.00"}
-                                step="0.01"
-                                min="0"
+                                id="session-hours"
+                                value={sessionHours}
+                                onChange={(e) => setSessionHours(e.target.value)}
+                                placeholder="1"
+                                step="0.5"
+                                min="0.5"
                             />
-                            {defaultAmount > 0 && (
+                            {hourlyRate > 0 && (
                                 <p className="mt-1 text-xs text-gray-500">
-                                    Preporučeni iznos: {defaultAmount.toFixed(2)} EUR
-                                    {defaultAmount === 50 ? " (član Dramske radionice)" : " (nije član Dramske radionice)"}
+                                    Cijena po satu: {hourlyRate.toFixed(2)} EUR
+                                    {hourlyRate === 50 ? " (član Dramske radionice)" : " (nije član Dramske radionice)"}
+                                </p>
+                            )}
+                            {sessionDate && Number(sessionHours) > 0 && (
+                                <p className="mt-1 text-xs text-gray-500">
+                                    Ukupno za naplatu: {estimatedTotal.toFixed(2)} EUR
                                 </p>
                             )}
                         </div>
@@ -526,47 +545,9 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                             onClick={handleGenerateSessionInvoice}
                             variant="primary"
                             size="sm"
-                            disabled={!sessionDate || !sessionAmount || generatingSession || previewingSession}
+                            disabled={!sessionDate || !sessionHours || generatingSession || previewingSession}
                         >
                             {generatingSession ? "Generiranje..." : "Generiraj račun"}
-                        </Button>
-                    </div>
-                </div>
-            </Modal>
-
-            {/* Confirmation Modal for Session Invoice */}
-            <Modal
-                isOpen={confirmSessionInvoiceModal.isOpen}
-                onClose={confirmSessionInvoiceModal.closeModal}
-                className="max-w-[500px] p-5 lg:p-10"
-            >
-                <div className="text-center">
-                    <h4 className="mb-2 text-2xl font-semibold text-gray-800 dark:text-white/90 sm:text-title-sm">
-                        Generiraj račun
-                    </h4>
-                    <p className="text-sm leading-6 text-gray-500 dark:text-gray-400 mb-4">
-                        Jeste li sigurni da želite generirati račun za sastanak?
-                    </p>
-                    {sessionDate && (
-                        <div className="mb-4 text-sm text-gray-700 dark:text-gray-300">
-                            <p><strong>Datum:</strong> {format(new Date(sessionDate), "dd.MM.yyyy.")}</p>
-                            <p><strong>Iznos:</strong> {Number(sessionAmount || 0).toFixed(2)} EUR</p>
-                        </div>
-                    )}
-                    <div className="flex items-center justify-center w-full gap-3 mt-7">
-                        <Button
-                            onClick={confirmSessionInvoiceModal.closeModal}
-                            variant="outline"
-                            size="sm"
-                        >
-                            Odustani
-                        </Button>
-                        <Button
-                            onClick={confirmGenerateSessionInvoice}
-                            variant="primary"
-                            size="sm"
-                        >
-                            Da, generiraj
                         </Button>
                     </div>
                 </div>

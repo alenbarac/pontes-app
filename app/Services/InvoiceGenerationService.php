@@ -429,7 +429,7 @@ class InvoiceGenerationService
     {
         // Check if member has dramska radionica workshop
         $hasDramskaRadionica = $member->workshops()
-            ->whereHas('workshop', function ($q) {
+            ->where(function ($q) {
                 $q->where('name', 'Dramska radionica')
                   ->orWhere('type', 'Groupe');
             })
@@ -454,6 +454,7 @@ class InvoiceGenerationService
         Workshop $workshop,
         Carbon $sessionDate,
         float $amount,
+        float $hours,
         ?string $notes = null
     ): Invoice {
         // Use session date as due date
@@ -487,9 +488,27 @@ class InvoiceGenerationService
             'school_year' => $schoolYear,
             'invoice_type' => 'session',
             'session_date' => $sessionDate->toDateString(),
-            'notes' => $notes ?? 'Individualno savjetovanje - ' . $sessionDate->format('d.m.Y'),
+            'hours' => $hours,
+            'notes' => $notes ?? 'Individualno savjetovanje - ' . $this->formatHoursLabel($hours),
         ]);
 
         return $invoice;
+    }
+
+    private function formatHoursLabel(float $hours): string
+    {
+        $formatted = rtrim(rtrim(number_format($hours, 2, '.', ''), '0'), '.');
+        $whole = (int) $hours;
+        $isWhole = $hours == $whole;
+
+        if ($isWhole && $whole === 1) {
+            $unit = 'sat';
+        } elseif ($isWhole && $whole >= 2 && $whole <= 4) {
+            $unit = 'sata';
+        } else {
+            $unit = 'sati';
+        }
+
+        return $formatted . ' ' . $unit;
     }
 }

@@ -68,8 +68,10 @@ const MemberInfoWorkshops = ({
 
     return (
         <div className="space-y-6">
-            {memberData.workshops.map((w, idx) => {
-                const currentGroup = memberData.workshopGroups[idx]?.group;
+            {memberData.workshops.map((w) => {
+                const currentGroup = memberData.workshopGroups?.find(
+                    (entry) => String(entry.workshop_id) === String(w.id),
+                )?.group;
                 const plan = w.membership_plan;
                 return (
                     <div

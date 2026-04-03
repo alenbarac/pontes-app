@@ -5,42 +5,72 @@ namespace App\Http\Controllers;
 use App\Models\Member;
 use App\Models\Workshop;
 use App\Models\MemberGroupWorkshop;
+use App\Models\WorkshopGroup;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
+use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Rule;
 
 class MemberWorkshopController extends Controller
 {
     public function store(Request $request, Member $member)
     {
+        $workshop = Workshop::findOrFail($request->input('workshop_id'));
+        $hasGroups = WorkshopGroup::where('workshop_id', $workshop->id)->exists();
+
         $data = $request->validate([
-        'workshop_id'            => 'required|exists:workshops,id',
-        'group_id'               => 'required|exists:member_groups,id',
-        'membership_plan_id'     => 'required|exists:membership_plans,id',
-        'membership_start_date'  => 'required|date',
+            'workshop_id'            => 'required|exists:workshops,id',
+            'group_id'               => [
+                $hasGroups ? 'required' : 'nullable',
+                Rule::exists('workshop_groups', 'member_group_id')->where(
+                    fn ($query) => $query->where('workshop_id', $workshop->id)
+                ),
+            ],
+            'membership_plan_id'     => 'required|exists:membership_plans,id',
+            'membership_start_date'  => 'required|date',
         ]);
+
+        $alreadyEnrolled = $member->workshops()
+            ->where('workshop_id', $data['workshop_id'])
+            ->exists();
+
+        if ($alreadyEnrolled) {
+            throw ValidationException::withMessages([
+                'workshop_id' => 'Član je već upisan u ovu radionicu.',
+            ]);
+        }
 
         // 1) attach the pivot
         $member->workshops()->attach($data['workshop_id'], [
-        'membership_plan_id'    => $data['membership_plan_id'],
-        'membership_start_date' => $data['membership_start_date'],
+            'membership_plan_id'    => $data['membership_plan_id'],
+            'membership_start_date' => $data['membership_start_date'],
         ]);
 
-        // 2) create group record
-        MemberGroupWorkshop::create([
-        'member_id'       => $member->id,
-        'workshop_id'     => $data['workshop_id'],
-        'member_group_id' => $data['group_id'],
-        ]);
+        // 2) create group record only for workshops that use groups
+        if ($hasGroups && !empty($data['group_id'])) {
+            MemberGroupWorkshop::create([
+                'member_id'       => $member->id,
+                'workshop_id'     => $data['workshop_id'],
+                'member_group_id' => $data['group_id'],
+            ]);
+        }
 
-        return redirect()->back()->with('success','Radionica dodana');
+        return redirect()->back()->with('success', 'Radionica dodana');
     }
 
     public function update(Request $request, Member $member, Workshop $workshop)
     {
+        $hasGroups = WorkshopGroup::where('workshop_id', $workshop->id)->exists();
+
         $data = $request->validate([
             'workshop_id'         => 'required|exists:workshops,id',
-            'group_id'            => 'required|exists:member_groups,id',
+            'group_id'            => [
+                $hasGroups ? 'required' : 'nullable',
+                Rule::exists('workshop_groups', 'member_group_id')->where(
+                    fn ($query) => $query->where('workshop_id', $workshop->id)
+                ),
+            ],
             'membership_plan_id'  => 'required|exists:membership_plans,id',
             'start_date'          => 'required|date',
         ]);
@@ -52,16 +82,23 @@ class MemberWorkshopController extends Controller
                 'membership_start_date'   => $data['start_date'],
             ]);
 
-        // 2. Update (or create) the group assignment record
-        MemberGroupWorkshop::updateOrCreate(
-            [
-                'member_id'   => $member->id,
-                'workshop_id' => $workshop->id,
-            ],
-            [
-                'member_group_id' => $data['group_id'],
-            ]
-        );
+        // 2. Update group assignment only for workshops that use groups
+        if ($hasGroups && !empty($data['group_id'])) {
+            MemberGroupWorkshop::updateOrCreate(
+                [
+                    'member_id'   => $member->id,
+                    'workshop_id' => $workshop->id,
+                ],
+                [
+                    'member_group_id' => $data['group_id'],
+                ]
+            );
+        } else {
+            MemberGroupWorkshop::where([
+                ['member_id', $member->id],
+                ['workshop_id', $workshop->id],
+            ])->delete();
+        }
 
         // 3. Redirect back to the member’s show page (Inertia will pull fresh data)
         return redirect()

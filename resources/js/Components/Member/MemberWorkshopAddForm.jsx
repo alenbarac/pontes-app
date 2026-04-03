@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useForm } from "@inertiajs/react";
 import Label from "@/Components/form/Label";
 import Select from "@/Components/form/Select";
@@ -23,6 +23,23 @@ export default function MemberWorkshopAddForm({
 
     const [filteredGroups, setFilteredGroups] = useState([]);
     const [filteredPlans, setFilteredPlans] = useState([]);
+    const enrolledWorkshopIds = useMemo(
+        () => new Set((member?.workshops || []).map((w) => String(w.id))),
+        [member],
+    );
+    const availableWorkshops = useMemo(
+        () =>
+            workshops.filter((w) => !enrolledWorkshopIds.has(String(w.id))),
+        [workshops, enrolledWorkshopIds],
+    );
+
+    useEffect(() => {
+        if (data.workshop_id && !availableWorkshops.some((w) => String(w.id) === String(data.workshop_id))) {
+            setData("workshop_id", "");
+            setFilteredGroups([]);
+            setFilteredPlans([]);
+        }
+    }, [data.workshop_id, availableWorkshops, setData]);
 
     function handleWorkshopSelection(id) {
         setData("workshop_id", id);
@@ -41,7 +58,10 @@ export default function MemberWorkshopAddForm({
                 closeModal();
                 toast.success("Radionica uspješno dodana.");
             },
-            onError: () => toast.error("Pokušajte ponovno."),
+            onError: (formErrors) => {
+                const firstError = Object.values(formErrors || {})[0];
+                toast.error(firstError || "Pokušajte ponovno.");
+            },
         });
     }
 
@@ -53,11 +73,16 @@ export default function MemberWorkshopAddForm({
                     id="workshop_id"
                     value={data.workshop_id}
                     onChange={handleWorkshopSelection}
-                    options={workshops.map((w) => ({
+                    options={availableWorkshops.map((w) => ({
                         value: String(w.id),
                         label: w.name,
                     }))}
                 />
+                {availableWorkshops.length === 0 && (
+                    <div className="text-sm text-gray-500 mt-2">
+                        Član je već upisan u sve dostupne radionice.
+                    </div>
+                )}
                 {errors.workshop_id && (
                     <div className="text-red-600">{errors.workshop_id}</div>
                 )}
@@ -127,7 +152,7 @@ export default function MemberWorkshopAddForm({
                 <Button variant="secondary" onClick={closeModal}>
                     Otkaži
                 </Button>
-                <Button type="submit" disabled={processing}>
+                <Button type="submit" disabled={processing || availableWorkshops.length === 0}>
                     Spremi
                 </Button>
             </div>
