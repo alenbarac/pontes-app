@@ -5,13 +5,14 @@ import {
     flexRender,
 } from "@tanstack/react-table";
 import { router } from "@inertiajs/react";
+import axios from "axios";
 import InvoiceActionsDropdown from "./InvoiceActionColumn";
 import { Dropdown } from "@/ui/dropdown/Dropdown";
 import { DropdownItem } from "@/ui/dropdown/DropdownItem";
 import { Modal } from "@/Components/ui/modal";
 import toast from "react-hot-toast";
 import Radio from "@/Components/form/input/Radio";
-import { TrashIcon, CalendarDaysIcon } from "@heroicons/react/24/outline";
+import { TrashIcon, CalendarDaysIcon, EnvelopeIcon } from "@heroicons/react/24/outline";
 import { useModal } from "@/hooks/useModal";
 import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/light.css";
@@ -44,6 +45,10 @@ const InvoicesDataTable = ({
     // Modal state for confirmation
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [pendingAction, setPendingAction] = useState(null); // 'Plaćeno' or 'Otvoreno'
+
+    const [showBulkEmailConfirm, setShowBulkEmailConfirm] = useState(false);
+    const [bulkEmailProcessing, setBulkEmailProcessing] = useState(false);
+    const [singleEmailProcessing, setSingleEmailProcessing] = useState(false);
 
     // Per-invoice details modal state
     const [showInvoiceModal, setShowInvoiceModal] = useState(false);
@@ -253,6 +258,64 @@ const InvoicesDataTable = ({
         });
     };
 
+    const handleBulkSendSlipEmails = async () => {
+        if (bulkEmailProcessing) return;
+        setBulkEmailProcessing(true);
+        try {
+            const { data } = await axios.post(
+                route("invoices.bulkSendSlipEmails"),
+                { invoice_ids: selectedRows },
+                { headers: { Accept: "application/json" } },
+            );
+            toast.success(data.message || "E-poruke poslane.");
+            setSelectedRows([]);
+            setShowBulkEmailConfirm(false);
+        } catch (error) {
+            const res = error.response;
+            let msg = "Greška pri slanju e-pošte.";
+            if (res?.data?.message) {
+                msg = res.data.message;
+            }
+            if (res?.data?.errors) {
+                const flat = Object.values(res.data.errors).flat();
+                if (flat.length) {
+                    msg = flat.join(" ");
+                }
+            }
+            toast.error(msg);
+        } finally {
+            setBulkEmailProcessing(false);
+        }
+    };
+
+    const handleSendSingleSlipEmail = async () => {
+        if (!activeInvoice) return;
+        setSingleEmailProcessing(true);
+        try {
+            const { data } = await axios.post(
+                route("invoices.sendEmail", activeInvoice.id),
+                {},
+                { headers: { Accept: "application/json" } },
+            );
+            toast.success(data.message || "Uplatnica poslana.");
+        } catch (error) {
+            const res = error.response;
+            let msg = "Greška pri slanju e-pošte.";
+            if (res?.data?.message) {
+                msg = res.data.message;
+            }
+            if (res?.data?.errors) {
+                const flat = Object.values(res.data.errors).flat();
+                if (flat.length) {
+                    msg = flat.join(" ");
+                }
+            }
+            toast.error(msg);
+        } finally {
+            setSingleEmailProcessing(false);
+        }
+    };
+
     // Compose new columns array with checkbox as the first column
     const columnsWithCheckbox = useMemo(
         () => [
@@ -397,6 +460,15 @@ const InvoicesDataTable = ({
                                 />
                             </svg>
                             Otvoreno
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setShowBulkEmailConfirm(true)}
+                            disabled={bulkEmailProcessing}
+                            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <EnvelopeIcon className="w-4 h-4" />
+                            {bulkEmailProcessing ? "Slanje..." : "Pošalji e-poštom"}
                         </button>
                         <button
                             onClick={() => setSelectedRows([])}
@@ -819,6 +891,46 @@ const InvoicesDataTable = ({
                 </button>
             </div>
 
+            {/* Bulk send slip emails confirmation */}
+            <Modal
+                isOpen={showBulkEmailConfirm}
+                onClose={() =>
+                    !bulkEmailProcessing && setShowBulkEmailConfirm(false)
+                }
+                className="max-w-md w-full mx-4 p-6"
+            >
+                <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                        Pošalji uplatnice e-poštom
+                    </h3>
+                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                        Poslat će se uplatnice za{" "}
+                        <strong>{selectedRows.length}</strong>{" "}
+                        {selectedRows.length === 1 ? "račun" : "računa"} na
+                        e-adrese „Email za račune” (invoice_email) iz podataka
+                        članova. Članovi bez tog polja bit će preskočeni.
+                    </p>
+                    <div className="mt-6 flex items-center justify-end gap-3">
+                        <button
+                            type="button"
+                            onClick={() => setShowBulkEmailConfirm(false)}
+                            disabled={bulkEmailProcessing}
+                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700 disabled:opacity-50"
+                        >
+                            Odustani
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleBulkSendSlipEmails}
+                            disabled={bulkEmailProcessing}
+                            className="px-4 py-2 text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg disabled:opacity-50"
+                        >
+                            {bulkEmailProcessing ? "Slanje..." : "Pošalji"}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
             {/* Confirmation Modal */}
             <Modal isOpen={showConfirmModal} onClose={closeConfirmModal} className="max-w-md w-full mx-4 p-6">
                 <div>
@@ -1058,11 +1170,14 @@ const InvoicesDataTable = ({
                                     Uplatnica (PDF)
                                 </a>
                                 <button
-                                    disabled
-                                    className="inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium border rounded-lg text-gray-400 border-gray-200 dark:border-gray-700 cursor-not-allowed"
-                                    title="Uskoro dostupno"
+                                    type="button"
+                                    onClick={handleSendSingleSlipEmail}
+                                    disabled={singleEmailProcessing}
+                                    className="inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium border border-gray-300 dark:border-gray-700 rounded-lg text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50"
                                 >
-                                    Pošalji e-mail
+                                    {singleEmailProcessing
+                                        ? "Slanje..."
+                                        : "Pošalji e-poštom"}
                                 </button>
                                 <button
                                     onClick={handleDeleteInvoice}

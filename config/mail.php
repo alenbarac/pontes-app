@@ -113,4 +113,21 @@ return [
         'name' => env('MAIL_FROM_NAME', 'Example'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Bulk Send Throttle (seconds between messages)
+    |--------------------------------------------------------------------------
+    |
+    | Floating-point seconds to sleep between consecutive messages in
+    | synchronous bulk send loops (e.g. PaymentSlipEmailService). Useful
+    | when the SMTP provider has a per-second cap.
+    |
+    | 0 (default) = no delay; production providers like Postmark / Mailgun
+    | / SES typically allow far more than 1 msg/sec on the cheapest tier.
+    | 1.1 is a safe value for the Mailtrap "Testing" sandbox.
+    |
+    */
+
+    'bulk_throttle_seconds' => (float) env('MAIL_BULK_THROTTLE_SECONDS', 0),
+
 ];

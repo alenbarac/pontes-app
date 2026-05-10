@@ -3,8 +3,8 @@
 namespace App\Services;
 
 use App\Models\Invoice;
-use App\Models\MemberWorkshop;
 use App\Models\Member;
+use App\Models\MemberWorkshop;
 use App\Models\Workshop;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -14,9 +14,9 @@ class InvoiceGenerationService
 {
     /**
      * Generate invoices for a specific month.
-     * 
-     * @param Carbon $targetMonth The month to generate invoices for (first day of month)
-     * @param array|null $memberIds Optional array of member IDs to limit generation
+     *
+     * @param  Carbon  $targetMonth  The month to generate invoices for (first day of month)
+     * @param  array|null  $memberIds  Optional array of member IDs to limit generation
      * @return array{generated: int, skipped: int, errors: array}
      */
     public function generateInvoicesForMonth(Carbon $targetMonth, ?array $memberIds = null): array
@@ -79,10 +79,7 @@ class InvoiceGenerationService
 
     /**
      * Generate historical invoices for a member-workshop from a date range.
-     * 
-     * @param MemberWorkshop $memberWorkshop
-     * @param Carbon $fromDate
-     * @param Carbon $toDate
+     *
      * @return Collection Collection of created Invoice models
      */
     public function generateHistoricalInvoices(
@@ -93,17 +90,17 @@ class InvoiceGenerationService
         $invoices = collect();
         $plan = $memberWorkshop->membershipPlan;
 
-        if (!$plan) {
+        if (! $plan) {
             return $invoices;
         }
 
         $billingFrequency = strtolower($plan->billing_frequency);
-        $startDate = $memberWorkshop->membership_start_date 
-            ? Carbon::parse($memberWorkshop->membership_start_date) 
+        $startDate = $memberWorkshop->membership_start_date
+            ? Carbon::parse($memberWorkshop->membership_start_date)
             : $fromDate;
-        
-        $endDate = $memberWorkshop->membership_end_date 
-            ? Carbon::parse($memberWorkshop->membership_end_date) 
+
+        $endDate = $memberWorkshop->membership_end_date
+            ? Carbon::parse($memberWorkshop->membership_end_date)
             : $toDate;
 
         // Determine invoice dates based on billing frequency
@@ -134,20 +131,16 @@ class InvoiceGenerationService
 
     /**
      * Check if an invoice should be generated for a member-workshop and target date.
-     * 
-     * @param MemberWorkshop $memberWorkshop
-     * @param Carbon $targetDate
-     * @return bool
      */
     public function shouldGenerateInvoice(MemberWorkshop $memberWorkshop, Carbon $targetDate): bool
     {
         // Check if member is active
-        if (!$memberWorkshop->member || !$memberWorkshop->member->is_active) {
+        if (! $memberWorkshop->member || ! $memberWorkshop->member->is_active) {
             return false;
         }
 
         // Check if membership plan exists
-        if (!$memberWorkshop->membershipPlan) {
+        if (! $memberWorkshop->membershipPlan) {
             return false;
         }
 
@@ -173,8 +166,8 @@ class InvoiceGenerationService
 
         // Check if billing frequency matches
         $billingFrequency = strtolower($memberWorkshop->membershipPlan->billing_frequency);
-        $startDate = $memberWorkshop->membership_start_date 
-            ? Carbon::parse($memberWorkshop->membership_start_date)->startOfMonth() 
+        $startDate = $memberWorkshop->membership_start_date
+            ? Carbon::parse($memberWorkshop->membership_start_date)->startOfMonth()
             : $targetDate;
 
         return $this->isBillingDate($targetDate, $startDate, $billingFrequency);
@@ -182,10 +175,8 @@ class InvoiceGenerationService
 
     /**
      * Calculate invoice amount based on plan and target date.
-     * 
-     * @param \App\Models\MembershipPlan $plan
-     * @param Carbon $targetDate
-     * @return float
+     *
+     * @param  \App\Models\MembershipPlan  $plan
      */
     public function calculateInvoiceAmount($plan, Carbon $targetDate): float
     {
@@ -195,15 +186,11 @@ class InvoiceGenerationService
 
     /**
      * Create an invoice for a member-workshop and target month.
-     * 
-     * @param MemberWorkshop $memberWorkshop
-     * @param Carbon $targetMonth
-     * @return Invoice|null
      */
     public function createInvoice(MemberWorkshop $memberWorkshop, Carbon $targetMonth): ?Invoice
     {
         $plan = $memberWorkshop->membershipPlan;
-        if (!$plan) {
+        if (! $plan) {
             return null;
         }
 
@@ -233,7 +220,7 @@ class InvoiceGenerationService
             'payment_status' => 'Otvoreno',
             'reference_code' => $referenceCode,
             'school_year' => $schoolYear,
-            'notes' => 'Članarina za ' . $dueDate->format('m/Y'),
+            'notes' => 'Članarina za '.$dueDate->format('m/Y'),
         ]);
 
         return $invoice;
@@ -241,12 +228,7 @@ class InvoiceGenerationService
 
     /**
      * Calculate invoice dates based on billing frequency.
-     * 
-     * @param Carbon $startDate
-     * @param Carbon $endDate
-     * @param string $billingFrequency
-     * @param Carbon $fromDate
-     * @param Carbon $toDate
+     *
      * @return array Array of Carbon dates
      */
     protected function calculateInvoiceDates(
@@ -271,7 +253,7 @@ class InvoiceGenerationService
                 $startDateMonth = $startDate->copy()->startOfMonth();
                 $endDateMonth = $endDate ? $endDate->copy()->endOfMonth() : null;
                 while ($date->lte($actualEnd)) {
-                    if ($date->gte($startDateMonth) && (!$endDateMonth || $date->lte($endDateMonth))) {
+                    if ($date->gte($startDateMonth) && (! $endDateMonth || $date->lte($endDateMonth))) {
                         $dates[] = $date->copy();
                     }
                     $date->addMonth();
@@ -283,7 +265,7 @@ class InvoiceGenerationService
                 // Semi-annual: every 6 months from start date
                 $date = $startDate->copy()->startOfMonth();
                 while ($date->lte($actualEnd)) {
-                    if ($date->gte($actualStart) && (!$endDate || $date->lte($endDate))) {
+                    if ($date->gte($actualStart) && (! $endDate || $date->lte($endDate))) {
                         $dates[] = $date->copy();
                     }
                     $date->addMonths(6);
@@ -296,7 +278,7 @@ class InvoiceGenerationService
                 // Annual: once per year from start date
                 $date = $startDate->copy()->startOfMonth();
                 while ($date->lte($actualEnd)) {
-                    if ($date->gte($actualStart) && (!$endDate || $date->lte($endDate))) {
+                    if ($date->gte($actualStart) && (! $endDate || $date->lte($endDate))) {
                         $dates[] = $date->copy();
                     }
                     $date->addYear();
@@ -309,7 +291,7 @@ class InvoiceGenerationService
                 $startDateMonth = $startDate->copy()->startOfMonth();
                 $endDateMonth = $endDate ? $endDate->copy()->endOfMonth() : null;
                 while ($date->lte($actualEnd)) {
-                    if ($date->gte($startDateMonth) && (!$endDateMonth || $date->lte($endDateMonth))) {
+                    if ($date->gte($startDateMonth) && (! $endDateMonth || $date->lte($endDateMonth))) {
                         $dates[] = $date->copy();
                     }
                     $date->addMonth();
@@ -322,11 +304,6 @@ class InvoiceGenerationService
 
     /**
      * Check if a target date matches the billing frequency from start date.
-     * 
-     * @param Carbon $targetDate
-     * @param Carbon $startDate
-     * @param string $billingFrequency
-     * @return bool
      */
     protected function isBillingDate(Carbon $targetDate, Carbon $startDate, string $billingFrequency): bool
     {
@@ -347,13 +324,14 @@ class InvoiceGenerationService
             case 'semi-annual':
                 // Semi-annual: every 6 months
                 $monthsDiff = $startMonth->diffInMonths($targetMonth);
+
                 return $monthsDiff % 6 === 0;
 
             case 'godišnje':
             case 'yearly':
             case 'annual':
                 // Annual: same month each year
-                return $targetMonth->month === $startMonth->month && 
+                return $targetMonth->month === $startMonth->month &&
                        $targetMonth->year >= $startMonth->year;
 
             default:
@@ -364,9 +342,7 @@ class InvoiceGenerationService
 
     /**
      * Preview invoices that would be generated for a target month.
-     * 
-     * @param Carbon $targetMonth
-     * @param array|null $memberIds
+     *
      * @return Collection Collection of preview data
      */
     public function previewInvoicesForMonth(Carbon $targetMonth, ?array $memberIds = null): Collection
@@ -403,15 +379,15 @@ class InvoiceGenerationService
             $previews->push([
                 'member_workshop_id' => $memberWorkshop->id,
                 'member_id' => $memberWorkshop->member_id,
-                'member_name' => $memberWorkshop->member->first_name . ' ' . $memberWorkshop->member->last_name,
+                'member_name' => $memberWorkshop->member->first_name.' '.$memberWorkshop->member->last_name,
                 'workshop_id' => $memberWorkshop->workshop_id,
                 'workshop_name' => $memberWorkshop->workshop->name,
                 'membership_plan' => $memberWorkshop->membershipPlan->plan ?? null,
                 'amount' => $amount,
                 'should_generate' => $shouldGenerate,
                 'already_exists' => $alreadyExists,
-                'reason' => $alreadyExists ? 'Invoice already exists' : 
-                          (!$shouldGenerate ? 'Does not match billing frequency or date range' : 'Ready to generate'),
+                'reason' => $alreadyExists ? 'Invoice already exists' :
+                          (! $shouldGenerate ? 'Does not match billing frequency or date range' : 'Ready to generate'),
             ]);
         }
 
@@ -420,10 +396,6 @@ class InvoiceGenerationService
 
     /**
      * Calculate default session amount based on member's dramska radionica status.
-     * 
-     * @param Member $member
-     * @param Workshop $workshop
-     * @return float
      */
     public function calculateSessionAmount(Member $member, Workshop $workshop): float
     {
@@ -431,7 +403,7 @@ class InvoiceGenerationService
         $hasDramskaRadionica = $member->workshops()
             ->where(function ($q) {
                 $q->where('name', 'Dramska radionica')
-                  ->orWhere('type', 'Groupe');
+                    ->orWhere('type', 'Groupe');
             })
             ->exists();
 
@@ -441,13 +413,6 @@ class InvoiceGenerationService
 
     /**
      * Generate a session invoice for individual counseling.
-     * 
-     * @param Member $member
-     * @param Workshop $workshop
-     * @param Carbon $sessionDate
-     * @param float $amount
-     * @param string|null $notes
-     * @return Invoice
      */
     public function generateSessionInvoice(
         Member $member,
@@ -489,7 +454,7 @@ class InvoiceGenerationService
             'invoice_type' => 'session',
             'session_date' => $sessionDate->toDateString(),
             'hours' => $hours,
-            'notes' => $notes ?? 'Individualno savjetovanje - ' . $this->formatHoursLabel($hours),
+            'notes' => $notes ?? 'Individualno savjetovanje - '.$this->formatHoursLabel($hours),
         ]);
 
         return $invoice;
@@ -509,6 +474,6 @@ class InvoiceGenerationService
             $unit = 'sati';
         }
 
-        return $formatted . ' ' . $unit;
+        return $formatted.' '.$unit;
     }
 }

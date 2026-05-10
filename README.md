@@ -122,12 +122,9 @@ MAIL_FROM_NAME="Pontes App"
 Access sent emails in tests using `Mail::assertSent()`.
 
 ### Payment Slip Email Feature
-The payment slip email feature sends PDF attachments to members. Email priority:
-1. `invoice_email` (if set)
-2. `email` (fallback)
-3. `parent_email` (last resort)
+The payment slip email feature sends PDF attachments using **`members.invoice_email` only** (the “Email za račune” field). Other member e-mail fields are not used for slips.
 
-If no email is found, an error message is displayed to the user.
+If `invoice_email` is empty, that member is skipped in bulk sends or an error is shown for a single send.
 
 ## License
 

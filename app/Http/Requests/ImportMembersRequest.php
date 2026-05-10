@@ -41,4 +41,3 @@ class ImportMembersRequest extends FormRequest
         ];
     }
 }
-

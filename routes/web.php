@@ -1,17 +1,17 @@
 <?php
 
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DocumentTemplateController;
+use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\InvoiceGenerationController;
+use App\Http\Controllers\InvoiceImportController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\MemberGroupController;
+use App\Http\Controllers\MemberImportController;
+use App\Http\Controllers\MemberInvoiceController;
 use App\Http\Controllers\MembershipController;
 use App\Http\Controllers\MemberWorkshopController;
-use App\Http\Controllers\MemberImportController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\InvoiceController;
-use App\Http\Controllers\InvoiceImportController;
-use App\Http\Controllers\InvoiceGenerationController;
-use App\Http\Controllers\MemberInvoiceController;
-use App\Http\Controllers\DocumentTemplateController;
 use App\Http\Controllers\WorkshopController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
@@ -40,6 +40,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/members/import', [MemberImportController::class, 'store'])->name('members.import');
     Route::get('/members/import/template', [MemberImportController::class, 'template'])->name('members.import.template');
 
+    Route::post('/members/bulk-send-slip-emails/preview', [MemberController::class, 'bulkSendSlipEmailsPreview'])
+        ->name('members.bulkSendSlipEmails.preview');
+    Route::post('/members/bulk-send-slip-emails', [MemberController::class, 'bulkSendSlipEmails'])
+        ->name('members.bulkSendSlipEmails');
+
     Route::resource('members', MemberController::class);
     Route::resource('workshops', WorkshopController::class);
     Route::resource('member-groups', MemberGroupController::class);
@@ -47,19 +52,23 @@ Route::middleware('auth')->group(function () {
         ->name('member-groups.bulk-reassign');
     Route::post('/member-groups/{memberGroup}/bulk-download-slips', [MemberGroupController::class, 'bulkDownloadSlips'])
         ->name('member-groups.bulk-download-slips');
+    Route::post('/member-groups/{memberGroup}/bulk-send-slip-emails/preview', [MemberGroupController::class, 'bulkSendSlipEmailsPreview'])
+        ->name('member-groups.bulk-send-slip-emails.preview');
+    Route::post('/member-groups/{memberGroup}/bulk-send-slip-emails', [MemberGroupController::class, 'bulkSendSlipEmails'])
+        ->name('member-groups.bulk-send-slip-emails');
     Route::resource('memberships', MembershipController::class);
 
-    Route::post('/members/{member}/workshops',[MemberWorkshopController::class,'store'])
-                ->name('members.workshops.store');
+    Route::post('/members/{member}/workshops', [MemberWorkshopController::class, 'store'])
+        ->name('members.workshops.store');
 
     Route::patch('/members/{member}/workshops/{workshop}', [MemberWorkshopController::class, 'update'])
-                ->name('members.workshops.update');
+        ->name('members.workshops.update');
 
-     Route::delete('/members/{member}/workshops/{workshop}',[MemberWorkshopController::class, 'destroy'])
-                ->name('members.workshops.destroy');
+    Route::delete('/members/{member}/workshops/{workshop}', [MemberWorkshopController::class, 'destroy'])
+        ->name('members.workshops.destroy');
 
-     Route::delete(
-        '/members/{member}/workshops',[MemberWorkshopController::class, 'destroyAll'])
+    Route::delete(
+        '/members/{member}/workshops', [MemberWorkshopController::class, 'destroyAll'])
         ->name('members.workshops.destroyAll');
 
     // Invoice Generation Routes (must be before resource route to avoid conflict)
@@ -81,7 +90,7 @@ Route::middleware('auth')->group(function () {
         ->name('members.invoices.session.generate');
     Route::post('/members/{member}/invoices/session/preview', [MemberInvoiceController::class, 'previewSessionInvoice'])
         ->name('members.invoices.session.preview');
-    
+
     // Member-specific invoice routes (for membership invoices)
     Route::post('/members/{member}/invoices/generate', [MemberInvoiceController::class, 'generateMembershipInvoice'])
         ->name('members.invoices.generate');
@@ -91,6 +100,8 @@ Route::middleware('auth')->group(function () {
     Route::patch('/invoices/{invoice}/status', [InvoiceController::class, 'updateStatus'])->name('invoices.updateStatus');
     Route::patch('/invoices/{invoice}/mark-paid', [InvoiceController::class, 'markAsPaid'])->name('invoices.markPaid');
     Route::post('/invoices/toggle-bulk-status', [InvoiceController::class, 'toggleBulkInvoiceStatus'])->name('invoices.toggleBulkInvoiceStatus');
+    Route::post('/invoices/bulk-send-slip-emails', [InvoiceController::class, 'bulkSendSlipEmails'])
+        ->name('invoices.bulkSendSlipEmails');
     Route::get('/invoices/{invoice}/slip', [InvoiceController::class, 'slip'])
         ->name('invoices.slip');
     Route::post('/invoices/{invoice}/send-email', [InvoiceController::class, 'sendEmail'])

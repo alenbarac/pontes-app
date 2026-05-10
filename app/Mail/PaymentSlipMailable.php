@@ -3,13 +3,13 @@
 namespace App\Mail;
 
 use App\Models\Invoice;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
-use Barryvdh\DomPDF\Facade\Pdf;
 
 class PaymentSlipMailable extends Mailable
 {
@@ -21,8 +21,7 @@ class PaymentSlipMailable extends Mailable
     public function __construct(
         public Invoice $invoice,
         public string $recipientEmail
-    ) {
-    }
+    ) {}
 
     /**
      * Get the message envelope.
@@ -30,7 +29,7 @@ class PaymentSlipMailable extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Uplatnica - ' . $this->invoice->reference_code,
+            subject: 'Uplatnica - '.$this->invoice->reference_code,
         );
     }
 
@@ -42,8 +41,8 @@ class PaymentSlipMailable extends Mailable
         $invoice = $this->invoice;
         $invoice->load(['member', 'workshop', 'membershipPlan']);
 
-        $memberFullName = trim(($invoice->member->first_name ?? '') . ' ' . ($invoice->member->last_name ?? ''));
-        $amount = number_format((float)$invoice->amount_due, 2, ',', '.');
+        $memberFullName = trim(($invoice->member->first_name ?? '').' '.($invoice->member->last_name ?? ''));
+        $amount = number_format((float) $invoice->amount_due, 2, ',', '.');
         $dueDate = \Carbon\Carbon::parse($invoice->due_date)->format('d.m.Y.');
 
         return new Content(
@@ -65,18 +64,16 @@ class PaymentSlipMailable extends Mailable
      */
     public function attachments(): array
     {
-        // Generate PDF using the controller's method
-        $invoiceController = app(\App\Http\Controllers\InvoiceController::class);
-        $pdf = $invoiceController->generateSlipPDF($this->invoice);
+        $pdf = app(\App\Services\PaymentSlipPdfService::class)->generate($this->invoice);
 
         // Generate filename: Firstname-Lastname-referencecode.pdf
         $firstName = trim($this->invoice->member->first_name ?? '');
         $lastName = trim($this->invoice->member->last_name ?? '');
-        
+
         // Transliterate Croatian characters to ASCII
         $firstName = $this->transliterateCroatian($firstName);
         $lastName = $this->transliterateCroatian($lastName);
-        
+
         // Convert to lowercase, sanitize, then capitalize first letter
         $firstName = strtolower($firstName);
         $lastName = strtolower($lastName);
@@ -86,7 +83,7 @@ class PaymentSlipMailable extends Mailable
         // Capitalize first letter of each name
         $firstName = ucfirst($firstName);
         $lastName = ucfirst($lastName);
-        $fileName = trim($firstName . '-' . $lastName . '-' . $this->invoice->reference_code, '-') . '.pdf';
+        $fileName = trim($firstName.'-'.$lastName.'-'.$this->invoice->reference_code, '-').'.pdf';
 
         return [
             Attachment::fromData(
@@ -98,15 +95,12 @@ class PaymentSlipMailable extends Mailable
 
     /**
      * Transliterate Croatian characters to ASCII equivalents.
-     * 
-     * @param string $text
-     * @return string
      */
     private function transliterateCroatian(string $text): string
     {
         // Handle multi-character sequences first (DŽ, dž)
         $text = str_replace(['DŽ', 'dž', 'Dž'], ['DJ', 'dj', 'Dj'], $text);
-        
+
         // Handle single characters
         $transliteration = [
             'Č' => 'C', 'č' => 'c',
@@ -115,7 +109,7 @@ class PaymentSlipMailable extends Mailable
             'Š' => 'S', 'š' => 's',
             'Ž' => 'Z', 'ž' => 'z',
         ];
-        
+
         return strtr($text, $transliteration);
     }
 }

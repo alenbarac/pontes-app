@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\BulkSendPaymentSlipsForMembersRequest;
 use App\Http\Requests\StoreMemberRequest;
 use App\Http\Requests\UpdateMemberRequest;
 use App\Http\Resources\MemberResource;
@@ -9,17 +10,21 @@ use App\Models\Member;
 use App\Models\MemberGroup;
 use App\Models\MemberGroupWorkshop;
 use App\Models\MembershipPlan;
-use App\Models\MemberWorkshop;
 use App\Models\Workshop;
-use Illuminate\Http\Request;
+use App\Services\PaymentSlipEmailService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 
 class MemberController extends Controller
 {
+    public function __construct(
+        protected PaymentSlipEmailService $paymentSlipEmailService
+    ) {}
+
     /**
      * Display a listing of the resource.
      */
-
     public function index(Request $request)
     {
         $perPage = $request->input('per_page', 10);
@@ -33,7 +38,7 @@ class MemberController extends Controller
             'workshopGroups.group',
         ])->orderBy('created_at', 'desc');
 
-        if (!empty($filter)) {
+        if (! empty($filter)) {
             $query->where(function ($q) use ($filter) {
                 $q->where('first_name', 'like', "%{$filter}%")
                     ->orWhere('last_name', 'like', "%{$filter}%")
@@ -45,19 +50,19 @@ class MemberController extends Controller
                     ->orWhereHas('workshopGroups.group', function ($q) use ($filter) {
                         $q->where('name', 'like', "%{$filter}%");
                     });
-                   
+
             });
         }
 
         // Filter by workshop
-        if (!empty($workshopId)) {
+        if (! empty($workshopId)) {
             $query->whereHas('workshops', function ($q) use ($workshopId) {
                 $q->where('workshops.id', $workshopId);
             });
         }
 
         // Filter by group (optionally scoped by workshop)
-        if (!empty($groupId)) {
+        if (! empty($groupId)) {
             $query->whereHas('workshopGroups', function ($q) use ($groupId, $workshopId) {
                 $q->where('member_group_id', $groupId);
                 if ($workshopId) {
@@ -76,8 +81,8 @@ class MemberController extends Controller
             ->select('member_groups.id', 'member_groups.name')
             ->when($workshopId, function ($q) use ($workshopId) {
                 $q->join('workshop_groups', 'workshop_groups.member_group_id', '=', 'member_groups.id')
-                  ->where('workshop_groups.workshop_id', $workshopId)
-                  ->distinct();
+                    ->where('workshop_groups.workshop_id', $workshopId)
+                    ->distinct();
             })
             ->orderBy('member_groups.name')
             ->get();
@@ -101,6 +106,70 @@ class MemberController extends Controller
 
     }
 
+    /**
+     * Pre-flight stats for the bulk-send modal: how many invoices would be
+     * mailed for the selected members in the given month, and how many would
+     * be skipped due to a missing `invoice_email`.
+     */
+    public function bulkSendSlipEmailsPreview(\App\Http\Requests\PreviewBulkSendSlipEmailsForMembersRequest $request): JsonResponse
+    {
+        $validated = $request->validated();
+
+        $preview = $this->paymentSlipEmailService->previewForMembersInMonth(
+            $validated['member_ids'],
+            $validated['month']
+        );
+
+        if ($preview['invalid_month']) {
+            return response()->json([
+                'message' => 'Nevažeći format mjeseca. Koristite YYYY-MM.',
+                'errors' => ['month' => ['Koristite format YYYY-MM.']],
+            ], 422);
+        }
+
+        return response()->json([
+            'month' => $validated['month'],
+            ...$preview,
+        ]);
+    }
+
+    /**
+     * Send payment slip e-mails for selected members for a given month.
+     */
+    public function bulkSendSlipEmails(BulkSendPaymentSlipsForMembersRequest $request): JsonResponse
+    {
+        $validated = $request->validated();
+
+        $result = $this->paymentSlipEmailService->sendForMembersInMonth(
+            $validated['member_ids'],
+            $validated['month']
+        );
+
+        if (! empty($result['invalid_month'])) {
+            return response()->json([
+                'message' => 'Nevažeći format mjeseca. Koristite YYYY-MM.',
+                'errors' => ['month' => ['Koristite format YYYY-MM.']],
+            ], 422);
+        }
+
+        if (($result['invoice_count'] ?? 0) === 0) {
+            return response()->json([
+                'message' => 'Nema računa za odabrane članove u tom mjesecu.',
+                'errors' => ['month' => ['Nema računa za odabrane članove u tom mjesecu.']],
+            ], 422);
+        }
+
+        $summary = [
+            'sent' => $result['sent'],
+            'skipped_no_email' => $result['skipped_no_email'],
+            'failed' => $result['failed'],
+        ];
+
+        return response()->json([
+            ...$summary,
+            'message' => $this->paymentSlipEmailService->humanSummary($summary),
+        ]);
+    }
 
     /**
      * Show the form for creating a new resource.
@@ -113,7 +182,6 @@ class MemberController extends Controller
             ->get()
             ->groupBy('workshop_id');
 
-        
         $membershipPlans = MembershipPlan::select('id', 'workshop_id', 'plan', 'total_fee')->get()->groupBy('workshop_id');
 
         return inertia('Members/Create', [
@@ -127,33 +195,32 @@ class MemberController extends Controller
      * Store a newly created resource in storage.
      */
     public function store(StoreMemberRequest $request)
-{
-    $member = Member::create($request->validated());
+    {
+        $member = Member::create($request->validated());
 
-    // Attach workshop and include membership_plan_id on the pivot.
-    if ($request->workshop_id && !$member->workshops()->where('workshop_id', $request->workshop_id)->exists()) {
-        $member->workshops()->attach($request->workshop_id, [
-            'membership_plan_id' => $request->membership_plan_id,
-            'membership_start_date' => $request->membership_start_date,
-        ]);
-    }
+        // Attach workshop and include membership_plan_id on the pivot.
+        if ($request->workshop_id && ! $member->workshops()->where('workshop_id', $request->workshop_id)->exists()) {
+            $member->workshops()->attach($request->workshop_id, [
+                'membership_plan_id' => $request->membership_plan_id,
+                'membership_start_date' => $request->membership_start_date,
+            ]);
+        }
 
-    // Ensure the member isn't already assigned to the group
-    if ($request->group_id && !MemberGroupWorkshop::where([
-        'member_id' => $member->id,
-        'workshop_id' => $request->workshop_id,
-        'member_group_id' => $request->group_id,
-    ])->exists()) {
-        MemberGroupWorkshop::create([
+        // Ensure the member isn't already assigned to the group
+        if ($request->group_id && ! MemberGroupWorkshop::where([
             'member_id' => $member->id,
             'workshop_id' => $request->workshop_id,
             'member_group_id' => $request->group_id,
-        ]);
+        ])->exists()) {
+            MemberGroupWorkshop::create([
+                'member_id' => $member->id,
+                'workshop_id' => $request->workshop_id,
+                'member_group_id' => $request->group_id,
+            ]);
+        }
+
+        return redirect()->route('members.index')->with('success', 'Član uspješno dodan.');
     }
-
-    return redirect()->route('members.index')->with('success', 'Član uspješno dodan.');
-}
-
 
     /**
      * Display the specified resource.
@@ -228,13 +295,13 @@ class MemberController extends Controller
         ]);
     }
 
-     /**
+    /**
      * Update basic member details.
      */
-
     public function update(UpdateMemberRequest $request, Member $member)
     {
         $member->update($request->validated());
+
         return redirect()->route('members.show', $member->id);
     }
 

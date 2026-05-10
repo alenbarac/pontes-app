@@ -9,6 +9,7 @@ import {
 import {
     ChevronLeftIcon,
     ChevronRightIcon,
+    EnvelopeIcon,
     IdentificationIcon,
     TrashIcon,
 } from "@heroicons/react/24/outline";
@@ -20,6 +21,7 @@ import { Dropdown } from "@/ui/dropdown/Dropdown";
 import { DropdownItem } from "@/ui/dropdown/DropdownItem";
 import toast from "react-hot-toast";
 import { Member } from "@/types";
+import BulkSlipsEmailModal from "@/Components/MemberGroup/BulkSlipsEmailModal";
 
 interface Workshop {
     id: number;
@@ -67,7 +69,10 @@ const MembersDataTable: React.FC<MembersDataTableProps> = ({
     const [isWorkshopDropdownOpen, setIsWorkshopDropdownOpen] = useState(false);
     const [isGroupDropdownOpen, setIsGroupDropdownOpen] = useState(false);
     const deleteModal = useModal();
+    const slipEmailModal = useModal();
     const [memberToDelete, setMemberToDelete] = useState<Member | null>(null);
+    /** Cross-page selection: full member rows for labels and bulk API ids */
+    const [selectedMembers, setSelectedMembers] = useState<Member[]>([]);
 
     // 1) When you confirm deletion, call your existing resource destroy:
     function confirmDelete() {
@@ -121,6 +126,87 @@ const MembersDataTable: React.FC<MembersDataTableProps> = ({
         });
     }, [columns, deleteModal]);
 
+    const selectedIds = useMemo(
+        () => new Set(selectedMembers.map((m) => m.id)),
+        [selectedMembers],
+    );
+
+    const selectColumn = useMemo<ColumnDef<Member>>(
+        () => ({
+            id: "select",
+            header: () => {
+                const pageIds = data.map((m) => m.id);
+                const selectedOnPage = pageIds.filter((id) =>
+                    selectedIds.has(id),
+                ).length;
+                const allOnPageSelected =
+                    pageIds.length > 0 && selectedOnPage === pageIds.length;
+
+                return (
+                    <input
+                        type="checkbox"
+                        checked={allOnPageSelected}
+                        ref={(el) => {
+                            if (!el) return;
+                            el.indeterminate =
+                                selectedOnPage > 0 &&
+                                selectedOnPage < pageIds.length;
+                        }}
+                        onChange={(e) => {
+                            if (e.target.checked) {
+                                setSelectedMembers((prev) => {
+                                    const have = new Set(prev.map((p) => p.id));
+                                    const merged = [...prev];
+                                    for (const row of data) {
+                                        if (!have.has(row.id)) {
+                                            merged.push(row);
+                                        }
+                                    }
+                                    return merged;
+                                });
+                            } else {
+                                setSelectedMembers((prev) =>
+                                    prev.filter((m) => !pageIds.includes(m.id)),
+                                );
+                            }
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="accent-brand-500 size-4"
+                        aria-label="Odaberi sve na stranici"
+                    />
+                );
+            },
+            cell: ({ row }) => (
+                <input
+                    type="checkbox"
+                    checked={selectedIds.has(row.original.id)}
+                    onChange={(e) => {
+                        e.stopPropagation();
+                        const m = row.original;
+                        if (e.target.checked) {
+                            setSelectedMembers((p) =>
+                                p.some((x) => x.id === m.id) ? p : [...p, m],
+                            );
+                        } else {
+                            setSelectedMembers((p) =>
+                                p.filter((x) => x.id !== m.id),
+                            );
+                        }
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="accent-brand-500 size-4"
+                    aria-label={`Odaberi člana #${row.original.id}`}
+                />
+            ),
+            size: 40,
+        }),
+        [data, selectedIds],
+    );
+
+    const tableColumns = useMemo(
+        () => [selectColumn, ...displayColumns],
+        [selectColumn, displayColumns],
+    );
 
     // 3) Inertia search & pagination handlers
     useEffect(() => {
@@ -142,7 +228,7 @@ const MembersDataTable: React.FC<MembersDataTableProps> = ({
 
     const table = useReactTable({
         data,
-        columns: displayColumns,
+        columns: tableColumns,
         state: { globalFilter },
         getCoreRowModel: getCoreRowModel(),
         manualPagination: true,
@@ -169,6 +255,32 @@ const MembersDataTable: React.FC<MembersDataTableProps> = ({
 
     return (
         <>
+            {selectedMembers.length > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-100 bg-brand-50 px-4 py-3 dark:border-brand-800 dark:bg-brand-900/20 mb-3">
+                    <span className="text-sm font-medium text-brand-800 dark:text-brand-200">
+                        Odabrano {selectedMembers.length}{" "}
+                        {selectedMembers.length === 1 ? "član" : "članova"}
+                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                            variant="primary"
+                            size="sm"
+                            startIcon={<EnvelopeIcon className="h-4 w-4" />}
+                            onClick={() => slipEmailModal.openModal()}
+                        >
+                            Pošalji uplatnice e-poštom
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSelectedMembers([])}
+                        >
+                            Poništi odabir
+                        </Button>
+                    </div>
+                </div>
+            )}
+
             <div className="overflow-hidden rounded-xl bg-white dark:bg-white/[0.03]">
                 {/* --- Header (page size & search) --- */}
                 {/* Header */}
@@ -572,6 +684,20 @@ const MembersDataTable: React.FC<MembersDataTableProps> = ({
             </div>
 
             {/* --- Confirm Delete Modal --- */}
+            <BulkSlipsEmailModal
+                isOpen={slipEmailModal.isOpen}
+                onClose={slipEmailModal.closeModal}
+                mode="members"
+                groupId={undefined}
+                selectedMemberIds={selectedMembers.map((m) => m.id)}
+                members={selectedMembers}
+                groupTotalMembers={undefined}
+                onSuccess={() => {
+                    setSelectedMembers([]);
+                    slipEmailModal.closeModal();
+                }}
+            />
+
             <Modal
                 isOpen={deleteModal.isOpen}
                 onClose={() => {

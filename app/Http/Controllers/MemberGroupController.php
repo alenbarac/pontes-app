@@ -2,38 +2,46 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\BulkSendPaymentSlipsForGroupRequest;
 use App\Http\Requests\MemberGroupRequest;
 use App\Http\Resources\MemberGroupResource;
 use App\Http\Resources\MemberResource;
+use App\Models\Invoice;
 use App\Models\MemberGroup;
 use App\Models\MemberGroupWorkshop;
 use App\Models\Workshop;
-use App\Models\Invoice;
-use App\Http\Controllers\InvoiceController;
+use App\Services\PaymentSlipEmailService;
+use App\Services\PaymentSlipPdfService;
+use App\Support\MonthString;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use ZipArchive;
-use Carbon\Carbon;
 
 class MemberGroupController extends Controller
 {
+    public function __construct(
+        protected PaymentSlipEmailService $paymentSlipEmailService,
+        protected PaymentSlipPdfService $paymentSlipPdfService,
+    ) {}
+
     /**
      * Display a listing of the resource.
      */
     public function index()
-{
-    $workshops = Workshop::select('id', 'name')->get();
+    {
+        $workshops = Workshop::select('id', 'name')->get();
 
-    $groups = MemberGroup::withCount('members')
-                ->with('assignedWorkshop')
-                ->paginate(10);
+        $groups = MemberGroup::withCount('members')
+            ->with('assignedWorkshop')
+            ->paginate(10);
 
-    return inertia('MemberGroups/Index', [
-        'groups' => MemberGroupResource::collection($groups),
-        'workshops' => $workshops,
-    ]);
-}
+        return inertia('MemberGroups/Index', [
+            'groups' => MemberGroupResource::collection($groups),
+            'workshops' => $workshops,
+        ]);
+    }
 
     /**
      * Show the form for creating a new resource.
@@ -41,6 +49,7 @@ class MemberGroupController extends Controller
     public function create()
     {
         $workshops = Workshop::select('id', 'name')->get();
+
         return inertia('MemberGroups/Create', [
             'workshops' => $workshops,
         ]);
@@ -49,27 +58,26 @@ class MemberGroupController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-   public function store(MemberGroupRequest $request)
-{
-    // 1. Create the group
-    $group = MemberGroup::create([
-        'name' => $request->input('name'),
-        'description' => $request->input('description'),
-    ]);
+    public function store(MemberGroupRequest $request)
+    {
+        // 1. Create the group
+        $group = MemberGroup::create([
+            'name' => $request->input('name'),
+            'description' => $request->input('description'),
+        ]);
 
-    // 2. Associate with a workshop via pivot table
-    DB::table('workshop_groups')->insert([
-        'workshop_id' => $request->input('workshop_id'),
-        'member_group_id' => $group->id,
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
+        // 2. Associate with a workshop via pivot table
+        DB::table('workshop_groups')->insert([
+            'workshop_id' => $request->input('workshop_id'),
+            'member_group_id' => $group->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
-    return redirect()
-        ->route('member-groups.index')
-        ->with('success', 'Grupa uspješno kreirana i povezana s radionicom.');
-}
-
+        return redirect()
+            ->route('member-groups.index')
+            ->with('success', 'Grupa uspješno kreirana i povezana s radionicom.');
+    }
 
     /**
      * Display the specified resource.
@@ -122,10 +130,10 @@ class MemberGroupController extends Controller
             ->unique();
 
         $allMembers = \App\Models\Member::whereIn('id', $allMemberIds)->get();
-        
+
         $membersWithDob = $allMembers->whereNotNull('date_of_birth');
-        $averageAge = $membersWithDob->isNotEmpty() 
-            ? $membersWithDob->avg(fn($m) => now()->diffInYears($m->date_of_birth))
+        $averageAge = $membersWithDob->isNotEmpty()
+            ? $membersWithDob->avg(fn ($m) => now()->diffInYears($m->date_of_birth))
             : null;
 
         $stats = [
@@ -193,7 +201,7 @@ class MemberGroupController extends Controller
             ->where('workshop_id', $request->workshop_id)
             ->exists();
 
-        if (!$targetGroupWorkshop) {
+        if (! $targetGroupWorkshop) {
             return back()->withErrors(['target_group_id' => 'Target group must be in the same workshop.']);
         }
 
@@ -209,6 +217,142 @@ class MemberGroupController extends Controller
     }
 
     /**
+     * Pre-flight stats for the bulk-send modal in `mode='group'`: how many
+     * invoices exist for the resolved scope in the given month, and how many
+     * would be skipped due to a missing `invoice_email`.
+     */
+    public function bulkSendSlipEmailsPreview(BulkSendPaymentSlipsForGroupRequest $request, MemberGroup $memberGroup): JsonResponse
+    {
+        $resolution = $this->resolveGroupScopeMemberIds($request->validated(), $memberGroup);
+        if ($resolution['error'] !== null) {
+            return $resolution['error'];
+        }
+
+        $preview = $this->paymentSlipEmailService->previewForMembersInMonth(
+            $resolution['member_ids'],
+            $request->validated('month')
+        );
+
+        if ($preview['invalid_month']) {
+            return response()->json([
+                'message' => 'Nevažeći format mjeseca. Koristite YYYY-MM.',
+                'errors' => ['month' => ['Koristite format YYYY-MM.']],
+            ], 422);
+        }
+
+        return response()->json([
+            'month' => $request->validated('month'),
+            'send_scope' => $request->validated('send_scope'),
+            ...$preview,
+        ]);
+    }
+
+    /**
+     * Send payment slip e-mails for group members (selected or entire group) for a given month.
+     */
+    public function bulkSendSlipEmails(BulkSendPaymentSlipsForGroupRequest $request, MemberGroup $memberGroup): JsonResponse
+    {
+        $resolution = $this->resolveGroupScopeMemberIds($request->validated(), $memberGroup);
+        if ($resolution['error'] !== null) {
+            return $resolution['error'];
+        }
+
+        $memberIds = $resolution['member_ids'];
+        $result = $this->paymentSlipEmailService->sendForMembersInMonth($memberIds, $request->validated('month'));
+
+        if (! empty($result['invalid_month'])) {
+            return response()->json([
+                'message' => 'Nevažeći format mjeseca. Koristite YYYY-MM.',
+                'errors' => ['month' => ['Koristite format YYYY-MM.']],
+            ], 422);
+        }
+
+        if (($result['invoice_count'] ?? 0) === 0) {
+            return response()->json([
+                'message' => 'Nema računa za odabrane članove u tom mjesecu.',
+                'errors' => ['month' => ['Nema računa za odabrane članove u tom mjesecu.']],
+            ], 422);
+        }
+
+        $summary = [
+            'sent' => $result['sent'],
+            'skipped_no_email' => $result['skipped_no_email'],
+            'failed' => $result['failed'],
+        ];
+
+        return response()->json([
+            ...$summary,
+            'message' => $this->paymentSlipEmailService->humanSummary($summary),
+        ]);
+    }
+
+    /**
+     * Resolve target member IDs for a group bulk action from `send_scope`.
+     * Returns ['member_ids' => int[], 'error' => null] on success or
+     * ['member_ids' => [], 'error' => JsonResponse] on a 422.
+     *
+     * @param  array<string, mixed>  $validated
+     * @return array{member_ids: list<int>, error: JsonResponse|null}
+     */
+    protected function resolveGroupScopeMemberIds(array $validated, MemberGroup $memberGroup): array
+    {
+        $allowedIds = $this->memberIdsAssignedToGroup($memberGroup);
+
+        if (($validated['send_scope'] ?? null) === 'all') {
+            if ($allowedIds === []) {
+                return [
+                    'member_ids' => [],
+                    'error' => response()->json([
+                        'message' => 'Grupa nema članova.',
+                        'errors' => ['send_scope' => ['Grupa nema članova.']],
+                    ], 422),
+                ];
+            }
+
+            return ['member_ids' => $allowedIds, 'error' => null];
+        }
+
+        $memberIds = array_values(array_intersect(
+            array_map('intval', $validated['member_ids'] ?? []),
+            $allowedIds
+        ));
+
+        if ($memberIds === []) {
+            return [
+                'member_ids' => [],
+                'error' => response()->json([
+                    'message' => 'Odabrani članovi nisu u ovoj grupi.',
+                    'errors' => ['member_ids' => ['Odabrani članovi nisu u ovoj grupi.']],
+                ], 422),
+            ];
+        }
+
+        return ['member_ids' => $memberIds, 'error' => null];
+    }
+
+    /**
+     * Member IDs linked to this group (and workshop when the group is assigned to one).
+     *
+     * @return list<int>
+     */
+    protected function memberIdsAssignedToGroup(MemberGroup $memberGroup): array
+    {
+        $memberGroup->load('assignedWorkshop');
+        $workshopId = $memberGroup->assignedWorkshop?->id;
+
+        return DB::table('member_workshop_group')
+            ->where('member_group_id', $memberGroup->id)
+            ->when($workshopId, function ($query) use ($workshopId) {
+                $query->where('workshop_id', $workshopId);
+            })
+            ->pluck('member_id')
+            ->unique()
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+    }
+
+    /**
      * Bulk download payment slips for selected members.
      */
     public function bulkDownloadSlips(Request $request, MemberGroup $memberGroup)
@@ -217,7 +361,7 @@ class MemberGroupController extends Controller
             $request->validate([
                 'member_ids' => 'required|array',
                 'member_ids.*' => 'required|exists:members,id',
-                'month' => 'required|regex:/^\d{4}-\d{2}$/', // Format: YYYY-MM
+                'month' => ['required', 'regex:'.MonthString::REGEX],
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             // Return JSON error for API requests (axios sends X-Requested-With header)
@@ -227,32 +371,24 @@ class MemberGroupController extends Controller
                     'errors' => $e->errors(),
                 ], 422);
             }
+
             return back()->withErrors($e->errors());
         }
 
         // Check if this is an AJAX/API request (axios sends X-Requested-With: XMLHttpRequest)
         $isAjaxRequest = $request->ajax() || $request->wantsJson();
 
-        // Parse month
-        if (!preg_match('/^(\d{4})-(\d{2})$/', $request->month, $matches)) {
+        $parsedMonth = MonthString::parse($request->month);
+        if ($parsedMonth === null) {
             $error = ['month' => 'Nevažeći format mjeseca. Koristite YYYY-MM.'];
             if ($isAjaxRequest) {
                 return response()->json(['message' => 'Validation failed', 'errors' => $error], 422);
             }
+
             return back()->withErrors($error);
         }
 
-        $year = (int) $matches[1];
-        $month = (int) $matches[2];
-
-        // Validate month range
-        if ($month < 1 || $month > 12) {
-            $error = ['month' => 'Nevažeći mjesec.'];
-            if ($isAjaxRequest) {
-                return response()->json(['message' => 'Validation failed', 'errors' => $error], 422);
-            }
-            return back()->withErrors($error);
-        }
+        [$year, $month] = $parsedMonth;
 
         // Query invoices for selected members filtered by month
         $invoices = Invoice::with(['member', 'workshop', 'membershipPlan'])
@@ -266,46 +402,47 @@ class MemberGroupController extends Controller
             if ($isAjaxRequest) {
                 return response()->json(['message' => 'No invoices found', 'errors' => $error], 404);
             }
+
             return back()->withErrors($error);
         }
 
         // Create temporary directory for ZIP file
         $tempDir = storage_path('app/temp/slips');
-        if (!is_dir($tempDir)) {
+        if (! is_dir($tempDir)) {
             mkdir($tempDir, 0755, true);
         }
 
         // Generate ZIP filename
         $groupName = preg_replace('/[^a-z0-9]+/', '-', strtolower($memberGroup->name));
-        $zipFileName = 'uplatnice-grupa-' . $groupName . '-' . $request->month . '.zip';
-        $zipPath = $tempDir . '/' . $zipFileName;
+        $zipFileName = 'uplatnice-grupa-'.$groupName.'-'.$request->month.'.zip';
+        $zipPath = $tempDir.'/'.$zipFileName;
 
         // Create ZIP archive
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
         if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
             $error = ['error' => 'Ne mogu kreirati ZIP datoteku.'];
             if ($isAjaxRequest) {
                 return response()->json(['message' => 'Failed to create ZIP file', 'errors' => $error], 500);
             }
+
             return back()->withErrors($error);
         }
 
         // Generate PDFs and add to ZIP
-        $invoiceController = new InvoiceController();
         $addedCount = 0;
 
         foreach ($invoices as $invoice) {
             try {
-                $pdf = $invoiceController->generateSlipPDF($invoice);
-                
+                $pdf = $this->paymentSlipPdfService->generate($invoice);
+
                 // Generate filename: Firstname-Lastname-referencecode.pdf
                 $firstName = trim($invoice->member->first_name ?? '');
                 $lastName = trim($invoice->member->last_name ?? '');
-                
+
                 // Transliterate Croatian characters to ASCII
                 $firstName = $this->transliterateCroatian($firstName);
                 $lastName = $this->transliterateCroatian($lastName);
-                
+
                 // Convert to lowercase, sanitize, then capitalize first letter
                 $firstName = strtolower($firstName);
                 $lastName = strtolower($lastName);
@@ -314,12 +451,12 @@ class MemberGroupController extends Controller
                 // Capitalize first letter of each name
                 $firstName = ucfirst($firstName);
                 $lastName = ucfirst($lastName);
-                $fileName = trim($firstName . '-' . $lastName . '-' . $invoice->reference_code, '-') . '.pdf';
-                
+                $fileName = trim($firstName.'-'.$lastName.'-'.$invoice->reference_code, '-').'.pdf';
+
                 $zip->addFromString($fileName, $pdf->output());
                 $addedCount++;
             } catch (\Exception $e) {
-                Log::warning('Failed to generate slip PDF for invoice ' . $invoice->id . ': ' . $e->getMessage());
+                Log::warning('Failed to generate slip PDF for invoice '.$invoice->id.': '.$e->getMessage());
                 // Continue with other invoices
             }
         }
@@ -332,6 +469,7 @@ class MemberGroupController extends Controller
             if ($isAjaxRequest) {
                 return response()->json(['message' => 'Failed to generate PDFs', 'errors' => $error], 500);
             }
+
             return back()->withErrors($error);
         }
 
@@ -346,15 +484,12 @@ class MemberGroupController extends Controller
 
     /**
      * Transliterate Croatian characters to ASCII equivalents.
-     * 
-     * @param string $text
-     * @return string
      */
     private function transliterateCroatian(string $text): string
     {
         // Handle multi-character sequences first (DŽ, dž)
         $text = str_replace(['DŽ', 'dž', 'Dž'], ['DJ', 'dj', 'Dj'], $text);
-        
+
         // Handle single characters
         $transliteration = [
             'Č' => 'C', 'č' => 'c',
@@ -363,24 +498,22 @@ class MemberGroupController extends Controller
             'Š' => 'S', 'š' => 's',
             'Ž' => 'Z', 'ž' => 'z',
         ];
-        
+
         return strtr($text, $transliteration);
     }
 
     /**
      * Clean up old ZIP files to prevent storage bloat.
-     * 
-     * @param string $directory
-     * @param int $maxAgeSeconds Maximum age in seconds (default: 1 hour)
-     * @return void
+     *
+     * @param  int  $maxAgeSeconds  Maximum age in seconds (default: 1 hour)
      */
     private function cleanupOldZipFiles(string $directory, int $maxAgeSeconds = 3600): void
     {
-        if (!is_dir($directory)) {
+        if (! is_dir($directory)) {
             return;
         }
 
-        $files = glob($directory . '/*.zip');
+        $files = glob($directory.'/*.zip');
         $now = time();
 
         foreach ($files as $file) {

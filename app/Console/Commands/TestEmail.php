@@ -2,10 +2,10 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Mail;
 use App\Mail\PaymentSlipMailable;
 use App\Models\Invoice;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Mail;
 
 class TestEmail extends Command
 {
@@ -40,62 +40,63 @@ class TestEmail extends Command
         if ($invoiceId) {
             // Test with actual invoice
             $invoice = Invoice::with(['member', 'workshop', 'membershipPlan'])->find($invoiceId);
-            
-            if (!$invoice) {
+
+            if (! $invoice) {
                 $this->error("Invoice with ID {$invoiceId} not found.");
+
                 return 1;
             }
 
-            // Determine recipient email
+            // Recipient: explicit --to, otherwise member's invoice_email only
             $email = $recipientEmail;
-            if (!$email) {
-                if (!empty($invoice->member->invoice_email)) {
-                    $email = $invoice->member->invoice_email;
-                } elseif (!empty($invoice->member->email)) {
-                    $email = $invoice->member->email;
-                } elseif (!empty($invoice->member->parent_email)) {
-                    $email = $invoice->member->parent_email;
-                }
+            if (! $email) {
+                $email = $invoice->member->invoice_email ?: null;
             }
 
-            if (!$email) {
-                $this->error("No email address found for invoice member. Use --to option to specify recipient.");
+            if (! $email) {
+                $this->error('Član nema invoice_email. Postavite „Email za račune” na članu ili koristite --to=adresa@primjer.com');
+
                 return 1;
             }
 
             $this->info("Sending payment slip email to: {$email}");
-            
+
             try {
                 $mailable = new PaymentSlipMailable($invoice, $email);
                 Mail::to($email)->send($mailable);
-                
-                $this->info("✓ Payment slip email sent successfully!");
-                $this->info("Check your Mailtrap inbox or logs to verify.");
+
+                $this->info('✓ Payment slip email sent successfully!');
+                $this->info('Check your Mailtrap inbox or logs to verify.');
+
                 return 0;
             } catch (\Exception $e) {
-                $this->error("Failed to send email: " . $e->getMessage());
+                $this->error('Failed to send email: '.$e->getMessage());
+
                 return 1;
             }
         } else {
             // Simple test email
-            if (!$recipientEmail) {
-                $this->error("Please provide either --invoice=ID or --to=email@example.com");
+            if (! $recipientEmail) {
+                $this->error('Please provide either --invoice=ID or --to=email@example.com');
+
                 return 1;
             }
 
             $this->info("Sending test email to: {$recipientEmail}");
-            
+
             try {
                 Mail::raw('This is a test email from Pontes App. If you receive this, your mail configuration is working correctly!', function ($message) use ($recipientEmail) {
                     $message->to($recipientEmail)
-                            ->subject('Test Email - Pontes App');
+                        ->subject('Test Email - Pontes App');
                 });
-                
-                $this->info("✓ Test email sent successfully!");
-                $this->info("Check your Mailtrap inbox or logs to verify.");
+
+                $this->info('✓ Test email sent successfully!');
+                $this->info('Check your Mailtrap inbox or logs to verify.');
+
                 return 0;
             } catch (\Exception $e) {
-                $this->error("Failed to send email: " . $e->getMessage());
+                $this->error('Failed to send email: '.$e->getMessage());
+
                 return 1;
             }
         }

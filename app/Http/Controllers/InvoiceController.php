@@ -2,513 +2,371 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Http\Requests\BulkSendInvoiceEmailsRequest;
 use App\Models\Invoice;
-use App\Models\Workshop;
 use App\Models\MemberGroup;
+use App\Models\Workshop;
+use App\Services\PaymentSlipEmailService;
+use App\Services\PaymentSlipPdfService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
-use Barryvdh\DomPDF\Facade\Pdf;
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Mail;
-use App\Mail\PaymentSlipMailable;
 
 class InvoiceController extends Controller
 {
-    
+    public function __construct(
+        protected PaymentSlipEmailService $paymentSlipEmailService,
+        protected PaymentSlipPdfService $paymentSlipPdfService,
+    ) {}
+
     public function index(Request $request)
-{
-    $perPage = $request->get('per_page', 10);
-    $filter = $request->get('filter', '');
-    $workshopId = $request->get('workshop_id', '');
-    $paymentStatus = $request->get('payment_status', '');
-    $groupId = $request->get('group_id', '');
-    $monthFilter = $request->get('month', ''); // Format: YYYY-MM
+    {
+        $perPage = $request->get('per_page', 10);
+        $filter = $request->get('filter', '');
+        $workshopId = $request->get('workshop_id', '');
+        $paymentStatus = $request->get('payment_status', '');
+        $groupId = $request->get('group_id', '');
+        $monthFilter = $request->get('month', ''); // Format: YYYY-MM
 
-    $query = Invoice::with(['member', 'member.workshopGroups.group', 'workshop', 'membershipPlan'])
-        ->when($filter, function ($query, $filter) {
-            $query->where(function ($q) use ($filter) {
-                $q->whereHas('member', fn($q) =>
-                    $q->where('first_name', 'like', "%$filter%")
-                      ->orWhere('last_name', 'like', "%$filter%")
-                )
-                ->orWhereHas('workshop', fn($q) =>
-                    $q->where('name', 'like', "%$filter%")
-                )
-                ->orWhere('reference_code', 'like', "%$filter%")
-                ->orWhere('payment_status', 'like', "%$filter%");
-            });
-        })
-        ->when($workshopId, function ($query, $workshopId) {
-            $query->where('workshop_id', $workshopId);
-        })
-        ->when($paymentStatus, function ($query, $paymentStatus) {
-            $query->where('payment_status', $paymentStatus);
-        })
-        ->when($groupId, function ($query, $groupId) use ($workshopId) {
-            $query->whereHas('member.workshopGroups', function ($q) use ($groupId, $workshopId) {
-                $q->where('member_group_id', $groupId);
-                if ($workshopId) {
-                    $q->where('workshop_id', $workshopId);
+        $query = Invoice::with(['member', 'member.workshopGroups.group', 'workshop', 'membershipPlan'])
+            ->when($filter, function ($query, $filter) {
+                $query->where(function ($q) use ($filter) {
+                    $q->whereHas('member', fn ($q) => $q->where('first_name', 'like', "%$filter%")
+                        ->orWhere('last_name', 'like', "%$filter%")
+                    )
+                        ->orWhereHas('workshop', fn ($q) => $q->where('name', 'like', "%$filter%")
+                        )
+                        ->orWhere('reference_code', 'like', "%$filter%")
+                        ->orWhere('payment_status', 'like', "%$filter%");
+                });
+            })
+            ->when($workshopId, function ($query, $workshopId) {
+                $query->where('workshop_id', $workshopId);
+            })
+            ->when($paymentStatus, function ($query, $paymentStatus) {
+                $query->where('payment_status', $paymentStatus);
+            })
+            ->when($groupId, function ($query, $groupId) use ($workshopId) {
+                $query->whereHas('member.workshopGroups', function ($q) use ($groupId, $workshopId) {
+                    $q->where('member_group_id', $groupId);
+                    if ($workshopId) {
+                        $q->where('workshop_id', $workshopId);
+                    }
+                });
+            })
+            ->when($monthFilter, function ($query, $monthFilter) {
+                // Filter by year and month (format: YYYY-MM)
+                if (preg_match('/^(\d{4})-(\d{2})$/', $monthFilter, $matches)) {
+                    $year = (int) $matches[1];
+                    $month = (int) $matches[2];
+                    $query->whereYear('due_date', $year)
+                        ->whereMonth('due_date', $month);
                 }
-            });
-        })
-        ->when($monthFilter, function ($query, $monthFilter) {
-            // Filter by year and month (format: YYYY-MM)
-            if (preg_match('/^(\d{4})-(\d{2})$/', $monthFilter, $matches)) {
-                $year = (int) $matches[1];
-                $month = (int) $matches[2];
-                $query->whereYear('due_date', $year)
-                      ->whereMonth('due_date', $month);
-            }
-        })
-        ->orderByDesc('due_date');
+            })
+            ->orderByDesc('due_date');
 
-    $invoices = $query->paginate($perPage)->withQueryString();
+        $invoices = $query->paginate($perPage)->withQueryString();
 
-    // Get all workshops for the filter dropdown
-    $workshops = Workshop::select('id', 'name')->orderBy('name')->get();
+        // Get all workshops for the filter dropdown
+        $workshops = Workshop::select('id', 'name')->orderBy('name')->get();
 
-    // Payment status options
-    $paymentStatuses = ['Otvoreno', 'Plaćeno', 'Neusklađeno', 'Opomeni'];
+        // Payment status options
+        $paymentStatuses = ['Otvoreno', 'Plaćeno', 'Neusklađeno', 'Opomeni'];
 
-    // Groups for filter (optionally scoped by workshop)
-    // Some schemas don't have workshop_id on member_groups, so fall back to the mapping table workshop_groups
-    $groups = MemberGroup::query()
-        ->select('member_groups.id', 'member_groups.name')
-        ->when($workshopId, function ($q) use ($workshopId) {
-            $q->join('workshop_groups', 'workshop_groups.member_group_id', '=', 'member_groups.id')
-              ->where('workshop_groups.workshop_id', $workshopId)
-              ->distinct();
-        })
-        ->orderBy('member_groups.name')
-        ->get();
+        // Groups for filter (optionally scoped by workshop)
+        // Some schemas don't have workshop_id on member_groups, so fall back to the mapping table workshop_groups
+        $groups = MemberGroup::query()
+            ->select('member_groups.id', 'member_groups.name')
+            ->when($workshopId, function ($q) use ($workshopId) {
+                $q->join('workshop_groups', 'workshop_groups.member_group_id', '=', 'member_groups.id')
+                    ->where('workshop_groups.workshop_id', $workshopId)
+                    ->distinct();
+            })
+            ->orderBy('member_groups.name')
+            ->get();
 
-    return Inertia::render('Invoices/Index', [
-        'invoices' => $invoices,
-        'pagination' => [
-            'current_page' => $invoices->currentPage(),
-            'per_page' => $invoices->perPage(),
-            'total' => $invoices->total(),
-            'last_page' => $invoices->lastPage(),
-        ],
-        'filter' => $filter,
-        'workshopId' => $workshopId,
-        'paymentStatus' => $paymentStatus,
-        'groupId' => $groupId,
-        'month' => $monthFilter,
-        'workshops' => $workshops,
-        'paymentStatuses' => $paymentStatuses,
-        'groups' => $groups,
-    ]);
-}
-
-public function show(Invoice $invoice)
-{
-    // Redirect to invoices index with filter for this invoice's reference code
-    // This allows users to see the invoice in the table context
-    return redirect()->route('invoices.index', [
-        'filter' => $invoice->reference_code
-    ]);
-}
-
-public function updateStatus(Request $request, Invoice $invoice)
-{
-    $validated = $request->validate([
-        'status' => ['required', 'in:Plaćeno,Otvoreno,Neusklađeno'],
-    ]);
-
-    $status = $validated['status'];
-
-    if ($status === 'Plaćeno') {
-        // If you hit this endpoint instead of markPaid, set amount_paid to full
-        $invoice->amount_paid = $invoice->amount_due;
-    } elseif ($status === 'Otvoreno') {
-        $invoice->amount_paid = 0;
+        return Inertia::render('Invoices/Index', [
+            'invoices' => $invoices,
+            'pagination' => [
+                'current_page' => $invoices->currentPage(),
+                'per_page' => $invoices->perPage(),
+                'total' => $invoices->total(),
+                'last_page' => $invoices->lastPage(),
+            ],
+            'filter' => $filter,
+            'workshopId' => $workshopId,
+            'paymentStatus' => $paymentStatus,
+            'groupId' => $groupId,
+            'month' => $monthFilter,
+            'workshops' => $workshops,
+            'paymentStatuses' => $paymentStatuses,
+            'groups' => $groups,
+        ]);
     }
 
-    $invoice->payment_status = $status;
-    $invoice->save();
-
-    // If coming from member page or Inertia request, return back instead of redirecting
-    if ($request->header('X-Inertia') || $request->has('stay_on_page')) {
-        return back()->with('success', 'Status uspješno promijenjen.');
+    public function show(Invoice $invoice)
+    {
+        // Redirect to invoices index with filter for this invoice's reference code
+        // This allows users to see the invoice in the table context
+        return redirect()->route('invoices.index', [
+            'filter' => $invoice->reference_code,
+        ]);
     }
 
-    return redirect()->route('invoices.index')->with('success', 'Status uspješno promijenjen.');
-}
-/**
- * Bulk update status for many invoices
- */
-public function markBulkAsPaid(Request $request)
-{
-    $validated = $request->validate([
-        'invoice_ids' => ['required', 'array', 'min:1'],
-        'invoice_ids.*' => ['integer', 'exists:invoices,id'],
-    ]);
+    public function updateStatus(Request $request, Invoice $invoice)
+    {
+        $validated = $request->validate([
+            'status' => ['required', 'in:Plaćeno,Otvoreno,Neusklađeno'],
+        ]);
 
-    // Only update if not already marked as paid
-    $invoices = Invoice::whereIn('id', $validated['invoice_ids'])
-        ->where('payment_status', '!=', 'Plaćeno')
-        ->get();
+        $status = $validated['status'];
 
-    foreach ($invoices as $invoice) {
-        $invoice->amount_paid = $invoice->amount_due;
-        $invoice->payment_status = 'Plaćeno';
-        $invoice->save();
-    }
-
-    $updatedCount = $invoices->count();
-    $total = count($validated['invoice_ids']);
-
-    if ($updatedCount === 0) {
-        return redirect()->route('invoices.index')->with('info', 'Svi označeni računi su već bili plaćeni.');
-    }
-
-    return redirect()->route('invoices.index')
-        ->with('success', "Označeno kao plaćeno: {$updatedCount}/{$total} računa.");
-}
-
-/**
- * Bulk toggle open/paid status for invoices
- */
-public function toggleBulkInvoiceStatus(Request $request)
-{
-    $validated = $request->validate([
-        'invoice_ids' => ['required', 'array', 'min:1'],
-        'invoice_ids.*' => ['integer', 'exists:invoices,id'],
-        'status' => ['required', 'in:Plaćeno,Otvoreno,Neusklađeno'],
-    ]);
-
-    $status = $validated['status'];
-
-    $invoices = Invoice::whereIn('id', $validated['invoice_ids'])->get();
-
-    $updatedCount = 0;
-
-    foreach ($invoices as $invoice) {
-        if ($invoice->payment_status !== $status) {
-            if ($status === 'Plaćeno') {
-                $invoice->amount_paid = $invoice->amount_due;
-            } elseif ($status === 'Otvoreno') {
-                $invoice->amount_paid = 0;
-            }
-            $invoice->payment_status = $status;
-            $invoice->save();
-            $updatedCount++;
+        if ($status === 'Plaćeno') {
+            // If you hit this endpoint instead of markPaid, set amount_paid to full
+            $invoice->amount_paid = $invoice->amount_due;
+        } elseif ($status === 'Otvoreno') {
+            $invoice->amount_paid = 0;
         }
-    }
 
-    $total = count($validated['invoice_ids']);
+        $invoice->payment_status = $status;
+        $invoice->save();
 
-    if ($updatedCount === 0) {
-        return redirect()->route('invoices.index')->with(
-            'info',
-            $status === 'Plaćeno'
-                ? 'Svi označeni računi su već bili plaćeni.'
-                : 'Svi označeni računi su već bili otvoreni.'
-        );
-    }
-
-    $statusText = match ($status) {
-        'Plaćeno' => 'plaćenih',
-        'Otvoreno' => 'otvorenih',
-        default => 'neusklađenih',
-    };
-
-    return redirect()->route('invoices.index')
-        ->with('success', "Ažurirano kao {$statusText}: {$updatedCount}/{$total} računa.");
-}
-
-public function markAsPaid(Request $request, Invoice $invoice)
-{
-    if ($invoice->payment_status === 'Plaćeno') {
         // If coming from member page or Inertia request, return back instead of redirecting
         if ($request->header('X-Inertia') || $request->has('stay_on_page')) {
-            return back()->with('info', 'Račun je već plaćen.');
-        }
-        return redirect()->route('invoices.index')->with('info', 'Račun je već plaćen.');
-    }
-
-    // Optional: allow override amount; by default pay in full
-    $validated = $request->validate([
-        'amount_paid' => ['nullable', 'numeric', 'min:0'],
-    ]);
-
-    $invoice->amount_paid    = $validated['amount_paid'] ?? $invoice->amount_due;
-    $invoice->payment_status = 'Plaćeno';
-    $invoice->save();
-
-    // If coming from member page or Inertia request, return back instead of redirecting
-    if ($request->header('X-Inertia') || $request->has('stay_on_page')) {
-        return back()->with('success', 'Račun označen kao plaćen.');
-    }
-
-    return redirect()->route('invoices.index')->with('success', 'Račun označen kao plaćen.');
-}
-
-/**
- * Generate PDF slip for an invoice (public method for reuse).
- * 
- * @param Invoice $invoice
- * @return \Barryvdh\DomPDF\PDF
- */
-public function generateSlipPDF(Invoice $invoice)
-{
-    $invoice->load(['member', 'workshop', 'membershipPlan']);
-
-    // Fallbacks so the template never breaks
-    $memberFullName = trim(($invoice->member->first_name ?? '') . ' ' . ($invoice->member->last_name ?? ''));
-    $memberAddress  = trim($invoice->member->address ?? '');
-    $notes          = $invoice->notes ?? 'Članarina';
-    
-    // For HUB3 API: combined description (max 35 chars)
-    // For PDF: separate variables for better layout
-    $descriptionForBarcode = trim($memberFullName . ' - ' . $notes);
-
-    $org = config('pontes');
-
-    // Amount formatted with comma decimals (HR)
-    $amount = number_format((float)$invoice->amount_due, 2, ',', '.');
-
-    // Generate PDF417 barcode using HUB-3 API (official HUB3A barcode generator)
-    // API: https://hub3.bigfish.software/api/v2
-    $tempDir = storage_path('app/temp');
-    if (!is_dir($tempDir)) {
-        mkdir($tempDir, 0755, true);
-    }
-    
-    try {
-        // Prepare data according to HUB-3 API format
-        // Amount must be multiplied by 100 (e.g., 50.00 becomes 5000)
-        $amountCents = (int) round($invoice->amount_due * 100);
-        
-        // Parse postal code from recipient_postal (format: "51000, Rijeka" or "51000 Rijeka")
-        $recipientPostalParts = preg_split('/[\s,]+/', $org['recipient_postal'], 2);
-        $recipientPostalCode = $recipientPostalParts[0] ?? '';
-        $recipientPlace = $recipientPostalParts[1] ?? '';
-        
-        // Parse payer address (if available)
-        $payerPostalParts = !empty($memberAddress) ? preg_split('/[\s,]+/', $memberAddress, 2) : ['', ''];
-        $payerStreet = $payerPostalParts[0] ?? '';
-        $payerPlace = $payerPostalParts[1] ?? $memberAddress;
-        
-        // Prepare API request data
-        $apiData = [
-            'renderer' => 'image',
-            'options' => [
-                'format' => 'png',
-                'scale' => 3,      // Width of single unit (HUB3A spec)
-                'ratio' => 3,      // Width to height ratio (HUB3A requires 3:1)
-                'padding' => 20,
-                'color' => '#000000',
-                'bgColor' => '#ffffff',
-            ],
-            'data' => [
-                'amount' => $amountCents,
-                'currency' => $org['currency'], // EUR, HRK, etc.
-                'sender' => [
-                    'name' => mb_substr($memberFullName, 0, 30),
-                    'street' => mb_substr($payerStreet, 0, 27),
-                    'place' => mb_substr($payerPlace, 0, 27),
-                ],
-                'receiver' => [
-                    'name' => mb_substr($org['recipient_name'], 0, 25),
-                    'street' => mb_substr($org['recipient_address'], 0, 25),
-                    'place' => mb_substr(($recipientPostalCode . ' ' . $recipientPlace), 0, 27),
-                    'iban' => str_replace(' ', '', $org['recipient_iban']),
-                    'model' => mb_substr(str_replace('HR', '', $org['model']), 0, 2), // Remove HR prefix if present
-                    'reference' => mb_substr($invoice->reference_code, 0, 22),
-                ],
-                'description' => mb_substr($descriptionForBarcode, 0, 35),
-            ],
-        ];
-        
-        // Make POST request to HUB-3 API using Laravel HTTP client
-        // Note: SSL verification disabled for local development (Laragon/Windows SSL issues)
-        // In production, ensure proper SSL certificates are configured
-        $response = Http::timeout(10)
-            ->withoutVerifying() // Disable SSL verification for local development
-            ->withHeaders([
-                'Content-Type' => 'application/json',
-                'Accept' => 'image/png',
-            ])
-            ->post('https://hub3.bigfish.software/api/v2/barcode', $apiData);
-        
-        if ($response->successful()) {
-            // Save barcode image to temporary file
-            $barcodePng = $response->body();
-            $tempFile = $tempDir . '/pdf417_' . $invoice->id . '_' . time() . '.png';
-            file_put_contents($tempFile, $barcodePng);
-            $barcodePath = $tempFile;
-            
-            // Clean up old temp files (older than 1 hour) to prevent storage bloat
-            $this->cleanupOldTempFiles($tempDir, 3600); // 1 hour
-        } else {
-            throw new \Exception('HUB-3 API returned status: ' . $response->status() . ' - ' . $response->body());
-        }
-    } catch (\Exception $e) {
-        // If API call fails, log error and set empty path
-        $barcodePath = null;
-        Log::warning('Failed to generate PDF417 barcode via HUB-3 API: ' . $e->getMessage());
-    }
-        
-
-    $data = [
-        'bgPath'         => public_path('images/uplatnica.jpg'),
-        'member_name'    => $memberFullName,
-        'member_address' => $memberAddress,
-        'amount'         => $amount,
-        'currency'       => $org['currency'],
-        'due_date'       => \Carbon\Carbon::parse($invoice->due_date)->format('d.m.Y.'),
-        'reference'      => $invoice->reference_code,
-        'member_name_for_description' => $memberFullName,
-        'payment_notes'  => $notes,
-        'recipient_name'    => $org['recipient_name'],
-        'recipient_address' => $org['recipient_address'],
-        'recipient_postal' => $org['recipient_postal'],
-        'recipient_iban'    => $org['recipient_iban'],
-        'model'            => $org['model'], // e.g. HR00
-        'status'           => $invoice->payment_status, // if you want to print status badge
-        'barcode_path'     => $barcodePath, // Path to Data Matrix barcode file (2D barcode)
-    ];
-
-    // Dompdf options: Unicode, images
-    $pdf = Pdf::loadView('invoices.slip', $data)
-        ->setPaper('a4', 'portrait');
-
-    return $pdf;
-}
-
-public function slip(Invoice $invoice)
-{
-    $pdf = $this->generateSlipPDF($invoice);
-
-    // Generate filename: Firstname-Lastname-referencecode.pdf
-    $firstName = trim($invoice->member->first_name ?? '');
-    $lastName = trim($invoice->member->last_name ?? '');
-    
-    // Transliterate Croatian characters to ASCII
-    $firstName = $this->transliterateCroatian($firstName);
-    $lastName = $this->transliterateCroatian($lastName);
-    
-    // Convert to lowercase, sanitize, then capitalize first letter
-    $firstName = strtolower($firstName);
-    $lastName = strtolower($lastName);
-    // Remove special characters and replace spaces with hyphens
-    $firstName = preg_replace('/[^a-z0-9]+/', '-', $firstName);
-    $lastName = preg_replace('/[^a-z0-9]+/', '-', $lastName);
-    // Capitalize first letter of each name
-    $firstName = ucfirst($firstName);
-    $lastName = ucfirst($lastName);
-    $fileName = trim($firstName . '-' . $lastName . '-' . $invoice->reference_code, '-') . '.pdf';
-
-    // Stream in a new tab (nice for printing); change to download() if you prefer attachment
-    return $pdf->stream($fileName);
-}
-
-/**
- * Send payment slip via email to the member.
- * 
- * @param Request $request
- * @param Invoice $invoice
- * @return \Illuminate\Http\RedirectResponse
- */
-public function sendEmail(Request $request, Invoice $invoice)
-{
-    // Load invoice with all necessary relationships for PDF generation
-    $invoice->load(['member', 'workshop', 'membershipPlan']);
-
-    // Determine recipient email using priority: invoice_email > email > parent_email
-    $recipientEmail = null;
-    $emailSource = null;
-
-    if (!empty($invoice->member->invoice_email)) {
-        $recipientEmail = $invoice->member->invoice_email;
-        $emailSource = 'invoice_email';
-    } elseif (!empty($invoice->member->email)) {
-        $recipientEmail = $invoice->member->email;
-        $emailSource = 'email';
-    } elseif (!empty($invoice->member->parent_email)) {
-        $recipientEmail = $invoice->member->parent_email;
-        $emailSource = 'parent_email';
-    }
-
-    // Validate email exists
-    if (!$recipientEmail) {
-        $errorMessage = 'Član nema unesenu e-mail adresu. Molimo dodajte e-mail adresu u podatke člana.';
-        
-        if ($request->header('X-Inertia') || $request->has('stay_on_page')) {
-            return back()->with('error', $errorMessage);
+            return back()->with('success', 'Status uspješno promijenjen.');
         }
 
-        return redirect()->route('invoices.index')->with('error', $errorMessage);
+        return redirect()->route('invoices.index')->with('success', 'Status uspješno promijenjen.');
     }
 
-    try {
-        // Generate PDF and send email
-        $mailable = new PaymentSlipMailable($invoice, $recipientEmail);
-        Mail::to($recipientEmail)->send($mailable);
-
-        $successMessage = "Uplatnica je uspješno poslana na e-mail adresu: {$recipientEmail}";
-        
-        // Log the email send for debugging
-        Log::info('Payment slip email sent', [
-            'invoice_id' => $invoice->id,
-            'reference_code' => $invoice->reference_code,
-            'recipient_email' => $recipientEmail,
-            'email_source' => $emailSource,
+    /**
+     * Bulk update status for many invoices
+     */
+    public function markBulkAsPaid(Request $request)
+    {
+        $validated = $request->validate([
+            'invoice_ids' => ['required', 'array', 'min:1'],
+            'invoice_ids.*' => ['integer', 'exists:invoices,id'],
         ]);
+
+        // Only update if not already marked as paid
+        $invoices = Invoice::whereIn('id', $validated['invoice_ids'])
+            ->where('payment_status', '!=', 'Plaćeno')
+            ->get();
+
+        foreach ($invoices as $invoice) {
+            $invoice->amount_paid = $invoice->amount_due;
+            $invoice->payment_status = 'Plaćeno';
+            $invoice->save();
+        }
+
+        $updatedCount = $invoices->count();
+        $total = count($validated['invoice_ids']);
+
+        if ($updatedCount === 0) {
+            return redirect()->route('invoices.index')->with('info', 'Svi označeni računi su već bili plaćeni.');
+        }
+
+        return redirect()->route('invoices.index')
+            ->with('success', "Označeno kao plaćeno: {$updatedCount}/{$total} računa.");
+    }
+
+    /**
+     * Bulk toggle open/paid status for invoices
+     */
+    public function toggleBulkInvoiceStatus(Request $request)
+    {
+        $validated = $request->validate([
+            'invoice_ids' => ['required', 'array', 'min:1'],
+            'invoice_ids.*' => ['integer', 'exists:invoices,id'],
+            'status' => ['required', 'in:Plaćeno,Otvoreno,Neusklađeno'],
+        ]);
+
+        $status = $validated['status'];
+
+        $invoices = Invoice::whereIn('id', $validated['invoice_ids'])->get();
+
+        $updatedCount = 0;
+
+        foreach ($invoices as $invoice) {
+            if ($invoice->payment_status !== $status) {
+                if ($status === 'Plaćeno') {
+                    $invoice->amount_paid = $invoice->amount_due;
+                } elseif ($status === 'Otvoreno') {
+                    $invoice->amount_paid = 0;
+                }
+                $invoice->payment_status = $status;
+                $invoice->save();
+                $updatedCount++;
+            }
+        }
+
+        $total = count($validated['invoice_ids']);
+
+        if ($updatedCount === 0) {
+            return redirect()->route('invoices.index')->with(
+                'info',
+                $status === 'Plaćeno'
+                    ? 'Svi označeni računi su već bili plaćeni.'
+                    : 'Svi označeni računi su već bili otvoreni.'
+            );
+        }
+
+        $statusText = match ($status) {
+            'Plaćeno' => 'plaćenih',
+            'Otvoreno' => 'otvorenih',
+            default => 'neusklađenih',
+        };
+
+        return redirect()->route('invoices.index')
+            ->with('success', "Ažurirano kao {$statusText}: {$updatedCount}/{$total} računa.");
+    }
+
+    public function markAsPaid(Request $request, Invoice $invoice)
+    {
+        if ($invoice->payment_status === 'Plaćeno') {
+            // If coming from member page or Inertia request, return back instead of redirecting
+            if ($request->header('X-Inertia') || $request->has('stay_on_page')) {
+                return back()->with('info', 'Račun je već plaćen.');
+            }
+
+            return redirect()->route('invoices.index')->with('info', 'Račun je već plaćen.');
+        }
+
+        // Optional: allow override amount; by default pay in full
+        $validated = $request->validate([
+            'amount_paid' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        $invoice->amount_paid = $validated['amount_paid'] ?? $invoice->amount_due;
+        $invoice->payment_status = 'Plaćeno';
+        $invoice->save();
+
+        // If coming from member page or Inertia request, return back instead of redirecting
+        if ($request->header('X-Inertia') || $request->has('stay_on_page')) {
+            return back()->with('success', 'Račun označen kao plaćen.');
+        }
+
+        return redirect()->route('invoices.index')->with('success', 'Račun označen kao plaćen.');
+    }
+
+    /**
+     * Generate PDF slip for an invoice (public method for reuse).
+     *
+     * @return \Barryvdh\DomPDF\PDF
+     */
+    /**
+     * @deprecated Use PaymentSlipPdfService::generate(Invoice $invoice) directly.
+     *             Kept as a thin wrapper so any older callers keep working.
+     */
+    public function generateSlipPDF(Invoice $invoice)
+    {
+        return $this->paymentSlipPdfService->generate($invoice);
+    }
+
+    public function slip(Invoice $invoice)
+    {
+        $pdf = $this->generateSlipPDF($invoice);
+
+        // Generate filename: Firstname-Lastname-referencecode.pdf
+        $firstName = trim($invoice->member->first_name ?? '');
+        $lastName = trim($invoice->member->last_name ?? '');
+
+        // Transliterate Croatian characters to ASCII
+        $firstName = $this->transliterateCroatian($firstName);
+        $lastName = $this->transliterateCroatian($lastName);
+
+        // Convert to lowercase, sanitize, then capitalize first letter
+        $firstName = strtolower($firstName);
+        $lastName = strtolower($lastName);
+        // Remove special characters and replace spaces with hyphens
+        $firstName = preg_replace('/[^a-z0-9]+/', '-', $firstName);
+        $lastName = preg_replace('/[^a-z0-9]+/', '-', $lastName);
+        // Capitalize first letter of each name
+        $firstName = ucfirst($firstName);
+        $lastName = ucfirst($lastName);
+        $fileName = trim($firstName.'-'.$lastName.'-'.$invoice->reference_code, '-').'.pdf';
+
+        // Stream in a new tab (nice for printing); change to download() if you prefer attachment
+        return $pdf->stream($fileName);
+    }
+
+    /**
+     * Send payment slip via email to the member.
+     */
+    public function sendEmail(Request $request, Invoice $invoice)
+    {
+        $invoice->load(['member', 'workshop', 'membershipPlan']);
+
+        $result = $this->paymentSlipEmailService->sendForInvoice($invoice);
+
+        if (! $result['ok']) {
+            $errorMessage = ($result['reason'] ?? '') === 'no_email'
+                ? 'Član nema unesenu e-mail adresu za račune. Molimo unesite polje „Email za račune” (invoice_email) u podacima člana.'
+                : 'Došlo je do greške pri slanju e-maila. Molimo pokušajte ponovno.';
+
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $errorMessage], 422);
+            }
+
+            if ($request->header('X-Inertia') || $request->has('stay_on_page')) {
+                return back()->with('error', $errorMessage);
+            }
+
+            return redirect()->route('invoices.index')->with('error', $errorMessage);
+        }
+
+        $successMessage = 'Uplatnica je uspješno poslana na e-mail adresu: '.$result['recipient'];
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => $successMessage,
+                'recipient' => $result['recipient'],
+            ]);
+        }
 
         if ($request->header('X-Inertia') || $request->has('stay_on_page')) {
             return back()->with('success', $successMessage);
         }
 
         return redirect()->route('invoices.index')->with('success', $successMessage);
+    }
 
-    } catch (\Exception $e) {
-        // Log the error
-        Log::error('Failed to send payment slip email', [
-            'invoice_id' => $invoice->id,
-            'reference_code' => $invoice->reference_code,
-            'recipient_email' => $recipientEmail,
-            'error' => $e->getMessage(),
+    /**
+     * Send payment slips by e-mail for many invoices (synchronous, JSON).
+     */
+    public function bulkSendSlipEmails(BulkSendInvoiceEmailsRequest $request): JsonResponse
+    {
+        $summary = $this->paymentSlipEmailService->sendForInvoiceIds($request->validated('invoice_ids'));
+
+        return response()->json([
+            'sent' => $summary['sent'],
+            'skipped_no_email' => $summary['skipped_no_email'],
+            'failed' => $summary['failed'],
+            'message' => $this->paymentSlipEmailService->humanSummary($summary),
         ]);
+    }
 
-        $errorMessage = 'Došlo je do greške pri slanju e-maila. Molimo pokušajte ponovno.';
-        
-        if ($request->header('X-Inertia') || $request->has('stay_on_page')) {
-            return back()->with('error', $errorMessage);
+    public function destroy(Request $request, Invoice $invoice)
+    {
+        $invoice->delete();
+
+        // If coming from member page or Inertia request, return back instead of redirecting
+        if ($request->header('X-Inertia')) {
+            return back()->with('success', 'Račun uspješno obrisan.');
         }
 
-        return redirect()->route('invoices.index')->with('error', $errorMessage);
+        return redirect()->route('invoices.index')->with('success', 'Račun uspješno obrisan.');
     }
-}
-
-public function destroy(Request $request, Invoice $invoice)
-{
-    $invoice->delete();
-
-    // If coming from member page or Inertia request, return back instead of redirecting
-    if ($request->header('X-Inertia')) {
-        return back()->with('success', 'Račun uspješno obrisan.');
-    }
-
-    return redirect()->route('invoices.index')->with('success', 'Račun uspješno obrisan.');
-}
 
     /**
      * Transliterate Croatian characters to ASCII equivalents.
-     * 
-     * @param string $text
-     * @return string
      */
     private function transliterateCroatian(string $text): string
     {
         // Handle multi-character sequences first (DŽ, dž)
         $text = str_replace(['DŽ', 'dž', 'Dž'], ['DJ', 'dj', 'Dj'], $text);
-        
+
         // Handle single characters
         $transliteration = [
             'Č' => 'C', 'č' => 'c',
@@ -517,24 +375,22 @@ public function destroy(Request $request, Invoice $invoice)
             'Š' => 'S', 'š' => 's',
             'Ž' => 'Z', 'ž' => 'z',
         ];
-        
+
         return strtr($text, $transliteration);
     }
 
     /**
      * Clean up old temporary files to prevent storage bloat.
-     * 
-     * @param string $directory
-     * @param int $maxAgeSeconds Maximum age in seconds (default: 1 hour)
-     * @return void
+     *
+     * @param  int  $maxAgeSeconds  Maximum age in seconds (default: 1 hour)
      */
     private function cleanupOldTempFiles(string $directory, int $maxAgeSeconds = 3600): void
     {
-        if (!is_dir($directory)) {
+        if (! is_dir($directory)) {
             return;
         }
 
-        $files = glob($directory . '/*');
+        $files = glob($directory.'/*');
         $now = time();
 
         foreach ($files as $file) {

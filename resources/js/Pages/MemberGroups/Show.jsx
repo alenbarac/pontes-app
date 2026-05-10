@@ -17,12 +17,14 @@ import {
     DocumentTextIcon,
     EyeIcon,
     ArrowDownTrayIcon,
+    EnvelopeIcon,
 } from "@heroicons/react/24/outline";
 import Button from "@/Components/ui/button/Button";
 import { useModal } from "@/hooks/useModal";
 import { Modal } from "@/Components/ui/modal";
 import BulkReassignModal from "@/Components/MemberGroup/BulkReassignModal";
 import BulkSlipsDownloadModal from "@/Components/MemberGroup/BulkSlipsDownloadModal";
+import BulkSlipsEmailModal from "@/Components/MemberGroup/BulkSlipsEmailModal";
 import MemberGroupEditForm from "@/Components/MemberGroup/MemberGroupEditForm";
 import TemplateSelectorModal from "@/Components/Documents/TemplateSelectorModal";
 import toast from "react-hot-toast";
@@ -41,6 +43,7 @@ export default function Show({
     const bulkReassignModal = useModal();
     const documentModal = useModal();
     const slipsDownloadModal = useModal();
+    const slipsEmailModal = useModal();
     const editGroupModal = useModal();
     const [documentType, setDocumentType] = useState("ispricnica");
 
@@ -105,6 +108,10 @@ export default function Show({
             return;
         }
         slipsDownloadModal.openModal();
+    };
+
+    const handleBulkSendSlipsEmail = () => {
+        slipsEmailModal.openModal();
     };
 
     const handleDocumentSuccess = () => {
@@ -201,37 +208,50 @@ export default function Show({
                 <ComponentCard
                     title="Članovi grupe"
                     headerAction={
-                        selectedMembers.length > 0 && (
-                            <div className="flex gap-2">
-                                <Button
-                                    onClick={handleBulkReassign}
-                                    variant="primary"
-                                    size="sm"
-                                >
-                                    Premjesti odabrane ({selectedMembers.length})
-                                </Button>
-                                <Button
-                                    onClick={handleBulkDownloadSlips}
-                                    variant="outline"
-                                    size="sm"
-                                    startIcon={
-                                        <ArrowDownTrayIcon className="h-4 w-4" />
-                                    }
-                                >
-                                    Preuzmi uplatnice
-                                </Button>
-                                <Button
-                                    onClick={handleBulkGenerateDocuments}
-                                    variant="outline"
-                                    size="sm"
-                                    startIcon={
-                                        <DocumentTextIcon className="h-4 w-4" />
-                                    }
-                                >
-                                    Generiraj dokument
-                                </Button>
-                            </div>
-                        )
+                        <div className="flex flex-wrap gap-2 justify-end">
+                            {selectedMembers.length > 0 && (
+                                <>
+                                    <Button
+                                        onClick={handleBulkReassign}
+                                        variant="primary"
+                                        size="sm"
+                                    >
+                                        Premjesti odabrane (
+                                        {selectedMembers.length})
+                                    </Button>
+                                    <Button
+                                        onClick={handleBulkDownloadSlips}
+                                        variant="outline"
+                                        size="sm"
+                                        startIcon={
+                                            <ArrowDownTrayIcon className="h-4 w-4" />
+                                        }
+                                    >
+                                        Preuzmi uplatnice
+                                    </Button>
+                                    <Button
+                                        onClick={handleBulkGenerateDocuments}
+                                        variant="outline"
+                                        size="sm"
+                                        startIcon={
+                                            <DocumentTextIcon className="h-4 w-4" />
+                                        }
+                                    >
+                                        Generiraj dokument
+                                    </Button>
+                                </>
+                            )}
+                            <Button
+                                onClick={handleBulkSendSlipsEmail}
+                                variant="outline"
+                                size="sm"
+                                startIcon={
+                                    <EnvelopeIcon className="h-4 w-4" />
+                                }
+                            >
+                                Pošalji e-poštom
+                            </Button>
+                        </div>
                     }
                 >
                     {/* Search */}
@@ -484,6 +504,19 @@ export default function Show({
                 members={members.data}
                 currentGroup={group}
                 onSuccess={handleSlipsDownloadSuccess}
+            />
+
+            <BulkSlipsEmailModal
+                isOpen={slipsEmailModal.isOpen}
+                onClose={slipsEmailModal.closeModal}
+                mode="group"
+                groupId={group.id}
+                selectedMemberIds={selectedMembers}
+                members={members.data}
+                groupTotalMembers={statistics.total_members}
+                onSuccess={() => {
+                    slipsEmailModal.closeModal();
+                }}
             />
 
             {/* Edit Group Modal */}

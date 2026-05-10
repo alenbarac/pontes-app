@@ -4,21 +4,15 @@ namespace App\Services;
 
 use App\Models\DocumentTemplate;
 use App\Models\Member;
-use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Storage;
 use ZipArchive;
 
 class DocumentGenerationService
 {
     /**
      * Replace placeholders in template content with actual data.
-     *
-     * @param DocumentTemplate $template
-     * @param Member $member
-     * @param array $additionalData
-     * @return string
      */
     public function replacePlaceholders(
         DocumentTemplate $template,
@@ -32,7 +26,7 @@ class DocumentGenerationService
         $replacements = [
             '{{member.first_name}}' => $member->first_name ?? '',
             '{{member.last_name}}' => $member->last_name ?? '',
-            '{{member.full_name}}' => trim(($member->first_name ?? '') . ' ' . ($member->last_name ?? '')),
+            '{{member.full_name}}' => trim(($member->first_name ?? '').' '.($member->last_name ?? '')),
             '{{member.parent_contact}}' => $member->parent_contact ?? '',
             '{{member.parent_email}}' => $member->parent_email ?? '',
             '{{member.date_of_birth}}' => $member->date_of_birth ? Carbon::parse($member->date_of_birth)->format('d.m.Y') : '',
@@ -73,9 +67,6 @@ class DocumentGenerationService
     /**
      * Generate PDF for a single member.
      *
-     * @param DocumentTemplate $template
-     * @param Member $member
-     * @param array $additionalData
      * @return \Barryvdh\DomPDF\PDF
      */
     public function generatePDF(
@@ -119,9 +110,6 @@ class DocumentGenerationService
     /**
      * Generate PDFs for multiple members and return as zip.
      *
-     * @param DocumentTemplate $template
-     * @param Collection $members
-     * @param array $additionalData
      * @return string Path to zip file
      */
     public function generateBulkPDFs(
@@ -130,12 +118,12 @@ class DocumentGenerationService
         array $additionalData = []
     ): string {
         $tempDir = storage_path('app/temp/documents');
-        if (!is_dir($tempDir)) {
+        if (! is_dir($tempDir)) {
             mkdir($tempDir, 0755, true);
         }
 
-        $zipPath = $tempDir . '/documents_' . time() . '.zip';
-        $zip = new ZipArchive();
+        $zipPath = $tempDir.'/documents_'.time().'.zip';
+        $zip = new ZipArchive;
 
         if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
             throw new \Exception('Cannot create zip file');
@@ -143,8 +131,8 @@ class DocumentGenerationService
 
         foreach ($members as $member) {
             $pdf = $this->generatePDF($template, $member, $additionalData);
-            $memberName = str_replace([' ', '/', '\\'], '_', trim(($member->first_name ?? '') . '_' . ($member->last_name ?? '')));
-            $filename = $memberName . '_' . $template->name . '.pdf';
+            $memberName = str_replace([' ', '/', '\\'], '_', trim(($member->first_name ?? '').'_'.($member->last_name ?? '')));
+            $filename = $memberName.'_'.$template->name.'.pdf';
             $zip->addFromString($filename, $pdf->output());
         }
 
@@ -156,9 +144,6 @@ class DocumentGenerationService
     /**
      * Generate PDF and return as download response.
      *
-     * @param DocumentTemplate $template
-     * @param Member $member
-     * @param array $additionalData
      * @return \Illuminate\Http\Response
      */
     public function downloadPDF(
@@ -167,7 +152,7 @@ class DocumentGenerationService
         array $additionalData = []
     ) {
         $pdf = $this->generatePDF($template, $member, $additionalData);
-        $filename = str_replace([' ', '/', '\\'], '_', $template->name . '_' . trim(($member->first_name ?? '') . '_' . ($member->last_name ?? ''))) . '.pdf';
+        $filename = str_replace([' ', '/', '\\'], '_', $template->name.'_'.trim(($member->first_name ?? '').'_'.($member->last_name ?? ''))).'.pdf';
 
         return $pdf->download($filename);
     }
