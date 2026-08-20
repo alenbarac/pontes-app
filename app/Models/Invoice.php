@@ -21,6 +21,7 @@ class Invoice extends Model
         'payment_status',
         'reference_code',
         'notes',
+        'slip_description',
         'school_year',
         'invoice_type',
         'session_date',
@@ -44,6 +45,22 @@ class Invoice extends Model
     public function membershipPlan()
     {
         return $this->belongsTo(MembershipPlan::class);
+    }
+
+    /**
+     * Opis plaćanja (second line on the slip). Custom slip_description wins;
+     * otherwise generated invoice notes, then Članarina.
+     */
+    public function slipPaymentNotes(): string
+    {
+        $override = trim((string) ($this->slip_description ?? ''));
+        if ($override !== '') {
+            return $override;
+        }
+
+        $notes = trim((string) ($this->notes ?? ''));
+
+        return $notes !== '' ? $notes : 'Članarina';
     }
 
     /**

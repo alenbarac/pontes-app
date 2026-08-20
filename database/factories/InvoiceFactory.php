@@ -25,6 +25,7 @@ class InvoiceFactory extends Factory
             'payment_status' => 'Otvoreno',
             'reference_code' => $this->faker->unique()->numerify('20251201-###-###'),
             'notes' => null,
+            'slip_description' => null,
             'invoice_type' => 'membership',
         ];
     }

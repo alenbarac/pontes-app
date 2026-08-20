@@ -18,6 +18,8 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
     const [showInvoiceModal, setShowInvoiceModal] = useState(false);
     const [activeInvoice, setActiveInvoice] = useState(null);
     const [modalStatus, setModalStatus] = useState("");
+    const [slipDescription, setSlipDescription] = useState("");
+    const [modalAmount, setModalAmount] = useState("");
     
     // Session invoice generation state
     const sessionInvoiceModal = useModal();
@@ -231,6 +233,10 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
     const openInvoiceDetails = (invoice) => {
         setActiveInvoice(invoice);
         setModalStatus(invoice?.payment_status || "");
+        setSlipDescription(invoice?.slip_description || "");
+        setModalAmount(
+            invoice?.amount_due != null ? Number(invoice.amount_due).toFixed(2) : "",
+        );
         setShowInvoiceModal(true);
     };
 
@@ -266,6 +272,8 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
         setShowInvoiceModal(false);
         setActiveInvoice(null);
         setModalStatus("");
+        setSlipDescription("");
+        setModalAmount("");
     };
 
     const handleSendEmail = (invoice) => {
@@ -304,49 +312,36 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
 
     const saveInvoiceStatus = () => {
         if (!activeInvoice || !modalStatus) return;
-        
-        // Store invoice data before closing modal
+
         const invoiceToUpdate = activeInvoice;
         const currentStatus = modalStatus;
-        
-        // Close modal immediately for better UX
-        closeInvoiceDetails();
-        
-        if (currentStatus === "Plaćeno") {
-            router.patch(
-                route("invoices.markPaid", invoiceToUpdate.id),
-                { stay_on_page: true },
-                {
-                    preserveScroll: true,
-                    preserveState: false, // Allow page to refresh with new data
-                    onSuccess: () => {
-                        toast.success("Status računa promjenjen");
-                    },
-                    onError: () => {
-                        toast.error("Greška pri ažuriranju statusa");
-                        // Reopen modal on error
-                        openInvoiceDetails(invoiceToUpdate);
-                    },
-                },
-            );
-        } else {
-            router.patch(
-                route("invoices.updateStatus", invoiceToUpdate.id),
-                { status: currentStatus, stay_on_page: true },
-                {
-                    preserveScroll: true,
-                    preserveState: false, // Allow page to refresh with new data
-                    onSuccess: () => {
-                        toast.success("Status računa promjenjen");
-                    },
-                    onError: () => {
-                        toast.error("Greška pri ažuriranju statusa");
-                        // Reopen modal on error
-                        openInvoiceDetails(invoiceToUpdate);
-                    },
-                },
-            );
+        const descriptionToSave = slipDescription;
+        const amount = Number(String(modalAmount).replace(",", "."));
+
+        if (!amount || amount <= 0) {
+            toast.error("Unesite ispravan iznos.");
+            return;
         }
+
+        closeInvoiceDetails();
+
+        router.patch(
+            route("invoices.update", invoiceToUpdate.id),
+            {
+                status: currentStatus,
+                slip_description: descriptionToSave,
+                amount_due: amount,
+                stay_on_page: true,
+            },
+            {
+                preserveScroll: true,
+                preserveState: false,
+                onError: () => {
+                    toast.error("Greška pri ažuriranju računa");
+                    openInvoiceDetails(invoiceToUpdate);
+                },
+            },
+        );
     };
 
     return (
@@ -625,9 +620,16 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                                         <div className="text-xs uppercase text-gray-500">
                                             Iznos
                                         </div>
-                                        <div className="text-sm text-gray-900 dark:text-gray-100">
-                                            {Number(activeInvoice.amount_due).toFixed(2)} €
-                                        </div>
+                                        <Input
+                                            type="number"
+                                            id="invoice-amount"
+                                            min="0.01"
+                                            step={0.01}
+                                            value={modalAmount}
+                                            onChange={(e) =>
+                                                setModalAmount(e.target.value)
+                                            }
+                                        />
                                     </div>
                                     <div>
                                         <div className="text-xs uppercase text-gray-500">
@@ -664,6 +666,28 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                                     <div className="text-sm text-gray-900 dark:text-gray-100">
                                         {activeInvoice.notes || "—"}
                                     </div>
+                                </div>
+                                <div className="mt-4">
+                                    <Label htmlFor="slip_description">
+                                        Opis plaćanja na uplatnici (2. red)
+                                    </Label>
+                                    <Input
+                                        type="text"
+                                        id="slip_description"
+                                        placeholder={
+                                            activeInvoice.notes ||
+                                            "Prazno = automatski opis (članarina / mjesec)"
+                                        }
+                                        value={slipDescription}
+                                        onChange={(e) =>
+                                            setSlipDescription(e.target.value)
+                                        }
+                                    />
+                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                        Prvi red ostaje ime polaznika. Ako je
+                                        prazno, drugi red koristi napomenu
+                                        iznad.
+                                    </p>
                                 </div>
                             </div>
 
@@ -757,7 +781,7 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                                         variant="primary"
                                         size="sm"
                                     >
-                                        Spremi status
+                                        Spremi
                                     </Button>
                                 </div>
                             </div>

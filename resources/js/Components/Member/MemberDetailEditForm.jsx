@@ -21,6 +21,7 @@ export default function MemberDetailEditForm({ member, closeModal }) {
         parent_contact: member.parent_contact || "",
         parent_email: member.parent_email || "",
         invoice_email: member.invoice_email || "",
+        slip_payer_name: member.slip_payer_name || "",
     });
 
     // Check if member is enrolled in Dramska 60+ workshop
@@ -202,6 +203,31 @@ export default function MemberDetailEditForm({ member, closeModal }) {
                             )}
                         </div>
                     )}
+
+                    {/* Payer name on payment slip (e.g. parent for minors) */}
+                    <div className="sm:col-span-2">
+                        <Label htmlFor="slip_payer_name">
+                            Platitelj na uplatnici
+                        </Label>
+                        <Input
+                            type="text"
+                            id="slip_payer_name"
+                            placeholder="Prazno = ime i prezime polaznika"
+                            value={data.slip_payer_name}
+                            onChange={(e) =>
+                                setData("slip_payer_name", e.target.value)
+                            }
+                        />
+                        {errors.slip_payer_name && (
+                            <p className="text-red-500 text-sm">
+                                {errors.slip_payer_name}
+                            </p>
+                        )}
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            Ako uplatu plaća roditelj/skrbnik, unesite ime koje
+                            treba biti na uplatnici.
+                        </p>
+                    </div>
 
                     {/* Invoice Email */}
                     <div>

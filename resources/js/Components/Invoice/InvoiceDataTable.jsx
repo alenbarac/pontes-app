@@ -12,6 +12,8 @@ import { DropdownItem } from "@/ui/dropdown/DropdownItem";
 import { Modal } from "@/Components/ui/modal";
 import toast from "react-hot-toast";
 import Radio from "@/Components/form/input/Radio";
+import Input from "@/Components/form/input/InputField";
+import Label from "@/Components/form/Label";
 import { TrashIcon, CalendarDaysIcon, EnvelopeIcon } from "@heroicons/react/24/outline";
 import { useModal } from "@/hooks/useModal";
 import Flatpickr from "react-flatpickr";
@@ -54,6 +56,8 @@ const InvoicesDataTable = ({
     const [showInvoiceModal, setShowInvoiceModal] = useState(false);
     const [activeInvoice, setActiveInvoice] = useState(null);
     const [modalStatus, setModalStatus] = useState("");
+    const [slipDescription, setSlipDescription] = useState("");
+    const [modalAmount, setModalAmount] = useState("");
     
     // Delete invoice state
     const deleteInvoiceModal = useModal();
@@ -72,6 +76,10 @@ const InvoicesDataTable = ({
     const openInvoiceDetails = (invoice) => {
         setActiveInvoice(invoice);
         setModalStatus(invoice?.payment_status || "");
+        setSlipDescription(invoice?.slip_description || "");
+        setModalAmount(
+            invoice?.amount_due != null ? Number(invoice.amount_due).toFixed(2) : "",
+        );
         setShowInvoiceModal(true);
     };
 
@@ -79,37 +87,36 @@ const InvoicesDataTable = ({
         setShowInvoiceModal(false);
         setActiveInvoice(null);
         setModalStatus("");
+        setSlipDescription("");
+        setModalAmount("");
     };
 
     const saveInvoiceStatus = () => {
         if (!activeInvoice || !modalStatus) return;
-        if (modalStatus === "Plaćeno") {
-            router.patch(
-                route("invoices.markPaid", activeInvoice.id),
-                {},
-                {
-                    preserveScroll: true,
-                    onSuccess: () => {
-                        toast.success("Status računa promjenjen");
-                        closeInvoiceDetails();
-                    },
-                    onError: () => toast.error("Greška pri ažuriranju statusa"),
-                },
-            );
-        } else {
-            router.patch(
-                route("invoices.updateStatus", activeInvoice.id),
-                { status: modalStatus },
-                {
-                    preserveScroll: true,
-                    onSuccess: () => {
-                        toast.success("Status računa promjenjen");
-                        closeInvoiceDetails();
-                    },
-                    onError: () => toast.error("Greška pri ažuriranju statusa"),
-                },
-            );
+
+        const amount = Number(String(modalAmount).replace(",", "."));
+        if (!amount || amount <= 0) {
+            toast.error("Unesite ispravan iznos.");
+            return;
         }
+
+        router.patch(
+            route("invoices.update", activeInvoice.id),
+            {
+                status: modalStatus,
+                slip_description: slipDescription,
+                amount_due: amount,
+                stay_on_page: true,
+            },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    toast.success("Račun je ažuriran.");
+                    closeInvoiceDetails();
+                },
+                onError: () => toast.error("Greška pri ažuriranju računa"),
+            },
+        );
     };
 
     const handleDeleteInvoice = () => {
@@ -1086,12 +1093,16 @@ const InvoicesDataTable = ({
                                         <div className="text-xs uppercase text-gray-500 dark:text-gray-400">
                                             Iznos
                                         </div>
-                                        <div className="text-sm text-gray-900 dark:text-gray-100">
-                                            {Number(
-                                                activeInvoice.amount_due,
-                                            ).toFixed(2)}{" "}
-                                            €
-                                        </div>
+                                        <Input
+                                            type="number"
+                                            id="invoice-amount"
+                                            min="0.01"
+                                            step={0.01}
+                                            value={modalAmount}
+                                            onChange={(e) =>
+                                                setModalAmount(e.target.value)
+                                            }
+                                        />
                                     </div>
                                     <div>
                                         <div className="text-xs uppercase text-gray-500 dark:text-gray-400">
@@ -1119,6 +1130,28 @@ const InvoicesDataTable = ({
                                     <div className="text-sm text-gray-900 dark:text-gray-100">
                                         {activeInvoice.notes || "—"}
                                     </div>
+                                </div>
+                                <div className="mt-4">
+                                    <Label htmlFor="slip_description">
+                                        Opis plaćanja na uplatnici (2. red)
+                                    </Label>
+                                    <Input
+                                        type="text"
+                                        id="slip_description"
+                                        placeholder={
+                                            activeInvoice.notes ||
+                                            "Prazno = automatski opis (članarina / mjesec)"
+                                        }
+                                        value={slipDescription}
+                                        onChange={(e) =>
+                                            setSlipDescription(e.target.value)
+                                        }
+                                    />
+                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                        Prvi red ostaje ime polaznika. Ako je
+                                        prazno, drugi red koristi napomenu
+                                        iznad.
+                                    </p>
                                 </div>
                             </div>
 
@@ -1198,7 +1231,7 @@ const InvoicesDataTable = ({
                                         onClick={saveInvoiceStatus}
                                         className="px-3 py-2 text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg"
                                     >
-                                        Spremi status
+                                        Spremi
                                     </button>
                                 </div>
                             </div>

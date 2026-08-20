@@ -19,6 +19,7 @@ class Member extends Model
         'parent_contact',
         'parent_email',
         'invoice_email',
+        'slip_payer_name',
     ];
 
     /**

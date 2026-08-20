@@ -22,6 +22,7 @@ export interface MemberFormData {
     parent_contact?: string;
     parent_email?: string;
     invoice_email?: string;
+    slip_payer_name?: string;
     group_ids?: number[]; // Array of selected group IDs
     workshop_ids?: number[]; // Array of selected workshop IDs
     membership_plan_id: number; // Single membership plan (if applicable)
@@ -43,6 +44,8 @@ export interface Member {
     is_active: boolean;
     parent_contact?: string;
     parent_email?: string;
+    invoice_email?: string;
+    slip_payer_name?: string;
     groups: { id: number; name: string }[];
     workshops: { id: number; name: string }[];
     membership: { plan: string; fee: number };

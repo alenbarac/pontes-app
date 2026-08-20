@@ -140,6 +140,46 @@ class InvoiceController extends Controller
     }
 
     /**
+     * Update slip description and optionally payment status for a single invoice.
+     */
+    public function update(Request $request, Invoice $invoice)
+    {
+        $validated = $request->validate([
+            'slip_description' => ['nullable', 'string', 'max:255'],
+            'amount_due' => ['nullable', 'numeric', 'min:0.01'],
+            'status' => ['nullable', 'in:Plaćeno,Otvoreno,Neusklađeno'],
+        ]);
+
+        if (array_key_exists('slip_description', $validated)) {
+            $description = trim((string) ($validated['slip_description'] ?? ''));
+            $invoice->slip_description = $description !== '' ? $description : null;
+        }
+
+        if (array_key_exists('amount_due', $validated) && $validated['amount_due'] !== null) {
+            $invoice->amount_due = round((float) $validated['amount_due'], 2);
+        }
+
+        $status = $validated['status'] ?? $invoice->payment_status;
+        if (! empty($validated['status'])) {
+            $invoice->payment_status = $status;
+        }
+
+        if ($invoice->payment_status === 'Plaćeno') {
+            $invoice->amount_paid = $invoice->amount_due;
+        } elseif ($invoice->payment_status === 'Otvoreno') {
+            $invoice->amount_paid = 0;
+        }
+
+        $invoice->save();
+
+        if ($request->header('X-Inertia') || $request->has('stay_on_page')) {
+            return back()->with('success', 'Račun je uspješno ažuriran.');
+        }
+
+        return redirect()->route('invoices.index')->with('success', 'Račun je uspješno ažuriran.');
+    }
+
+    /**
      * Bulk update status for many invoices
      */
     public function markBulkAsPaid(Request $request)

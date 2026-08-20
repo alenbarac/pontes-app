@@ -22,10 +22,13 @@ class PaymentSlipPdfService
 
         // Fallbacks so the template never breaks
         $memberFullName = trim(($invoice->member->first_name ?? '').' '.($invoice->member->last_name ?? ''));
+        $slipPayerOverride = trim((string) ($invoice->member->slip_payer_name ?? ''));
+        $payerDisplayName = $slipPayerOverride !== '' ? $slipPayerOverride : $memberFullName;
         $memberAddress = trim($invoice->member->address ?? '');
-        $notes = $invoice->notes ?? 'Članarina';
+        $notes = $invoice->slipPaymentNotes();
 
-        // For HUB3 API: combined description (max 35 chars)
+        // Opis plaćanja first line is always the member. Second line is notes
+        // (or per-invoice slip_description override). slip_payer_name is PLATITELJ only.
         $descriptionForBarcode = trim($memberFullName.' - '.$notes);
 
         $org = config('pontes');
@@ -66,7 +69,7 @@ class PaymentSlipPdfService
                     'amount' => $amountCents,
                     'currency' => $org['currency'],
                     'sender' => [
-                        'name' => mb_substr($memberFullName, 0, 30),
+                        'name' => mb_substr($payerDisplayName, 0, 30),
                         'street' => mb_substr($payerStreet, 0, 27),
                         'place' => mb_substr($payerPlace, 0, 27),
                     ],
@@ -107,7 +110,7 @@ class PaymentSlipPdfService
 
         $data = [
             'bgPath' => public_path('images/uplatnica.jpg'),
-            'member_name' => $memberFullName,
+            'member_name' => $payerDisplayName,
             'member_address' => $memberAddress,
             'amount' => $amount,
             'currency' => $org['currency'],

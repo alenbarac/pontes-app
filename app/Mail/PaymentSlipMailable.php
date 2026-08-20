@@ -42,13 +42,15 @@ class PaymentSlipMailable extends Mailable
         $invoice->load(['member', 'workshop', 'membershipPlan']);
 
         $memberFullName = trim(($invoice->member->first_name ?? '').' '.($invoice->member->last_name ?? ''));
+        $slipPayerOverride = trim((string) ($invoice->member->slip_payer_name ?? ''));
+        $payerDisplayName = $slipPayerOverride !== '' ? $slipPayerOverride : $memberFullName;
         $amount = number_format((float) $invoice->amount_due, 2, ',', '.');
         $dueDate = \Carbon\Carbon::parse($invoice->due_date)->format('d.m.Y.');
 
         return new Content(
             view: 'emails.payment-slip',
             with: [
-                'memberName' => $memberFullName,
+                'memberName' => $payerDisplayName,
                 'referenceCode' => $invoice->reference_code,
                 'amount' => $amount,
                 'dueDate' => $dueDate,

@@ -136,6 +136,16 @@ const MemberInfoCard = ({memberData}) => {
                       </div>
                       <div>
                           <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">
+                              Platitelj na uplatnici
+                          </p>
+                          <p className="text-sm font-medium text-gray-800 dark:text-white/90">
+                              {memberData?.slip_payer_name?.trim()
+                                  ? memberData.slip_payer_name
+                                  : `${memberData?.first_name ?? ""} ${memberData?.last_name ?? ""}`.trim() || "—"}
+                          </p>
+                      </div>
+                      <div>
+                          <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">
                               Status člana
                           </p>
                           <Badge

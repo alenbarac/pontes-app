@@ -25,6 +25,8 @@ export default function MemberCreateForm({
         is_active: true,
         parent_contact: "",
         parent_email: "",
+        invoice_email: "",
+        slip_payer_name: "",
         workshop_id: "",
         group_id: "",
         membership_plan_id: "",
@@ -327,6 +329,27 @@ export default function MemberCreateForm({
                         </p>
                     )}
                 </div>
+            </div>
+
+            <div className="mb-5">
+                <Label htmlFor="slip_payer_name">Platitelj na uplatnici</Label>
+                <Input
+                    type="text"
+                    id="slip_payer_name"
+                    placeholder="Prazno = ime i prezime polaznika"
+                    value={data.slip_payer_name}
+                    onChange={(e) =>
+                        setData("slip_payer_name", e.target.value)
+                    }
+                />
+                {errors.slip_payer_name && (
+                    <p className="text-red-500 text-sm">
+                        {errors.slip_payer_name}
+                    </p>
+                )}
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Ako uplatu plaća roditelj/skrbnik, unesite ime za uplatnicu.
+                </p>
             </div>
 
             <div className="mt-6 flex justify-end gap-3">

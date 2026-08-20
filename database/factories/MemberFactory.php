@@ -26,6 +26,7 @@ class MemberFactory extends Factory
             'parent_contact' => $this->faker->optional()->phoneNumber,
             'parent_email' => $this->faker->optional()->safeEmail,
             'invoice_email' => $this->faker->optional()->safeEmail,
+            'slip_payer_name' => null,
         ];
     }
 }

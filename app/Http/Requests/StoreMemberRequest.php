@@ -31,6 +31,7 @@ class StoreMemberRequest extends FormRequest
             'parent_contact' => 'nullable|string|max:20',
             'parent_email' => 'nullable|email|max:255',
             'invoice_email' => 'nullable|email|max:255',
+            'slip_payer_name' => 'nullable|string|max:255',
 
             // ✅ Ensure relationships exist
             'workshop_id' => 'required|exists:workshops,id',

@@ -259,6 +259,7 @@ class MemberController extends Controller
                     'due_date' => $invoice->due_date,
                     'payment_status' => $invoice->payment_status,
                     'notes' => $invoice->notes,
+                    'slip_description' => $invoice->slip_description,
                     'workshop_id' => $invoice->workshop_id,
                     'workshop' => $invoice->workshop ? [
                         'id' => $invoice->workshop->id,

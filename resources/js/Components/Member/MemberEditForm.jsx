@@ -14,6 +14,7 @@ const MemberEditForm = ({ member, workshops, groups, membershipPlans }) => {
        parent_contact: member.parent_contact,
        parent_email: member.parent_email,
        invoice_email: member.invoice_email,
+       slip_payer_name: member.slip_payer_name ?? "",
        currentEnrollment: {
            workshop_id: member.workshops[0]?.id || "",
            // Force the pivot value to a string, or fallback to member.memberships[0].id if needed.
@@ -257,6 +258,30 @@ const MemberEditForm = ({ member, workshops, groups, membershipPlans }) => {
                         </p>
                     )}
                 </div>
+            </div>
+
+            <div className="mb-5 w-full">
+                <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                    Platitelj na uplatnici
+                </label>
+                <input
+                    type="text"
+                    placeholder="Prazno = ime i prezime polaznika"
+                    className="w-full rounded border px-5 py-3"
+                    value={data.slip_payer_name}
+                    onChange={(e) =>
+                        setData("slip_payer_name", e.target.value)
+                    }
+                />
+                {errors.slip_payer_name && (
+                    <p className="text-red-500 text-sm">
+                        {errors.slip_payer_name}
+                    </p>
+                )}
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Ako uplatu plaća roditelj/skrbnik, unesite ime za polje
+                    platitelja na uplatnici.
+                </p>
             </div>
 
             {/* Current Enrollment Section */}

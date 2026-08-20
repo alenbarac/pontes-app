@@ -63,11 +63,14 @@
   .poziv_primatelja  { top: 30.5mm; left: 73mm; width: 64mm; letter-spacing: 0.5mm; font-size: 3.5mm; }
   .poziv_primatelja.right  { top: 32mm; left: 160mm; font-size: 2.5mm; letter-spacing: 0mm; }
 
-  /* Opis plaćanja - two lines: member name on top, notes below */
-  .opis_ime         { top: 39mm; left: 85mm;  width: 178mm; font-size: 3.2mm; }
-  .opis_ime.right   { top: 40mm; left: 152mm; font-size: 2.5mm; }
-  .opis_napomena    { top: 43mm; left: 85mm;  width: 178mm; font-size: 3.2mm; }
-  .opis_napomena.right { top: 44mm; left: 152mm; font-size: 2.5mm; }
+  /* Opis plaćanja - two lines: member name on top, notes below.
+     Main box ends before the right stub / signature; stub has a narrower column. */
+  .opis_ime         { top: 39mm; left: 85mm;  width: 55mm; font-size: 3.35mm; overflow: hidden; white-space: nowrap; }
+  .opis_ime.right   { top: 40mm; left: 152mm; width: 50mm; font-size: 2.55mm; overflow: hidden; white-space: nowrap; }
+  .opis_napomena    { top: 43mm; left: 85mm;  width: 55mm; max-height: 8.5mm; font-size: 2.75mm; line-height: 1.15; overflow: hidden; word-wrap: break-word; }
+  .opis_napomena.right { top: 43.5mm; left: 152mm; width: 50mm; max-height: 10mm; font-size: 2.15mm; line-height: 1.15; overflow: hidden; word-wrap: break-word; }
+  .opis_napomena.long { font-size: 2.4mm; }
+  .opis_napomena.right.long { font-size: 1.9mm; }
 
   /* Datum izvršenja (we'll use due date) */
   .datum             { top: 56mm; left: 28mm; width: 26mm; text-align: center; }
@@ -123,11 +126,15 @@
     <div class="f poziv_primatelja">{{ $reference }}</div>
     <div class="f right poziv_primatelja">{{ $reference }}</div>
 
-    {{-- Opis plaćanja - Member name on top row, notes on second row --}}
+    {{-- Opis plaćanja - Member name on top row, notes wrap in the box --}}
+    @php
+        $opisLength = mb_strlen((string) $payment_notes);
+        $opisLongClass = $opisLength > 42 ? ' long' : '';
+    @endphp
     <div class="f opis_ime">{{ $member_name_for_description }}</div>
     <div class="f opis_ime right">{{ $member_name_for_description }}</div>
-    <div class="f opis_napomena">{{ $payment_notes }}</div>
-    <div class="f opis_napomena right">{{ $payment_notes }}</div>
+    <div class="f opis_napomena{{ $opisLongClass }}">{{ $payment_notes }}</div>
+    <div class="f opis_napomena right{{ $opisLongClass }}">{{ $payment_notes }}</div>
 
     {{-- PDF417 Barcode (2D barcode for HUB3 format - Croatian payment slip standard) --}}
     @if(isset($barcode_path) && !empty($barcode_path) && file_exists($barcode_path))
