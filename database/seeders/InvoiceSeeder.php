@@ -33,7 +33,7 @@ class InvoiceSeeder extends Seeder
                     'polugodišnje' => Carbon::parse($startDate)->copy()->addMonths(6 * $i),
                     'godišnje' => Carbon::parse($startDate)->copy()->addYears($i),
                     default => Carbon::parse($startDate),
-                };
+                }->startOfMonth()->day(15);
 
                 // Generate reference code using the model's helper method
                 $referenceCode = Invoice::generateReferenceCode(

@@ -63,14 +63,17 @@
   .poziv_primatelja  { top: 30.5mm; left: 73mm; width: 64mm; letter-spacing: 0.5mm; font-size: 3.5mm; }
   .poziv_primatelja.right  { top: 32mm; left: 160mm; font-size: 2.5mm; letter-spacing: 0mm; }
 
-  /* Opis plaćanja - two lines: member name on top, notes below.
+  /* Opis plaćanja: member name on first form row, notes, then Rok plaćanja (main only).
      Main box ends before the right stub / signature; stub has a narrower column. */
-  .opis_ime         { top: 39mm; left: 85mm;  width: 55mm; font-size: 3.35mm; overflow: hidden; white-space: nowrap; }
-  .opis_ime.right   { top: 40mm; left: 152mm; width: 50mm; font-size: 2.55mm; overflow: hidden; white-space: nowrap; }
-  .opis_napomena    { top: 43mm; left: 85mm;  width: 55mm; max-height: 8.5mm; font-size: 2.75mm; line-height: 1.15; overflow: hidden; word-wrap: break-word; }
-  .opis_napomena.right { top: 43.5mm; left: 152mm; width: 50mm; max-height: 10mm; font-size: 2.15mm; line-height: 1.15; overflow: hidden; word-wrap: break-word; }
-  .opis_napomena.long { font-size: 2.4mm; }
+  .opis_ime         { top: 35.5mm; left: 85mm;  width: 55mm; font-size: 3.35mm; overflow: hidden; white-space: nowrap; }
+  .opis_ime.right   { top: 39mm; left: 152mm; width: 50mm; font-size: 2.55mm; overflow: hidden; white-space: nowrap; }
+  .opis_napomena    { top: 39.5mm; left: 85mm;  width: 55mm; max-height: 3.5mm; font-size: 2.75mm; line-height: 1.15; overflow: hidden; word-wrap: break-word; }
+  .opis_napomena.right { top: 42.5mm; left: 152mm; width: 50mm; max-height: 12mm; font-size: 2.15mm; line-height: 1.15; overflow: hidden; word-wrap: break-word; }
+  .opis_napomena.long { max-height: 10mm; font-size: 2.4mm; }
   .opis_napomena.right.long { font-size: 1.9mm; }
+  /* Third row – left/center Opis plaćanja only (not mirrored on the stub) */
+  .opis_rok         { top: 43mm; left: 85mm; width: 55mm; font-size: 2.75mm; overflow: hidden; white-space: nowrap; }
+  .opis_rok.after-long { top: 46mm; }
 
   /* Datum izvršenja (we'll use due date) */
   .datum             { top: 56mm; left: 28mm; width: 26mm; text-align: center; }
@@ -126,15 +129,21 @@
     <div class="f poziv_primatelja">{{ $reference }}</div>
     <div class="f right poziv_primatelja">{{ $reference }}</div>
 
-    {{-- Opis plaćanja - Member name on top row, notes wrap in the box --}}
+    {{-- Opis plaćanja: member name, notes, Rok plaćanja (main block only) --}}
     @php
         $opisLength = mb_strlen((string) $payment_notes);
-        $opisLongClass = $opisLength > 42 ? ' long' : '';
+        $opisIsLong = $opisLength > 42;
+        $opisLongClass = $opisIsLong ? ' long' : '';
+        $opisRokClass = $opisIsLong ? ' after-long' : '';
     @endphp
     <div class="f opis_ime">{{ $member_name_for_description }}</div>
     <div class="f opis_ime right">{{ $member_name_for_description }}</div>
     <div class="f opis_napomena{{ $opisLongClass }}">{{ $payment_notes }}</div>
     <div class="f opis_napomena right{{ $opisLongClass }}">{{ $payment_notes }}</div>
+    {{-- Rok plaćanja only when using the default opis (custom opis needs the full box) --}}
+    @if(empty($has_custom_slip_description))
+    <div class="f opis_rok{{ $opisRokClass }}">Rok plaćanja: {{ $due_date }}</div>
+    @endif
 
     {{-- PDF417 Barcode (2D barcode for HUB3 format - Croatian payment slip standard) --}}
     @if(isset($barcode_path) && !empty($barcode_path) && file_exists($barcode_path))

@@ -118,6 +118,7 @@ class PaymentSlipPdfService
             'reference' => $invoice->reference_code,
             'member_name_for_description' => $memberFullName,
             'payment_notes' => $notes,
+            'has_custom_slip_description' => trim((string) ($invoice->slip_description ?? '')) !== '',
             'recipient_name' => $org['recipient_name'],
             'recipient_address' => $org['recipient_address'],
             'recipient_postal' => $org['recipient_postal'],

@@ -147,6 +147,7 @@ class InvoiceController extends Controller
         $validated = $request->validate([
             'slip_description' => ['nullable', 'string', 'max:255'],
             'amount_due' => ['nullable', 'numeric', 'min:0.01'],
+            'due_date' => ['nullable', 'date'],
             'status' => ['nullable', 'in:Plaćeno,Otvoreno,Neusklađeno'],
         ]);
 
@@ -157,6 +158,10 @@ class InvoiceController extends Controller
 
         if (array_key_exists('amount_due', $validated) && $validated['amount_due'] !== null) {
             $invoice->amount_due = round((float) $validated['amount_due'], 2);
+        }
+
+        if (array_key_exists('due_date', $validated) && ! empty($validated['due_date'])) {
+            $invoice->due_date = $validated['due_date'];
         }
 
         $status = $validated['status'] ?? $invoice->payment_status;

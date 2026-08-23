@@ -20,6 +20,7 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
     const [modalStatus, setModalStatus] = useState("");
     const [slipDescription, setSlipDescription] = useState("");
     const [modalAmount, setModalAmount] = useState("");
+    const [modalDueDate, setModalDueDate] = useState("");
     
     // Session invoice generation state
     const sessionInvoiceModal = useModal();
@@ -237,6 +238,11 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
         setModalAmount(
             invoice?.amount_due != null ? Number(invoice.amount_due).toFixed(2) : "",
         );
+        setModalDueDate(
+            invoice?.due_date
+                ? String(invoice.due_date).slice(0, 10)
+                : "",
+        );
         setShowInvoiceModal(true);
     };
 
@@ -274,6 +280,7 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
         setModalStatus("");
         setSlipDescription("");
         setModalAmount("");
+        setModalDueDate("");
     };
 
     const handleSendEmail = (invoice) => {
@@ -316,10 +323,16 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
         const invoiceToUpdate = activeInvoice;
         const currentStatus = modalStatus;
         const descriptionToSave = slipDescription;
+        const dueDateToSave = modalDueDate;
         const amount = Number(String(modalAmount).replace(",", "."));
 
         if (!amount || amount <= 0) {
             toast.error("Unesite ispravan iznos.");
+            return;
+        }
+
+        if (!dueDateToSave) {
+            toast.error("Odaberite datum dospijeća.");
             return;
         }
 
@@ -331,6 +344,7 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                 status: currentStatus,
                 slip_description: descriptionToSave,
                 amount_due: amount,
+                due_date: dueDateToSave,
                 stay_on_page: true,
             },
             {
@@ -574,10 +588,10 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                             </button>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                            {/* Left: Meta (2 columns, 3 items) */}
-                            <div className="sm:col-span-2">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                            {/* Left: invoice meta + slip adjustments */}
+                            <div className="space-y-5 lg:col-span-2">
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                     <div>
                                         <div className="text-xs uppercase text-gray-500">
                                             Član
@@ -618,32 +632,6 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                                     </div>
                                     <div>
                                         <div className="text-xs uppercase text-gray-500">
-                                            Iznos
-                                        </div>
-                                        <Input
-                                            type="number"
-                                            id="invoice-amount"
-                                            min="0.01"
-                                            step={0.01}
-                                            value={modalAmount}
-                                            onChange={(e) =>
-                                                setModalAmount(e.target.value)
-                                            }
-                                        />
-                                    </div>
-                                    <div>
-                                        <div className="text-xs uppercase text-gray-500">
-                                            Dospijeće
-                                        </div>
-                                        <div className="text-sm text-gray-900 dark:text-gray-100">
-                                            {format(
-                                                new Date(activeInvoice.due_date),
-                                                "dd.MM.yyyy.",
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div className="text-xs uppercase text-gray-500">
                                             Referenca
                                         </div>
                                         <div className="text-sm text-gray-900 dark:text-gray-100">
@@ -658,46 +646,93 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                                             {Number(activeInvoice.amount_paid || 0).toFixed(2)} €
                                         </div>
                                     </div>
-                                </div>
-                                <div className="mt-4">
-                                    <div className="text-xs uppercase text-gray-500">
-                                        Napomena
+                                    <div>
+                                        <div className="text-xs uppercase text-gray-500">
+                                            Napomena
+                                        </div>
+                                        <div className="text-sm text-gray-900 dark:text-gray-100">
+                                            {activeInvoice.notes || "—"}
+                                        </div>
                                     </div>
-                                    <div className="text-sm text-gray-900 dark:text-gray-100">
-                                        {activeInvoice.notes || "—"}
-                                    </div>
                                 </div>
-                                <div className="mt-4">
-                                    <Label htmlFor="slip_description">
-                                        Opis plaćanja na uplatnici (2. red)
-                                    </Label>
-                                    <Input
-                                        type="text"
-                                        id="slip_description"
-                                        placeholder={
-                                            activeInvoice.notes ||
-                                            "Prazno = automatski opis (članarina / mjesec)"
-                                        }
-                                        value={slipDescription}
-                                        onChange={(e) =>
-                                            setSlipDescription(e.target.value)
-                                        }
-                                    />
-                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                        Prvi red ostaje ime polaznika. Ako je
-                                        prazno, drugi red koristi napomenu
-                                        iznad.
-                                    </p>
+
+                                <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+                                    <div className="mb-3">
+                                        <h4 className="text-sm font-semibold text-gray-800 dark:text-white/90">
+                                            Prilagodba uplatnice
+                                        </h4>
+                                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                                            Ručne izmjene koje se ispisuju na uplatnici.
+                                        </p>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                        <div>
+                                            <Label htmlFor="invoice-amount">Iznos (€)</Label>
+                                            <Input
+                                                type="number"
+                                                id="invoice-amount"
+                                                min="0.01"
+                                                step={0.01}
+                                                value={modalAmount}
+                                                onChange={(e) =>
+                                                    setModalAmount(e.target.value)
+                                                }
+                                            />
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="invoice-due-date">Dospijeće</Label>
+                                            <div className="relative w-full flatpickr-wrapper">
+                                                <Flatpickr
+                                                    id="invoice-due-date"
+                                                    value={modalDueDate}
+                                                    onChange={(_, dateStr) =>
+                                                        setModalDueDate(dateStr)
+                                                    }
+                                                    options={{
+                                                        dateFormat: "Y-m-d",
+                                                        allowInput: true,
+                                                    }}
+                                                    placeholder="Odaberite datum"
+                                                    className="h-11 w-full rounded-lg border appearance-none px-4 py-2.5 text-sm shadow-theme-xs placeholder:text-gray-400 focus:outline-hidden focus:ring-3 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 bg-transparent text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20 dark:border-gray-700 dark:focus:border-brand-800"
+                                                />
+                                                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">
+                                                    <CalendarDaysIcon className="size-5" />
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="sm:col-span-2">
+                                            <Label htmlFor="slip_description">
+                                                Opis plaćanja (2. red)
+                                            </Label>
+                                            <Input
+                                                type="text"
+                                                id="slip_description"
+                                                placeholder={
+                                                    activeInvoice.notes ||
+                                                    "Prazno = automatski opis (članarina / mjesec)"
+                                                }
+                                                value={slipDescription}
+                                                onChange={(e) =>
+                                                    setSlipDescription(e.target.value)
+                                                }
+                                            />
+                                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                                1. red: ime polaznika. Ako je prazno, 2. red
+                                                koristi napomenu iznad.
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Right: Actions with status toggle */}
+                            {/* Right: status + actions */}
                             <div className="flex flex-col gap-4">
                                 <div>
-                                    <div className="text-xs uppercase text-gray-500 mb-2">
+                                    <div className="mb-3 text-xs uppercase text-gray-500">
                                         Status
                                     </div>
-                                    <div className="flex items-center gap-6">
+                                    <div className="flex flex-col gap-3">
                                         <Radio
                                             id="status-paid"
                                             name="invoice-status"
@@ -705,7 +740,6 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                                             checked={modalStatus === "Plaćeno"}
                                             label="Plaćeno"
                                             onChange={setModalStatus}
-                                            className=""
                                         />
                                         <Radio
                                             id="status-open"
@@ -730,7 +764,7 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                                     href={route("invoices.slip", activeInvoice.id)}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium border rounded-lg hover:bg-gray-50 dark:border-gray-700"
+                                    className="inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium hover:bg-gray-50 dark:border-gray-700"
                                     onClick={(e) => e.stopPropagation()}
                                 >
                                     Uplatnica (PDF)
@@ -741,7 +775,7 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                                         handleSendEmail(activeInvoice);
                                     }}
                                     disabled={sendingEmail}
-                                    className="inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium border rounded-lg hover:bg-gray-50 dark:border-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                                    className="inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700"
                                     title={sendingEmail ? "Slanje u tijeku..." : "Pošalji uplatnicu na e-mail"}
                                 >
                                     {sendingEmail ? (
@@ -762,13 +796,13 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                                         closeInvoiceDetails();
                                         deleteInvoiceModal.openModal();
                                     }}
-                                    className="inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium border rounded-lg text-red-600 border-red-200 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20 transition"
+                                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20"
                                 >
                                     <TrashIcon className="h-4 w-4" />
                                     Brisanje računa
                                 </button>
 
-                                <div className="flex items-center justify-end gap-2 pt-2">
+                                <div className="mt-auto flex items-center justify-end gap-2 border-t border-gray-100 pt-4 dark:border-gray-800">
                                     <Button
                                         onClick={closeInvoiceDetails}
                                         variant="outline"

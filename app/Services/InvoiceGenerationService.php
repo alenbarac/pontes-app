@@ -194,8 +194,8 @@ class InvoiceGenerationService
             return null;
         }
 
-        // Use the first day of the target month as due date
-        $dueDate = $targetMonth->copy()->startOfMonth();
+        // Membership invoices are always due on the 15th of the billing month
+        $dueDate = $targetMonth->copy()->startOfMonth()->day(15);
 
         // Generate reference code
         $referenceCode = Invoice::generateReferenceCode(
