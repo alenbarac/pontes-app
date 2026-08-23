@@ -1,6 +1,6 @@
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { Head } from "@inertiajs/react";
-import RevenueInsights from "@/Components/Dashboard/RevenueInsights";
+import CashFlowWidget from "@/Components/Dashboard/CashFlowWidget";
 import RevenueTrendChart from "@/Components/Dashboard/RevenueTrendChart";
 import DashboardQuickActions from "@/Components/Dashboard/DashboardQuickActions";
 import GroupCards from "@/Components/Dashboard/GroupCards";
@@ -17,8 +17,7 @@ export default function Dashboard({ revenue, groups }) {
             <Head title="Dashboard" />
 
             <div className="space-y-6">
-                {/* Revenue & Invoice Insights */}
-                <RevenueInsights revenue={revenue} />
+                <CashFlowWidget revenue={revenue} />
                 <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
                     <div className="xl:col-span-2">
                         <RevenueTrendChart trend={revenue?.trend} />
@@ -26,7 +25,6 @@ export default function Dashboard({ revenue, groups }) {
                     <DashboardQuickActions />
                 </div>
 
-                {/* Groups Cards */}
                 <GroupCards groups={groups} />
             </div>
         </AuthenticatedLayout>

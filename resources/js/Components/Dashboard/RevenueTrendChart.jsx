@@ -12,11 +12,13 @@ function formatCurrency(value) {
 
 export default function RevenueTrendChart({ trend }) {
   const [selectedRange, setSelectedRange] = useState("12m");
+  const [viewMode, setViewMode] = useState("cash");
   const [isDark, setIsDark] = useState(false);
 
   const labels = trend?.labels || [];
-  const generated = trend?.generated || [];
-  const paid = trend?.paid || [];
+  const modeData = viewMode === "recurring" ? trend?.recurring : trend?.cash;
+  const expected = modeData?.expected || [];
+  const collected = modeData?.collected || [];
 
   useEffect(() => {
     const root = document.documentElement;
@@ -33,21 +35,21 @@ export default function RevenueTrendChart({ trend }) {
     if (selectedRange === "1m") {
       return {
         labels: labels.slice(-1),
-        generated: generated.slice(-1),
-        paid: paid.slice(-1),
+        expected: expected.slice(-1),
+        collected: collected.slice(-1),
       };
     }
 
     if (selectedRange === "4m") {
       return {
         labels: labels.slice(-4),
-        generated: generated.slice(-4),
-        paid: paid.slice(-4),
+        expected: expected.slice(-4),
+        collected: collected.slice(-4),
       };
     }
 
-    return { labels, generated, paid };
-  }, [selectedRange, labels, generated, paid]);
+    return { labels, expected, collected };
+  }, [selectedRange, labels, expected, collected]);
 
   const detailTextColor = isDark ? "#CBD5E1" : "#6B7280";
   const gridColor = isDark ? "#334155" : "#E5E7EB";
@@ -113,48 +115,73 @@ export default function RevenueTrendChart({ trend }) {
   };
 
   const series = [
-    { name: "Generirani", data: visible.generated },
-    { name: "Plaćeni", data: visible.paid },
+    { name: "Očekivano", data: visible.expected },
+    { name: "Naplaćeno", data: visible.collected },
   ];
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
-          Trend računa i naplate
+          Očekivano vs. naplaćeno
         </h3>
 
-        <div className="inline-flex w-fit items-center gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-900">
-          <button
-            onClick={() => setSelectedRange("1m")}
-            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-              selectedRange === "1m"
-                ? "bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white"
-                : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-            }`}
-          >
-            Trenutni mjesec
-          </button>
-          <button
-            onClick={() => setSelectedRange("4m")}
-            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-              selectedRange === "4m"
-                ? "bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white"
-                : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-            }`}
-          >
-            Kvartal
-          </button>
-          <button
-            onClick={() => setSelectedRange("12m")}
-            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-              selectedRange === "12m"
-                ? "bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white"
-                : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-            }`}
-          >
-            12 mjeseci
-          </button>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="inline-flex w-fit items-center gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-900">
+            <button
+              onClick={() => setViewMode("cash")}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                viewMode === "cash"
+                  ? "bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white"
+                  : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+              }`}
+            >
+              Cash
+            </button>
+            <button
+              onClick={() => setViewMode("recurring")}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                viewMode === "recurring"
+                  ? "bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white"
+                  : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+              }`}
+            >
+              Recurring
+            </button>
+          </div>
+
+          <div className="inline-flex w-fit items-center gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-900">
+            <button
+              onClick={() => setSelectedRange("1m")}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                selectedRange === "1m"
+                  ? "bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white"
+                  : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+              }`}
+            >
+              Trenutni mjesec
+            </button>
+            <button
+              onClick={() => setSelectedRange("4m")}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                selectedRange === "4m"
+                  ? "bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white"
+                  : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+              }`}
+            >
+              Kvartal
+            </button>
+            <button
+              onClick={() => setSelectedRange("12m")}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                selectedRange === "12m"
+                  ? "bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white"
+                  : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+              }`}
+            >
+              12 mjeseci
+            </button>
+          </div>
         </div>
       </div>
 
