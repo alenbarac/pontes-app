@@ -32,6 +32,7 @@ class MemberController extends Controller
         $filter = $request->input('filter', '');
         $workshopId = $request->input('workshop_id', '');
         $groupId = $request->input('group_id', '');
+        $membershipPlanId = $request->input('membership_plan_id', '');
 
         $query = Member::with([
             'workshops.memberships',
@@ -49,6 +50,13 @@ class MemberController extends Controller
                     })
                     ->orWhereHas('workshopGroups.group', function ($q) use ($filter) {
                         $q->where('name', 'like', "%{$filter}%");
+                    })
+                    ->orWhereExists(function ($sub) use ($filter) {
+                        $sub->selectRaw(1)
+                            ->from('member_workshop')
+                            ->join('membership_plans', 'membership_plans.id', '=', 'member_workshop.membership_plan_id')
+                            ->whereColumn('member_workshop.member_id', 'members.id')
+                            ->where('membership_plans.plan', 'like', "%{$filter}%");
                     });
 
             });
@@ -71,6 +79,13 @@ class MemberController extends Controller
             });
         }
 
+        // Filter by membership plan (assigned on the member_workshop pivot)
+        if (! empty($membershipPlanId)) {
+            $query->whereHas('workshops', function ($q) use ($membershipPlanId) {
+                $q->where('member_workshop.membership_plan_id', $membershipPlanId);
+            });
+        }
+
         $members = $query->paginate($perPage, ['*'], 'page', $page)->withQueryString();
 
         // Get all workshops for the filter dropdown
@@ -87,6 +102,23 @@ class MemberController extends Controller
             ->orderBy('member_groups.name')
             ->get();
 
+        // Plans for filter (optionally scoped by workshop)
+        $membershipPlans = MembershipPlan::query()
+            ->select('id', 'workshop_id', 'plan', 'total_fee')
+            ->with('workshop:id,name')
+            ->when($workshopId, function ($q) use ($workshopId) {
+                $q->where('workshop_id', $workshopId);
+            })
+            ->orderBy('plan')
+            ->get()
+            ->map(fn (MembershipPlan $plan) => [
+                'id' => $plan->id,
+                'workshop_id' => $plan->workshop_id,
+                'plan' => $plan->plan,
+                'total_fee' => $plan->total_fee,
+                'workshop_name' => $plan->workshop?->name,
+            ]);
+
         return inertia('Members/Index', [
             'members' => [
                 'data' => MemberResource::collection($members->items()),
@@ -100,8 +132,10 @@ class MemberController extends Controller
             'filter' => $filter,
             'workshopId' => $workshopId,
             'groupId' => $groupId,
+            'membershipPlanId' => $membershipPlanId,
             'workshops' => $workshops,
             'groups' => $groups,
+            'membershipPlans' => $membershipPlans,
         ]);
 
     }
@@ -270,6 +304,14 @@ class MemberController extends Controller
                         'plan' => $invoice->membershipPlan->plan,
                         'total_fee' => $invoice->membershipPlan->total_fee,
                     ] : null,
+                    'discount_percent' => $invoice->discount_percent !== null
+                        ? (float) $invoice->discount_percent
+                        : null,
+                    'original_amount' => $invoice->original_amount !== null
+                        ? (float) $invoice->original_amount
+                        : null,
+                    'has_discount' => $invoice->has_discount,
+                    'discount_label' => $invoice->discount_label,
                 ];
             })->values()->all();
         })->toArray();

@@ -33,6 +33,14 @@ interface Group {
     name: string;
 }
 
+interface MembershipPlan {
+    id: number;
+    workshop_id: number;
+    plan: string;
+    total_fee?: number | string | null;
+    workshop_name?: string;
+}
+
 interface Pagination {
     current_page: number;
     per_page: number;
@@ -47,8 +55,10 @@ interface MembersDataTableProps {
     pageSizeOptions?: number[];
     workshops?: Workshop[];
     groups?: Group[];
+    membershipPlans?: MembershipPlan[];
     initialWorkshopId?: string;
     initialGroupId?: string;
+    initialMembershipPlanId?: string;
     initialFilter?: string;
 }
 
@@ -59,15 +69,19 @@ const MembersDataTable: React.FC<MembersDataTableProps> = ({
     pageSizeOptions = [5, 10, 20, 50],
     workshops = [],
     groups = [],
+    membershipPlans = [],
     initialWorkshopId = "",
     initialGroupId = "",
+    initialMembershipPlanId = "",
     initialFilter = "",
 }) => {
     const [globalFilter, setGlobalFilter] = useState(initialFilter);
     const [workshopId, setWorkshopId] = useState(initialWorkshopId);
     const [groupId, setGroupId] = useState(initialGroupId);
+    const [membershipPlanId, setMembershipPlanId] = useState(initialMembershipPlanId);
     const [isWorkshopDropdownOpen, setIsWorkshopDropdownOpen] = useState(false);
     const [isGroupDropdownOpen, setIsGroupDropdownOpen] = useState(false);
+    const [isPlanDropdownOpen, setIsPlanDropdownOpen] = useState(false);
     const deleteModal = useModal();
     const slipEmailModal = useModal();
     const [memberToDelete, setMemberToDelete] = useState<Member | null>(null);
@@ -219,12 +233,13 @@ const MembersDataTable: React.FC<MembersDataTableProps> = ({
                     filter: globalFilter,
                     workshop_id: workshopId,
                     group_id: groupId,
+                    membership_plan_id: membershipPlanId,
                 },
                 { preserveState: true },
             );
         }, 500);
         return () => clearTimeout(timeout);
-    }, [globalFilter, workshopId, groupId, pagination.current_page, pagination.per_page]);
+    }, [globalFilter, workshopId, groupId, membershipPlanId, pagination.current_page, pagination.per_page]);
 
     const table = useReactTable({
         data,
@@ -242,6 +257,7 @@ const MembersDataTable: React.FC<MembersDataTableProps> = ({
             filter: globalFilter,
             workshop_id: workshopId,
             group_id: groupId,
+            membership_plan_id: membershipPlanId,
         });
 
     const handlePageSizeChange = (size: number) =>
@@ -251,7 +267,23 @@ const MembersDataTable: React.FC<MembersDataTableProps> = ({
             filter: globalFilter,
             workshop_id: workshopId,
             group_id: groupId,
+            membership_plan_id: membershipPlanId,
         });
+
+    const selectedPlan = membershipPlans.find(
+        (p) => p.id.toString() === membershipPlanId,
+    );
+
+    const formatPlanLabel = (plan: MembershipPlan, includeWorkshop = false) => {
+        const fee =
+            plan.total_fee != null
+                ? ` (${parseFloat(String(plan.total_fee)).toFixed(2)} EUR)`
+                : "";
+        if (includeWorkshop && plan.workshop_name) {
+            return `${plan.workshop_name} — ${plan.plan}${fee}`;
+        }
+        return `${plan.plan}${fee}`;
+    };
 
     return (
         <>
@@ -339,6 +371,7 @@ const MembersDataTable: React.FC<MembersDataTableProps> = ({
                                 setGlobalFilter("");
                                 setWorkshopId("");
                                 setGroupId("");
+                                setMembershipPlanId("");
                             }}
                             className="inline-flex items-center gap-1 px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-dark dark:hover:bg-gray-800 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100 transition"
                             title="Poništi filtere"
@@ -364,11 +397,13 @@ const MembersDataTable: React.FC<MembersDataTableProps> = ({
                         {/* Workshop Filter Dropdown */}
                         <div className="relative inline-block">
                             <button
-                                onClick={() =>
+                                onClick={() => {
+                                    setIsGroupDropdownOpen(false);
+                                    setIsPlanDropdownOpen(false);
                                     setIsWorkshopDropdownOpen(
                                         !isWorkshopDropdownOpen,
-                                    )
-                                }
+                                    );
+                                }}
                                 className="inline-flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 rounded-lg dropdown-toggle border border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-dark dark:hover:bg-gray-800 min-w-[180px]"
                             >
                                 <span className="truncate">
@@ -410,6 +445,8 @@ const MembersDataTable: React.FC<MembersDataTableProps> = ({
                                         <DropdownItem
                                             onClick={() => {
                                                 setWorkshopId("");
+                                                setGroupId("");
+                                                setMembershipPlanId("");
                                                 setIsWorkshopDropdownOpen(
                                                     false,
                                                 );
@@ -436,8 +473,9 @@ const MembersDataTable: React.FC<MembersDataTableProps> = ({
                                                     setWorkshopId(
                                                         workshop.id.toString(),
                                                     );
-                                                    // Reset group when workshop changes
+                                                    // Reset dependent filters when workshop changes
                                                     setGroupId("");
+                                                    setMembershipPlanId("");
                                                     setIsWorkshopDropdownOpen(
                                                         false,
                                                     );
@@ -463,6 +501,7 @@ const MembersDataTable: React.FC<MembersDataTableProps> = ({
                             <button
                                 onClick={() => {
                                     setIsWorkshopDropdownOpen(false);
+                                    setIsPlanDropdownOpen(false);
                                     setIsGroupDropdownOpen(!isGroupDropdownOpen);
                                 }}
                                 className="inline-flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 rounded-lg dropdown-toggle border border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-dark dark:hover:bg-gray-800 min-w-[180px]"
@@ -537,6 +576,101 @@ const MembersDataTable: React.FC<MembersDataTableProps> = ({
                                                 baseClassName=""
                                             >
                                                 {g.name}
+                                            </DropdownItem>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </Dropdown>
+                        </div>
+
+                        {/* Membership Plan Filter Dropdown */}
+                        <div className="relative inline-block">
+                            <button
+                                onClick={() => {
+                                    setIsWorkshopDropdownOpen(false);
+                                    setIsGroupDropdownOpen(false);
+                                    setIsPlanDropdownOpen(!isPlanDropdownOpen);
+                                }}
+                                className="inline-flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 rounded-lg dropdown-toggle border border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-dark dark:hover:bg-gray-800 min-w-[180px]"
+                            >
+                                <span className="truncate">
+                                    {selectedPlan
+                                        ? formatPlanLabel(
+                                              selectedPlan,
+                                              !workshopId,
+                                          )
+                                        : "Sve članarine"}
+                                </span>
+                                <svg
+                                    className={`duration-200 ease-in-out stroke-current ${
+                                        isPlanDropdownOpen ? "rotate-180" : ""
+                                    }`}
+                                    width="20"
+                                    height="20"
+                                    viewBox="0 0 20 20"
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <path
+                                        d="M4.79199 7.396L10.0003 12.6043L15.2087 7.396"
+                                        stroke=""
+                                        strokeWidth="1.5"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                    />
+                                </svg>
+                            </button>
+
+                            <Dropdown
+                                className="absolute left-0 top-full z-40 mt-2 w-full min-w-[260px] rounded-2xl border border-gray-200 bg-white p-3 shadow-theme-lg dark:border-gray-800 dark:bg-[#1E2635]"
+                                isOpen={isPlanDropdownOpen}
+                                onClose={() => setIsPlanDropdownOpen(false)}
+                            >
+                                <ul className="flex flex-col gap-1 max-h-[300px] overflow-y-auto">
+                                    <li>
+                                        <DropdownItem
+                                            onClick={() => {
+                                                setMembershipPlanId("");
+                                                setIsPlanDropdownOpen(false);
+                                            }}
+                                            className={`flex rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5 ${
+                                                !membershipPlanId
+                                                    ? "bg-gray-100 text-gray-900 dark:bg-white/10 dark:text-white"
+                                                    : "text-gray-700 dark:text-gray-300"
+                                            }`}
+                                            baseClassName=""
+                                        >
+                                            Sve članarine
+                                        </DropdownItem>
+                                    </li>
+                                    {membershipPlans.length > 0 && (
+                                        <li>
+                                            <span className="my-1.5 block h-px w-full bg-gray-200 dark:bg-[#353C49]"></span>
+                                        </li>
+                                    )}
+                                    {membershipPlans.map((plan) => (
+                                        <li key={plan.id}>
+                                            <DropdownItem
+                                                onClick={() => {
+                                                    setMembershipPlanId(
+                                                        plan.id.toString(),
+                                                    );
+                                                    setIsPlanDropdownOpen(
+                                                        false,
+                                                    );
+                                                }}
+                                                className={`flex rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5 ${
+                                                    membershipPlanId ===
+                                                    plan.id.toString()
+                                                        ? "bg-gray-100 text-gray-900 dark:bg-white/10 dark:text-white"
+                                                        : "text-gray-700 dark:text-gray-300"
+                                                }`}
+                                                baseClassName=""
+                                            >
+                                                {formatPlanLabel(
+                                                    plan,
+                                                    !workshopId,
+                                                )}
                                             </DropdownItem>
                                         </li>
                                     ))}

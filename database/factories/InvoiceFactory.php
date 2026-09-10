@@ -20,6 +20,8 @@ class InvoiceFactory extends Factory
             'workshop_id' => Workshop::factory(),
             'membership_plan_id' => null,
             'amount_due' => $this->faker->randomFloat(2, 10, 500),
+            'discount_percent' => null,
+            'original_amount' => null,
             'amount_paid' => 0,
             'due_date' => $dueDate->format('Y-m-d'),
             'payment_status' => 'Otvoreno',

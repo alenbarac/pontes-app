@@ -17,19 +17,24 @@ class MemberImportController extends Controller
     {
         $file = $request->file('file');
 
-        $import = new MembersImport();
-        
+        $import = new MembersImport;
+
         try {
             Excel::import($import, $file);
-            
+
             $results = $import->getResults();
 
             return inertia('Members/Import', [
                 'importResult' => $results,
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Member import failed', [
+                'message' => $e->getMessage(),
+                'exception' => $e,
+            ]);
+
             return back()->withErrors([
-                'file' => 'Greška pri učitavanju datoteke: ' . $e->getMessage(),
+                'file' => 'Greška pri učitavanju datoteke: '.$e->getMessage(),
             ]);
         }
     }
@@ -42,17 +47,18 @@ class MemberImportController extends Controller
         ];
 
         $csvData = [
-            ['GRUPA', 'IME I PREZIME', 'E-MAIL', 'ČLANARINA'],
-            ['Grupa 1', 'Ivan Horvat', 'ivan.horvat@example.com', 'Mjesečna članarina'],
-            ['Grupa 2', 'Ana Marić', 'ana.maric@example.com', 'Godišnja članarina'],
+            ['GRUPA', 'IME I PREZIME', 'IME UPLATNICA', 'E-MAIL', 'ČLANARINA'],
+            ['Grupa 1', 'Ivan Horvat', 'Ana Horvat', 'ivan.horvat@example.com', 'Mjesečna članarina'],
+            ['Grupa 2', 'Ana Marić', '', 'ana.maric@example.com', 'Polugodišnja članarina'],
+            ['Grupa 3', 'Marko Kovač', 'Petar Kovač', 'marko.kovac@example.com', 'Godišnja članarina * 20 OFF'],
         ];
 
         $callback = function () use ($csvData) {
             $file = fopen('php://output', 'w');
-            
+
             // Add BOM for UTF-8 to ensure proper encoding in Excel
             fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
-            
+
             foreach ($csvData as $row) {
                 fputcsv($file, $row);
             }

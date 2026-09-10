@@ -102,6 +102,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/invoices/toggle-bulk-status', [InvoiceController::class, 'toggleBulkInvoiceStatus'])->name('invoices.toggleBulkInvoiceStatus');
     Route::post('/invoices/bulk-send-slip-emails', [InvoiceController::class, 'bulkSendSlipEmails'])
         ->name('invoices.bulkSendSlipEmails');
+    Route::post('/invoices/bulk-download-slips', [InvoiceController::class, 'bulkDownloadSlips'])
+        ->name('invoices.bulkDownloadSlips');
     Route::get('/invoices/{invoice}/slip', [InvoiceController::class, 'slip'])
         ->name('invoices.slip');
     Route::post('/invoices/{invoice}/send-email', [InvoiceController::class, 'sendEmail'])

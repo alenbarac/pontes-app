@@ -2,8 +2,8 @@
 
 use App\Models\Invoice;
 use App\Models\Member;
-use App\Models\MemberWorkshop;
 use App\Models\MembershipPlan;
+use App\Models\MemberWorkshop;
 use App\Models\User;
 use App\Models\Workshop;
 use App\Services\DashboardFinanceService;
@@ -19,7 +19,7 @@ afterEach(function () {
     Carbon::setTestNow();
 });
 
-test('dashboard returns cash-flow finance metrics for current month', function () {
+test('dashboard cash-flow widget totals all open invoices of any type', function () {
     $workshop = Workshop::factory()->create();
     $memberA = Member::factory()->create(['is_active' => true]);
     $memberB = Member::factory()->create(['is_active' => true]);
@@ -54,28 +54,30 @@ test('dashboard returns cash-flow finance metrics for current month', function (
         'invoice_type' => 'membership',
     ]);
 
+    Invoice::factory()->create([
+        'member_id' => $memberA->id,
+        'workshop_id' => $workshop->id,
+        'amount_due' => 60,
+        'amount_paid' => 0,
+        'due_date' => '2026-08-01',
+        'payment_status' => 'Otvoreno',
+        'invoice_type' => 'session',
+    ]);
+
     $response = $this->get(route('dashboard'));
 
     $response->assertOk()
         ->assertInertia(fn ($page) => $page
             ->component('Dashboard')
-            ->has('revenue.periods.current_month', fn ($period) => $period
-                ->where('label', 'Listopad')
-                ->where('button_label', 'Listopad')
-                ->where('expected_amount', 190)
-                ->where('collected_amount', 120)
-                ->where('collection_rate', 63.2)
-                ->where('expected_remaining', 40)
-                ->where('overdue', 30)
+            ->has('revenue.open', fn ($open) => $open
+                ->where('expected_amount', 130)
+                ->where('collected_amount', 20)
+                ->where('overdue', 90)
+                ->where('late_member_count', 2)
                 ->where('is_healthy', false)
                 ->etc()
             )
-            ->has('revenue.periods.school_year')
-            ->has('revenue.trend.labels', 12)
-            ->has('revenue.trend.cash.expected', 12)
-            ->has('revenue.trend.cash.collected', 12)
-            ->has('revenue.trend.recurring.expected', 12)
-            ->has('revenue.trend.recurring.collected', 12)
+            ->has('revenue.trend.labels')
         );
 });
 
@@ -191,10 +193,11 @@ test('recurring collected normalizes annual membership payments to monthly equiv
         ->update(['updated_at' => '2026-10-10 10:00:00']);
 
     $metrics = app(DashboardFinanceService::class)->buildMetrics();
-    $currentMonthIndex = count($metrics['trend']['labels']) - 1;
+    $octoberIndex = array_search('Oct 2026', $metrics['trend']['labels']);
 
-    expect($metrics['trend']['cash']['collected'][$currentMonthIndex])->toBe(430.0)
-        ->and($metrics['trend']['recurring']['collected'][$currentMonthIndex])->toBe(35.83);
+    expect($octoberIndex)->not->toBeFalse()
+        ->and($metrics['trend']['cash']['collected'][$octoberIndex])->toBe(430.0)
+        ->and($metrics['trend']['recurring']['collected'][$octoberIndex])->toBe(35.83);
 });
 
 test('recurring expected sums active memberships as monthly equivalents', function () {
@@ -235,37 +238,64 @@ test('recurring expected sums active memberships as monthly equivalents', functi
     ]);
 
     $metrics = app(DashboardFinanceService::class)->buildMetrics();
-    $currentMonthIndex = count($metrics['trend']['labels']) - 1;
+    $octoberIndex = array_search('Oct 2026', $metrics['trend']['labels']);
 
-    expect($metrics['trend']['recurring']['expected'][$currentMonthIndex])->toBe(86.0);
+    expect($octoberIndex)->not->toBeFalse()
+        ->and($metrics['trend']['recurring']['expected'][$octoberIndex])->toBe(86.0);
 });
 
-test('membership-only scope excludes session invoices from dashboard metrics', function () {
+test('open cash-flow totals include session invoices', function () {
     $workshop = Workshop::factory()->create();
     $member = Member::factory()->create();
 
     Invoice::factory()->create([
         'member_id' => $member->id,
         'workshop_id' => $workshop->id,
-        'amount_due' => 100,
-        'amount_paid' => 100,
-        'due_date' => '2026-10-15',
-        'payment_status' => 'Plaćeno',
+        'amount_due' => 450,
+        'amount_paid' => 0,
+        'due_date' => '2026-10-25',
+        'payment_status' => 'Otvoreno',
         'invoice_type' => 'membership',
     ]);
 
     Invoice::factory()->create([
         'member_id' => $member->id,
         'workshop_id' => $workshop->id,
-        'amount_due' => 500,
-        'amount_paid' => 500,
-        'due_date' => '2026-10-15',
-        'payment_status' => 'Plaćeno',
+        'amount_due' => 50,
+        'amount_paid' => 0,
+        'due_date' => '2026-08-20',
+        'payment_status' => 'Otvoreno',
         'invoice_type' => 'session',
     ]);
 
-    $currentMonth = app(DashboardFinanceService::class)->buildMetrics()['periods']['current_month'];
+    $open = app(DashboardFinanceService::class)->buildMetrics()['open'];
 
-    expect($currentMonth['expected_amount'])->toBe(100.0)
-        ->and($currentMonth['collected_amount'])->toBe(100.0);
+    expect($open['expected_amount'])->toBe(500.0)
+        ->and($open['overdue'])->toBe(50.0);
+});
+
+test('august uses the upcoming school year so september invoices appear as expected cash', function () {
+    Carbon::setTestNow(Carbon::parse('2026-08-28 12:00:00'));
+
+    $workshop = Workshop::factory()->create();
+    $member = Member::factory()->create(['is_active' => true]);
+
+    Invoice::factory()->create([
+        'member_id' => $member->id,
+        'workshop_id' => $workshop->id,
+        'amount_due' => 450,
+        'amount_paid' => 0,
+        'due_date' => '2026-09-15',
+        'payment_status' => 'Otvoreno',
+        'invoice_type' => 'membership',
+    ]);
+
+    $metrics = app(DashboardFinanceService::class)->buildMetrics();
+    $septemberIndex = array_search('Sep 2026', $metrics['trend']['labels']);
+
+    expect($metrics['periods']['school_year']['school_year_label'])->toBe('2026-2027')
+        ->and($metrics['periods']['school_year']['expected_amount'])->toBe(450.0)
+        ->and($metrics['periods']['current_month']['expected_amount'])->toBe(0.0)
+        ->and($septemberIndex)->not->toBeFalse()
+        ->and($metrics['trend']['cash']['expected'][$septemberIndex])->toBe(450.0);
 });

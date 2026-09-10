@@ -8,7 +8,7 @@ class SchoolYearService
 {
     /**
      * Get the current school year period.
-     * School year runs from September of previous year to June of current year.
+     * School year runs from 1 September to 30 June; July–August count as the next year.
      *
      * @return array{start: Carbon, end: Carbon, label: string}
      */
@@ -19,7 +19,9 @@ class SchoolYearService
 
     /**
      * Get the school year period for a given date.
-     * School year format: September YYYY to June YYYY+1
+     * School year runs from 1 September to 30 June.
+     * July and August are the summer break and belong to the upcoming school year,
+     * so generating Rujan invoices in August still shows on the dashboard.
      *
      * @return array{start: Carbon, end: Carbon, label: string}
      */
@@ -28,9 +30,8 @@ class SchoolYearService
         $year = $date->year;
         $month = $date->month;
 
-        // If date is between September and December, school year started this year
-        // If date is between January and June, school year started previous year
-        if ($month >= 9) {
+        // September–June is the school year; July–August roll into the next one.
+        if ($month >= 7) {
             $schoolYearStart = $year;
             $schoolYearEnd = $year + 1;
         } else {

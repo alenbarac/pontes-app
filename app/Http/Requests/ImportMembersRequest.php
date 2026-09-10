@@ -22,7 +22,17 @@ class ImportMembersRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'file' => 'required|file|mimes:xlsx,xls,csv|max:10240', // 10MB max
+            'file' => [
+                'required',
+                'file',
+                'max:10240',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    $extension = strtolower((string) $value->getClientOriginalExtension());
+                    if (! in_array($extension, ['xlsx', 'xls', 'csv', 'ods'], true)) {
+                        $fail('Datoteka mora biti Excel (.xlsx, .xls, .ods) ili CSV format.');
+                    }
+                },
+            ],
         ];
     }
 
@@ -36,7 +46,7 @@ class ImportMembersRequest extends FormRequest
         return [
             'file.required' => 'Molimo odaberite datoteku za učitavanje.',
             'file.file' => 'Odabrana datoteka nije valjana.',
-            'file.mimes' => 'Datoteka mora biti Excel (.xlsx, .xls) ili CSV format.',
+            'file.mimes' => 'Datoteka mora biti Excel (.xlsx, .xls, .ods) ili CSV format.',
             'file.max' => 'Datoteka ne smije biti veća od 10MB.',
         ];
     }

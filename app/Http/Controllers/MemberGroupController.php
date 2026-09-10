@@ -16,8 +16,6 @@ use App\Support\MonthString;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use ZipArchive;
 
 class MemberGroupController extends Controller
 {
@@ -406,124 +404,23 @@ class MemberGroupController extends Controller
             return back()->withErrors($error);
         }
 
-        // Create temporary directory for ZIP file
-        $tempDir = storage_path('app/temp/slips');
-        if (! is_dir($tempDir)) {
-            mkdir($tempDir, 0755, true);
-        }
-
-        // Generate ZIP filename
         $groupName = preg_replace('/[^a-z0-9]+/', '-', strtolower($memberGroup->name));
         $zipFileName = 'uplatnice-grupa-'.$groupName.'-'.$request->month.'.zip';
-        $zipPath = $tempDir.'/'.$zipFileName;
 
-        // Create ZIP archive
-        $zip = new ZipArchive;
-        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-            $error = ['error' => 'Ne mogu kreirati ZIP datoteku.'];
+        try {
+            $zipPath = $this->paymentSlipPdfService->zipForInvoices($invoices, $zipFileName);
+        } catch (\RuntimeException $e) {
+            $error = ['error' => $e->getMessage()];
             if ($isAjaxRequest) {
-                return response()->json(['message' => 'Failed to create ZIP file', 'errors' => $error], 500);
+                return response()->json(['message' => $e->getMessage(), 'errors' => $error], 500);
             }
 
             return back()->withErrors($error);
         }
 
-        // Generate PDFs and add to ZIP
-        $addedCount = 0;
-
-        foreach ($invoices as $invoice) {
-            try {
-                $pdf = $this->paymentSlipPdfService->generate($invoice);
-
-                // Generate filename: Firstname-Lastname-referencecode.pdf
-                $firstName = trim($invoice->member->first_name ?? '');
-                $lastName = trim($invoice->member->last_name ?? '');
-
-                // Transliterate Croatian characters to ASCII
-                $firstName = $this->transliterateCroatian($firstName);
-                $lastName = $this->transliterateCroatian($lastName);
-
-                // Convert to lowercase, sanitize, then capitalize first letter
-                $firstName = strtolower($firstName);
-                $lastName = strtolower($lastName);
-                $firstName = preg_replace('/[^a-z0-9]+/', '-', $firstName);
-                $lastName = preg_replace('/[^a-z0-9]+/', '-', $lastName);
-                // Capitalize first letter of each name
-                $firstName = ucfirst($firstName);
-                $lastName = ucfirst($lastName);
-                $fileName = trim($firstName.'-'.$lastName.'-'.$invoice->reference_code, '-').'.pdf';
-
-                $zip->addFromString($fileName, $pdf->output());
-                $addedCount++;
-            } catch (\Exception $e) {
-                Log::warning('Failed to generate slip PDF for invoice '.$invoice->id.': '.$e->getMessage());
-                // Continue with other invoices
-            }
-        }
-
-        $zip->close();
-
-        if ($addedCount === 0) {
-            @unlink($zipPath); // Clean up empty ZIP
-            $error = ['error' => 'Ne mogu generirati nijedan PDF.'];
-            if ($isAjaxRequest) {
-                return response()->json(['message' => 'Failed to generate PDFs', 'errors' => $error], 500);
-            }
-
-            return back()->withErrors($error);
-        }
-
-        // Clean up old ZIP files (older than 1 hour)
-        $this->cleanupOldZipFiles($tempDir, 3600);
-
-        // Return ZIP file as download with proper headers
         return response()->download($zipPath, $zipFileName, [
             'Content-Type' => 'application/zip',
         ])->deleteFileAfterSend(true);
-    }
-
-    /**
-     * Transliterate Croatian characters to ASCII equivalents.
-     */
-    private function transliterateCroatian(string $text): string
-    {
-        // Handle multi-character sequences first (DŽ, dž)
-        $text = str_replace(['DŽ', 'dž', 'Dž'], ['DJ', 'dj', 'Dj'], $text);
-
-        // Handle single characters
-        $transliteration = [
-            'Č' => 'C', 'č' => 'c',
-            'Ć' => 'C', 'ć' => 'c',
-            'Đ' => 'D', 'đ' => 'd',
-            'Š' => 'S', 'š' => 's',
-            'Ž' => 'Z', 'ž' => 'z',
-        ];
-
-        return strtr($text, $transliteration);
-    }
-
-    /**
-     * Clean up old ZIP files to prevent storage bloat.
-     *
-     * @param  int  $maxAgeSeconds  Maximum age in seconds (default: 1 hour)
-     */
-    private function cleanupOldZipFiles(string $directory, int $maxAgeSeconds = 3600): void
-    {
-        if (! is_dir($directory)) {
-            return;
-        }
-
-        $files = glob($directory.'/*.zip');
-        $now = time();
-
-        foreach ($files as $file) {
-            if (is_file($file)) {
-                $fileAge = $now - filemtime($file);
-                if ($fileAge > $maxAgeSeconds) {
-                    @unlink($file);
-                }
-            }
-        }
     }
 
     /**

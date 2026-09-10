@@ -30,8 +30,36 @@ export const columns = [
         accessorKey: "last_name",
     },
     {
-        header: "Godina rođenja",
-        accessorKey: "date_of_birth",
+        id: "membership_plan",
+        header: "Članarina",
+        accessorFn: (row) => row.workshops || [],
+        cell: (info) => {
+            const workshops = info.getValue() || [];
+            const enrollments = workshops.filter((w) => w.membership_plan);
+            if (enrollments.length === 0) {
+                return <span className="text-gray-500">—</span>;
+            }
+            return (
+                <div className="flex flex-col gap-1">
+                    {enrollments.map((workshop) => {
+                        const plan = workshop.membership_plan;
+                        const fee =
+                            plan.total_fee != null
+                                ? parseFloat(plan.total_fee).toFixed(2)
+                                : null;
+                        return (
+                            <div key={workshop.id}>
+                                {enrollments.length > 1 ? `${workshop.name}: ` : ""}
+                                {plan.plan}
+                                {fee != null && (
+                                    <span className="text-gray-500"> ({fee} EUR)</span>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            );
+        },
     },
     {
         header: "Kontakt",

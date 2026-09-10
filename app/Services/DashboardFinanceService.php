@@ -3,8 +3,8 @@
 namespace App\Services;
 
 use App\Models\Invoice;
-use App\Models\MemberWorkshop;
 use App\Models\MembershipPlan;
+use App\Models\MemberWorkshop;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -19,11 +19,59 @@ class DashboardFinanceService
         $now = ($now ?? Carbon::now())->copy();
 
         return [
+            'open' => $this->buildOpenInvoicesMetrics($now),
             'periods' => [
                 'current_month' => $this->buildCurrentMonthPeriod($now),
                 'school_year' => $this->buildSchoolYearPeriod($now),
             ],
             'trend' => $this->buildTrend($now),
+        ];
+    }
+
+    /**
+     * Outstanding invoices of any type, with no month filter.
+     *
+     * @return Builder<Invoice>
+     */
+    private function outstandingInvoices(): Builder
+    {
+        return Invoice::query()->whereRaw('amount_due - amount_paid > 0');
+    }
+
+    private function buildOpenInvoicesMetrics(Carbon $now): array
+    {
+        $today = $now->copy()->startOfDay();
+        $invoices = $this->outstandingInvoices();
+
+        $expectedAmount = (float) (clone $invoices)
+            ->sum(DB::raw('GREATEST(amount_due - amount_paid, 0)'));
+        $collectedAmount = (float) (clone $invoices)->sum('amount_paid');
+        $grossDue = (float) (clone $invoices)->sum('amount_due');
+
+        $overdue = (float) (clone $invoices)
+            ->whereDate('due_date', '<', $today)
+            ->sum(DB::raw('GREATEST(amount_due - amount_paid, 0)'));
+
+        $lateCount = (int) (clone $invoices)
+            ->whereDate('due_date', '<', $today)
+            ->count();
+
+        $lateMemberCount = (int) (clone $invoices)
+            ->whereDate('due_date', '<', $today)
+            ->distinct('member_id')
+            ->count('member_id');
+
+        return [
+            'label' => 'otvoreni računi',
+            'button_label' => 'Otvoreni računi',
+            'expected_amount' => $expectedAmount,
+            'expected_remaining' => $expectedAmount,
+            'collected_amount' => $collectedAmount,
+            'overdue' => $overdue,
+            'collection_rate' => $this->collectionRate($collectedAmount, $grossDue),
+            'late_count' => $lateCount,
+            'late_member_count' => $lateMemberCount,
+            'is_healthy' => $lateCount === 0,
         ];
     }
 
@@ -42,7 +90,7 @@ class DashboardFinanceService
 
     private function buildSchoolYearPeriod(Carbon $now): array
     {
-        $schoolYear = SchoolYearService::getCurrentSchoolYear();
+        $schoolYear = SchoolYearService::getSchoolYearForDate($now);
 
         $invoices = Invoice::membership()
             ->whereDate('due_date', '>=', $schoolYear['start'])
@@ -114,16 +162,25 @@ class DashboardFinanceService
         $recurringExpected = [];
         $recurringCollected = [];
 
-        for ($i = 11; $i >= 0; $i--) {
-            $month = $now->copy()->startOfMonth()->subMonths($i);
+        $schoolYear = SchoolYearService::getSchoolYearForDate($now);
+        $cursor = $now->copy()->startOfMonth()->subMonths(11);
+        $end = $schoolYear['end']->copy()->startOfMonth();
+        if ($end->lt($now->copy()->startOfMonth())) {
+            $end = $now->copy()->startOfMonth();
+        }
+
+        while ($cursor->lte($end)) {
+            $month = $cursor->copy();
             $labels[] = $month->format('M Y');
 
-            $monthInvoices = Invoice::membership()->forMonth($month);
+            $monthInvoices = Invoice::query()->forMonth($month);
             $cashExpected[] = (float) (clone $monthInvoices)->sum('amount_due');
             $cashCollected[] = (float) (clone $monthInvoices)->sum('amount_paid');
 
             $recurringExpected[] = $this->recurringExpectedForMonth($month);
             $recurringCollected[] = $this->recurringCollectedForMonth($month);
+
+            $cursor->addMonth();
         }
 
         return [

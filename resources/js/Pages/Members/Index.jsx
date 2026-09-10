@@ -11,8 +11,10 @@ export default function Index({
     filter, 
     workshopId, 
     groupId,
+    membershipPlanId,
     workshops, 
     groups,
+    membershipPlans,
 }) {
     console.log(members.data);
     return (
@@ -37,8 +39,10 @@ export default function Index({
                                 initialFilter={filter}
                                 initialWorkshopId={workshopId}
                                 initialGroupId={groupId}
+                                initialMembershipPlanId={membershipPlanId}
                                 workshops={workshops}
                                 groups={groups}
+                                membershipPlans={membershipPlans}
                             />
                         </ComponentCard>
                    

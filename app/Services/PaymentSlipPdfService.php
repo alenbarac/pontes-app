@@ -5,8 +5,11 @@ namespace App\Services;
 use App\Models\Invoice;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Barryvdh\DomPDF\PDF as PdfDocument;
+use Carbon\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use ZipArchive;
 
 class PaymentSlipPdfService
 {
@@ -129,6 +132,168 @@ class PaymentSlipPdfService
         ];
 
         return Pdf::loadView('invoices.slip', $data)->setPaper('a4', 'portrait');
+    }
+
+    /**
+     * ASCII filename for a slip PDF: Firstname-Lastname-reference.pdf
+     */
+    public function pdfFilename(Invoice $invoice): string
+    {
+        $invoice->loadMissing('member');
+
+        $firstName = $this->sanitizePersonName($invoice->member->first_name ?? '');
+        $lastName = $this->sanitizePersonName($invoice->member->last_name ?? '');
+        $reference = preg_replace('/[^a-zA-Z0-9\-]+/', '-', (string) $invoice->reference_code) ?? '';
+
+        return trim($firstName.'-'.$lastName.'-'.$reference, '-').'.pdf';
+    }
+
+    /**
+     * Download name for a ZIP of selected invoices, e.g. uplatnice-godisnja-clanmarina-2026-09.zip
+     *
+     * @param  Collection<int, Invoice>  $invoices
+     */
+    public function zipDownloadName(Collection $invoices): string
+    {
+        if (method_exists($invoices, 'loadMissing')) {
+            $invoices->loadMissing('membershipPlan');
+        }
+
+        $plans = $invoices
+            ->map(fn (Invoice $invoice) => $invoice->membershipPlan?->plan)
+            ->filter()
+            ->unique()
+            ->values();
+
+        $months = $invoices
+            ->map(function (Invoice $invoice) {
+                if (! $invoice->due_date) {
+                    return null;
+                }
+
+                return Carbon::parse($invoice->due_date)->format('Y-m');
+            })
+            ->filter()
+            ->unique()
+            ->values();
+
+        $planPart = $plans->count() === 1 ? $this->slugify((string) $plans->first()) : 'racuni';
+        $monthPart = $months->count() === 1 ? $months->first() : now()->format('Y-m-d');
+
+        return 'uplatnice-'.$planPart.'-'.$monthPart.'.zip';
+    }
+
+    /**
+     * Build a ZIP of payment-slip PDFs. Returns the absolute path of the temp ZIP.
+     *
+     * @param  Collection<int, Invoice>  $invoices
+     *
+     * @throws \RuntimeException
+     */
+    public function zipForInvoices(Collection $invoices, string $zipFileName): string
+    {
+        $tempDir = storage_path('app/temp/slips');
+        if (! is_dir($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
+
+        $uniqueName = pathinfo($zipFileName, PATHINFO_FILENAME).'-'.uniqid('', true).'.zip';
+        $zipPath = $tempDir.'/'.$uniqueName;
+
+        $zip = new ZipArchive;
+        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+            throw new \RuntimeException('Ne mogu kreirati ZIP datoteku.');
+        }
+
+        $addedCount = 0;
+        $usedNames = [];
+
+        foreach ($invoices as $invoice) {
+            try {
+                $pdf = $this->generate($invoice);
+                $fileName = $this->uniqueZipEntryName($this->pdfFilename($invoice), $usedNames);
+                $zip->addFromString($fileName, $pdf->output());
+                $addedCount++;
+            } catch (\Throwable $e) {
+                Log::warning('Failed to generate slip PDF for invoice '.$invoice->id.': '.$e->getMessage());
+            }
+        }
+
+        $zip->close();
+
+        if ($addedCount === 0) {
+            @unlink($zipPath);
+            throw new \RuntimeException('Ne mogu generirati nijedan PDF.');
+        }
+
+        $this->cleanupOldZipFiles($tempDir);
+
+        return $zipPath;
+    }
+
+    protected function sanitizePersonName(string $name): string
+    {
+        $name = $this->transliterateCroatian(trim($name));
+        $name = strtolower($name);
+        $name = preg_replace('/[^a-z0-9]+/', '-', $name) ?? '';
+
+        return ucfirst($name);
+    }
+
+    protected function slugify(string $text): string
+    {
+        $text = $this->transliterateCroatian($text);
+        $text = strtolower($text);
+        $text = preg_replace('/[^a-z0-9]+/', '-', $text) ?? '';
+
+        return trim($text, '-') ?: 'racuni';
+    }
+
+    protected function transliterateCroatian(string $text): string
+    {
+        $text = str_replace(['DŽ', 'dž', 'Dž'], ['DJ', 'dj', 'Dj'], $text);
+
+        return strtr($text, [
+            'Č' => 'C', 'č' => 'c',
+            'Ć' => 'C', 'ć' => 'c',
+            'Đ' => 'D', 'đ' => 'd',
+            'Š' => 'S', 'š' => 's',
+            'Ž' => 'Z', 'ž' => 'z',
+        ]);
+    }
+
+    /**
+     * @param  array<string, true>  $usedNames
+     */
+    protected function uniqueZipEntryName(string $fileName, array &$usedNames): string
+    {
+        $base = $fileName;
+        $i = 1;
+
+        while (isset($usedNames[$fileName])) {
+            $i++;
+            $fileName = preg_replace('/\.pdf$/i', '-'.$i.'.pdf', $base) ?? $base;
+        }
+
+        $usedNames[$fileName] = true;
+
+        return $fileName;
+    }
+
+    protected function cleanupOldZipFiles(string $directory, int $maxAgeSeconds = 3600): void
+    {
+        if (! is_dir($directory)) {
+            return;
+        }
+
+        $files = glob($directory.'/*.zip') ?: [];
+        $now = time();
+
+        foreach ($files as $file) {
+            if (is_file($file) && ($now - filemtime($file)) > $maxAgeSeconds) {
+                @unlink($file);
+            }
+        }
     }
 
     protected function cleanupOldTempFiles(string $directory, int $maxAgeSeconds = 3600): void

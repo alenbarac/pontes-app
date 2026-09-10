@@ -20,6 +20,8 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
     const [modalStatus, setModalStatus] = useState("");
     const [slipDescription, setSlipDescription] = useState("");
     const [modalAmount, setModalAmount] = useState("");
+    const [modalDiscount, setModalDiscount] = useState("");
+    const [modalOriginalAmount, setModalOriginalAmount] = useState(null);
     const [modalDueDate, setModalDueDate] = useState("");
     
     // Session invoice generation state
@@ -238,6 +240,14 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
         setModalAmount(
             invoice?.amount_due != null ? Number(invoice.amount_due).toFixed(2) : "",
         );
+        setModalDiscount(
+            invoice?.discount_percent != null && Number(invoice.discount_percent) > 0
+                ? String(Number(invoice.discount_percent))
+                : "",
+        );
+        setModalOriginalAmount(
+            invoice?.original_amount != null ? Number(invoice.original_amount) : null,
+        );
         setModalDueDate(
             invoice?.due_date
                 ? String(invoice.due_date).slice(0, 10)
@@ -280,6 +290,8 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
         setModalStatus("");
         setSlipDescription("");
         setModalAmount("");
+        setModalDiscount("");
+        setModalOriginalAmount(null);
         setModalDueDate("");
     };
 
@@ -317,6 +329,33 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
         );
     };
 
+    const handleDiscountInputChange = (value) => {
+        setModalDiscount(value);
+        const percent = Number(String(value).replace(",", "."));
+        const currentAmount = Number(String(modalAmount).replace(",", "."));
+        const original =
+            modalOriginalAmount != null ? Number(modalOriginalAmount) : currentAmount;
+
+        if (value === "" || Number.isNaN(percent) || percent <= 0) {
+            if (modalOriginalAmount != null) {
+                setModalAmount(Number(modalOriginalAmount).toFixed(2));
+            }
+            if (value === "" || percent <= 0) {
+                setModalOriginalAmount(null);
+            }
+            return;
+        }
+
+        if (percent >= 100) {
+            return;
+        }
+
+        if (modalOriginalAmount == null && currentAmount > 0) {
+            setModalOriginalAmount(original);
+        }
+        setModalAmount((original * (1 - percent / 100)).toFixed(2));
+    };
+
     const saveInvoiceStatus = () => {
         if (!activeInvoice || !modalStatus) return;
 
@@ -336,6 +375,17 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
             return;
         }
 
+        const discountPercent = modalDiscount === ""
+            ? null
+            : Number(String(modalDiscount).replace(",", "."));
+        if (
+            discountPercent != null &&
+            (Number.isNaN(discountPercent) || discountPercent < 0 || discountPercent >= 100)
+        ) {
+            toast.error("Unesite ispravan popust (0–99.99%).");
+            return;
+        }
+
         closeInvoiceDetails();
 
         router.patch(
@@ -344,6 +394,7 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                 status: currentStatus,
                 slip_description: descriptionToSave,
                 amount_due: amount,
+                discount_percent: discountPercent,
                 due_date: dueDateToSave,
                 stay_on_page: true,
             },
@@ -442,7 +493,14 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                                         )}
                                     </TableCell>
                                     <TableCell className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
-                                        {Number(invoice.amount_due).toFixed(2)} €
+                                        <div className="flex flex-col">
+                                            <span>{Number(invoice.amount_due).toFixed(2)} €</span>
+                                            {invoice.has_discount && invoice.discount_label && (
+                                                <span className="text-xs font-medium text-brand-600 dark:text-brand-400">
+                                                    {invoice.discount_label}
+                                                </span>
+                                            )}
+                                        </div>
                                     </TableCell>
                                     <TableCell className="px-4 py-3">
                                         <div className="flex items-center justify-end gap-2">
@@ -679,6 +737,35 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                                                     setModalAmount(e.target.value)
                                                 }
                                             />
+                                            {modalOriginalAmount != null && (
+                                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                                    Osnovica:{" "}
+                                                    {Number(modalOriginalAmount).toFixed(2)} €
+                                                </p>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="invoice-discount">
+                                                Popust (%)
+                                            </Label>
+                                            <Input
+                                                type="number"
+                                                id="invoice-discount"
+                                                min="0"
+                                                max="99.99"
+                                                step={1}
+                                                placeholder="npr. 20"
+                                                value={modalDiscount}
+                                                onChange={(e) =>
+                                                    handleDiscountInputChange(
+                                                        e.target.value,
+                                                    )
+                                                }
+                                            />
+                                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                                Unesite postotak da se iznos
+                                                preračuna. Prazno = bez popusta.
+                                            </p>
                                         </div>
                                         <div>
                                             <Label htmlFor="invoice-due-date">Dospijeće</Label>

@@ -22,6 +22,7 @@ export default function Import({ importResult }) {
         accept: {
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
             "application/vnd.ms-excel": [".xls"],
+            "application/vnd.oasis.opendocument.spreadsheet": [".ods"],
             "text/csv": [".csv"],
         },
         multiple: false,
@@ -48,10 +49,21 @@ export default function Import({ importResult }) {
                     setUploading(false);
                     setFile(null);
                     if (page.props.importResult) {
-                        const { created_count, failed_count, errors } = page.props.importResult;
+                        const { created_count, updated_count, failed_count, discounted_count } =
+                            page.props.importResult;
                         if (created_count > 0) {
                             toast.success(
                                 `Uspješno uvezeno ${created_count} članova.`
+                            );
+                        }
+                        if (updated_count > 0) {
+                            toast.success(
+                                `Ažurirano ${updated_count} postojećih članova.`
+                            );
+                        }
+                        if (discounted_count > 0) {
+                            toast.success(
+                                `${discounted_count} članova uvezeno s popustom.`
                             );
                         }
                         if (failed_count > 0) {
@@ -85,9 +97,34 @@ export default function Import({ importResult }) {
                 <ComponentCard title="Uvoz članova">
                     <div className="space-y-4">
                         <p className="text-sm text-gray-600 dark:text-gray-400">
-                            Učitajte Excel ili CSV datoteku s članovima. Datoteka
-                            mora imati sljedeće kolone: GRUPA, IME I PREZIME,
-                            E-MAIL, ČLANARINA.
+                            Učitajte Excel, ODS ili CSV datoteku s članovima.
+                            Datoteka mora imati sljedeće kolone: GRUPA, IME I
+                            PREZIME, E-MAIL, ČLANARINA. Opcionalna kolona IME
+                            UPLATNICA postavlja ime platitelja na uplatnici.
+                        </p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Za kolonu ČLANARINA koristite:{" "}
+                            <span className="font-medium text-gray-800 dark:text-gray-200">
+                                Mjesečna članarina
+                            </span>
+                            ,{" "}
+                            <span className="font-medium text-gray-800 dark:text-gray-200">
+                                Polugodišnja članarina
+                            </span>{" "}
+                            (ili 6 mjeseci),{" "}
+                            <span className="font-medium text-gray-800 dark:text-gray-200">
+                                Godišnja članarina
+                            </span>
+                            , ili{" "}
+                            <span className="font-medium text-gray-800 dark:text-gray-200">
+                                Po sastanku
+                            </span>{" "}
+                            za individualno savjetovanje. Popust dodajte u istu
+                            ćeliju, npr.{" "}
+                            <span className="font-medium text-gray-800 dark:text-gray-200">
+                                Godišnja članarina * 20 OFF
+                            </span>
+                            .
                         </p>
 
                         <div
@@ -133,8 +170,8 @@ export default function Import({ importResult }) {
                                     </h4>
 
                                     <span className="text-center mb-5 block w-full max-w-[290px] text-sm text-gray-700 dark:text-gray-400">
-                                        Povucite i spustite Excel ili CSV datoteku
-                                        ovdje ili kliknite za pregled
+                                        Povucite i spustite Excel, ODS ili CSV
+                                        datoteku ovdje ili kliknite za pregled
                                     </span>
 
                                     <span className="font-medium underline text-theme-sm text-brand-500">
@@ -174,13 +211,21 @@ export default function Import({ importResult }) {
                 {importResult && (
                     <ComponentCard title="Rezultati uvoza">
                         <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                                 <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
                                     <p className="text-sm text-gray-600 dark:text-gray-400">
                                         Uspješno uvezeno
                                     </p>
                                     <p className="text-2xl font-bold text-green-600 dark:text-green-400">
                                         {importResult.created_count || 0}
+                                    </p>
+                                </div>
+                                <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                                        S popustom
+                                    </p>
+                                    <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+                                        {importResult.discounted_count || 0}
                                     </p>
                                 </div>
                                 <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
@@ -192,6 +237,57 @@ export default function Import({ importResult }) {
                                     </p>
                                 </div>
                             </div>
+
+                            {importResult.discounted &&
+                                importResult.discounted.length > 0 && (
+                                    <div className="mt-4">
+                                        <h4 className="font-medium text-gray-800 dark:text-white mb-2">
+                                            Članovi s popustom:
+                                        </h4>
+                                        <div className="max-h-64 overflow-y-auto">
+                                            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                                <thead className="bg-gray-50 dark:bg-gray-800">
+                                                    <tr>
+                                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                                                            Red
+                                                        </th>
+                                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                                                            Član
+                                                        </th>
+                                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                                                            Plan
+                                                        </th>
+                                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                                                            Iznos
+                                                        </th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                                                    {importResult.discounted.map(
+                                                        (row, index) => (
+                                                            <tr key={index}>
+                                                                <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100">
+                                                                    {row.row}
+                                                                </td>
+                                                                <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100">
+                                                                    {row.ime_prezime}
+                                                                </td>
+                                                                <td className="px-4 py-2 text-sm text-amber-700 dark:text-amber-300">
+                                                                    {row.plan}
+                                                                </td>
+                                                                <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100">
+                                                                    {row.total_fee != null
+                                                                        ? `${parseFloat(row.total_fee).toFixed(2)} EUR`
+                                                                        : "—"}
+                                                                </td>
+                                                            </tr>
+                                                        )
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                )}
 
                             {importResult.errors &&
                                 importResult.errors.length > 0 && (

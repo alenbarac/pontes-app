@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\BulkDownloadInvoiceSlipsRequest;
 use App\Http\Requests\BulkSendInvoiceEmailsRequest;
 use App\Models\Invoice;
 use App\Models\MemberGroup;
+use App\Models\MembershipPlan;
 use App\Models\Workshop;
 use App\Services\PaymentSlipEmailService;
 use App\Services\PaymentSlipPdfService;
@@ -27,6 +29,8 @@ class InvoiceController extends Controller
         $paymentStatus = $request->get('payment_status', '');
         $groupId = $request->get('group_id', '');
         $monthFilter = $request->get('month', ''); // Format: YYYY-MM
+        $membershipPlanId = $request->get('membership_plan_id', '');
+        $hasDiscount = $request->get('has_discount', '');
 
         $query = Invoice::with(['member', 'member.workshopGroups.group', 'workshop', 'membershipPlan'])
             ->when($filter, function ($query, $filter) {
@@ -63,6 +67,15 @@ class InvoiceController extends Controller
                         ->whereMonth('due_date', $month);
                 }
             })
+            ->when($membershipPlanId, function ($query, $membershipPlanId) {
+                $query->where('membership_plan_id', $membershipPlanId);
+            })
+            ->when($hasDiscount === '1' || $hasDiscount === 'any', function ($query) {
+                $query->withDiscount();
+            })
+            ->when($hasDiscount === '0' || $hasDiscount === 'none', function ($query) {
+                $query->withoutDiscount();
+            })
             ->orderByDesc('due_date');
 
         $invoices = $query->paginate($perPage)->withQueryString();
@@ -85,6 +98,24 @@ class InvoiceController extends Controller
             ->orderBy('member_groups.name')
             ->get();
 
+        $membershipPlans = MembershipPlan::query()
+            ->select('id', 'workshop_id', 'plan', 'total_fee', 'discount_type')
+            ->with('workshop:id,name')
+            ->when($workshopId, function ($q) use ($workshopId) {
+                $q->where('workshop_id', $workshopId);
+            })
+            ->orderBy('plan')
+            ->get()
+            ->map(fn (MembershipPlan $plan) => [
+                'id' => $plan->id,
+                'workshop_id' => $plan->workshop_id,
+                'plan' => $plan->plan,
+                'total_fee' => $plan->total_fee,
+                'discount_type' => $plan->discount_type,
+                'workshop_name' => $plan->workshop?->name,
+                'is_discounted' => $plan->isDiscounted(),
+            ]);
+
         return Inertia::render('Invoices/Index', [
             'invoices' => $invoices,
             'pagination' => [
@@ -98,9 +129,12 @@ class InvoiceController extends Controller
             'paymentStatus' => $paymentStatus,
             'groupId' => $groupId,
             'month' => $monthFilter,
+            'membershipPlanId' => $membershipPlanId,
+            'hasDiscount' => $hasDiscount,
             'workshops' => $workshops,
             'paymentStatuses' => $paymentStatuses,
             'groups' => $groups,
+            'membershipPlans' => $membershipPlans,
         ]);
     }
 
@@ -147,6 +181,7 @@ class InvoiceController extends Controller
         $validated = $request->validate([
             'slip_description' => ['nullable', 'string', 'max:255'],
             'amount_due' => ['nullable', 'numeric', 'min:0.01'],
+            'discount_percent' => ['nullable', 'numeric', 'min:0', 'max:99.99'],
             'due_date' => ['nullable', 'date'],
             'status' => ['nullable', 'in:Plaćeno,Otvoreno,Neusklađeno'],
         ]);
@@ -154,6 +189,13 @@ class InvoiceController extends Controller
         if (array_key_exists('slip_description', $validated)) {
             $description = trim((string) ($validated['slip_description'] ?? ''));
             $invoice->slip_description = $description !== '' ? $description : null;
+        }
+
+        if (array_key_exists('discount_percent', $validated)) {
+            $percent = $validated['discount_percent'] !== null
+                ? (float) $validated['discount_percent']
+                : null;
+            $invoice->applyPercentageDiscount($percent);
         }
 
         if (array_key_exists('amount_due', $validated) && $validated['amount_due'] !== null) {
@@ -313,27 +355,38 @@ class InvoiceController extends Controller
     {
         $pdf = $this->generateSlipPDF($invoice);
 
-        // Generate filename: Firstname-Lastname-referencecode.pdf
-        $firstName = trim($invoice->member->first_name ?? '');
-        $lastName = trim($invoice->member->last_name ?? '');
+        return $pdf->stream($this->paymentSlipPdfService->pdfFilename($invoice));
+    }
 
-        // Transliterate Croatian characters to ASCII
-        $firstName = $this->transliterateCroatian($firstName);
-        $lastName = $this->transliterateCroatian($lastName);
+    /**
+     * Bulk download payment slips for selected invoices as a ZIP.
+     */
+    public function bulkDownloadSlips(BulkDownloadInvoiceSlipsRequest $request)
+    {
+        $invoices = Invoice::with(['member', 'workshop', 'membershipPlan'])
+            ->whereIn('id', $request->validated('invoice_ids'))
+            ->get();
 
-        // Convert to lowercase, sanitize, then capitalize first letter
-        $firstName = strtolower($firstName);
-        $lastName = strtolower($lastName);
-        // Remove special characters and replace spaces with hyphens
-        $firstName = preg_replace('/[^a-z0-9]+/', '-', $firstName);
-        $lastName = preg_replace('/[^a-z0-9]+/', '-', $lastName);
-        // Capitalize first letter of each name
-        $firstName = ucfirst($firstName);
-        $lastName = ucfirst($lastName);
-        $fileName = trim($firstName.'-'.$lastName.'-'.$invoice->reference_code, '-').'.pdf';
+        if ($invoices->isEmpty()) {
+            return response()->json([
+                'message' => 'Nema odabranih računa.',
+                'errors' => ['invoice_ids' => ['Nema odabranih računa.']],
+            ], 404);
+        }
 
-        // Stream in a new tab (nice for printing); change to download() if you prefer attachment
-        return $pdf->stream($fileName);
+        try {
+            $zipFileName = $this->paymentSlipPdfService->zipDownloadName($invoices);
+            $zipPath = $this->paymentSlipPdfService->zipForInvoices($invoices, $zipFileName);
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'errors' => ['error' => [$e->getMessage()]],
+            ], 500);
+        }
+
+        return response()->download($zipPath, $zipFileName, [
+            'Content-Type' => 'application/zip',
+        ])->deleteFileAfterSend(true);
     }
 
     /**
@@ -402,49 +455,5 @@ class InvoiceController extends Controller
         }
 
         return redirect()->route('invoices.index')->with('success', 'Račun uspješno obrisan.');
-    }
-
-    /**
-     * Transliterate Croatian characters to ASCII equivalents.
-     */
-    private function transliterateCroatian(string $text): string
-    {
-        // Handle multi-character sequences first (DŽ, dž)
-        $text = str_replace(['DŽ', 'dž', 'Dž'], ['DJ', 'dj', 'Dj'], $text);
-
-        // Handle single characters
-        $transliteration = [
-            'Č' => 'C', 'č' => 'c',
-            'Ć' => 'C', 'ć' => 'c',
-            'Đ' => 'D', 'đ' => 'd',
-            'Š' => 'S', 'š' => 's',
-            'Ž' => 'Z', 'ž' => 'z',
-        ];
-
-        return strtr($text, $transliteration);
-    }
-
-    /**
-     * Clean up old temporary files to prevent storage bloat.
-     *
-     * @param  int  $maxAgeSeconds  Maximum age in seconds (default: 1 hour)
-     */
-    private function cleanupOldTempFiles(string $directory, int $maxAgeSeconds = 3600): void
-    {
-        if (! is_dir($directory)) {
-            return;
-        }
-
-        $files = glob($directory.'/*');
-        $now = time();
-
-        foreach ($files as $file) {
-            if (is_file($file)) {
-                $fileAge = $now - filemtime($file);
-                if ($fileAge > $maxAgeSeconds) {
-                    @unlink($file);
-                }
-            }
-        }
     }
 }

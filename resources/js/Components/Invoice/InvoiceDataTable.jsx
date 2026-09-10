@@ -14,10 +14,63 @@ import toast from "react-hot-toast";
 import Radio from "@/Components/form/input/Radio";
 import Input from "@/Components/form/input/InputField";
 import Label from "@/Components/form/Label";
-import { TrashIcon, CalendarDaysIcon, EnvelopeIcon } from "@heroicons/react/24/outline";
+import { TrashIcon, CalendarDaysIcon, EnvelopeIcon, ArrowDownTrayIcon } from "@heroicons/react/24/outline";
 import { useModal } from "@/hooks/useModal";
 import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/light.css";
+
+const SLIP_DOWNLOAD_MAX_BATCH = 50;
+
+async function jsonFromAxiosBlobError(error) {
+    const data = error?.response?.data;
+    if (data instanceof Blob) {
+        try {
+            return JSON.parse(await data.text());
+        } catch {
+            return null;
+        }
+    }
+    if (data && typeof data === "object") {
+        return data;
+    }
+    return null;
+}
+
+function messageFromErrorPayload(payload, fallback) {
+    if (!payload) return fallback;
+    const parts = [];
+    if (payload.message) parts.push(payload.message);
+    if (payload.errors) parts.push(...Object.values(payload.errors).flat());
+    if (payload.error) parts.push(payload.error);
+    return parts.length ? parts.join(" ") : fallback;
+}
+
+function filenameFromContentDisposition(header, fallback) {
+    if (!header) return fallback;
+    const match = header.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+    if (!match?.[1]) return fallback;
+    let filename = match[1]
+        .replace(/['"]/g, "")
+        .replace(/^UTF-8''/, "")
+        .replace(/\+/g, " ");
+    try {
+        filename = decodeURIComponent(filename);
+    } catch {
+        // keep as-is
+    }
+    return filename || fallback;
+}
+
+function triggerBlobDownload(blob, filename) {
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => window.URL.revokeObjectURL(url), 100);
+}
 
 const InvoicesDataTable = ({
     data,
@@ -26,20 +79,29 @@ const InvoicesDataTable = ({
     workshops = [],
     paymentStatuses = [],
     groups = [],
+    membershipPlans = [],
     initialWorkshopId = "",
     initialPaymentStatus = "",
     initialGroupId = "",
     initialFilter = "",
     initialMonth = "",
+    initialMembershipPlanId = "",
+    initialHasDiscount = "",
 }) => {
     const [globalFilter, setGlobalFilter] = useState(initialFilter);
     const [workshopId, setWorkshopId] = useState(initialWorkshopId);
     const [paymentStatus, setPaymentStatus] = useState(initialPaymentStatus);
     const [groupId, setGroupId] = useState(initialGroupId);
     const [monthFilter, setMonthFilter] = useState(initialMonth);
+    const [membershipPlanId, setMembershipPlanId] = useState(
+        initialMembershipPlanId,
+    );
+    const [hasDiscount, setHasDiscount] = useState(initialHasDiscount || "");
     const [isWorkshopDropdownOpen, setIsWorkshopDropdownOpen] = useState(false);
     const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
     const [isGroupDropdownOpen, setIsGroupDropdownOpen] = useState(false);
+    const [isPlanDropdownOpen, setIsPlanDropdownOpen] = useState(false);
+    const [isDiscountDropdownOpen, setIsDiscountDropdownOpen] = useState(false);
 
     // Bulk selection state, list of selected invoice IDs
     const [selectedRows, setSelectedRows] = useState([]);
@@ -50,6 +112,7 @@ const InvoicesDataTable = ({
 
     const [showBulkEmailConfirm, setShowBulkEmailConfirm] = useState(false);
     const [bulkEmailProcessing, setBulkEmailProcessing] = useState(false);
+    const [bulkDownloadProcessing, setBulkDownloadProcessing] = useState(false);
     const [singleEmailProcessing, setSingleEmailProcessing] = useState(false);
 
     // Per-invoice details modal state
@@ -58,6 +121,8 @@ const InvoicesDataTable = ({
     const [modalStatus, setModalStatus] = useState("");
     const [slipDescription, setSlipDescription] = useState("");
     const [modalAmount, setModalAmount] = useState("");
+    const [modalDiscount, setModalDiscount] = useState("");
+    const [modalOriginalAmount, setModalOriginalAmount] = useState(null);
     const [modalDueDate, setModalDueDate] = useState("");
     
     // Delete invoice state
@@ -81,6 +146,14 @@ const InvoicesDataTable = ({
         setModalAmount(
             invoice?.amount_due != null ? Number(invoice.amount_due).toFixed(2) : "",
         );
+        setModalDiscount(
+            invoice?.discount_percent != null && Number(invoice.discount_percent) > 0
+                ? String(Number(invoice.discount_percent))
+                : "",
+        );
+        setModalOriginalAmount(
+            invoice?.original_amount != null ? Number(invoice.original_amount) : null,
+        );
         setModalDueDate(
             invoice?.due_date
                 ? String(invoice.due_date).slice(0, 10)
@@ -95,6 +168,8 @@ const InvoicesDataTable = ({
         setModalStatus("");
         setSlipDescription("");
         setModalAmount("");
+        setModalDiscount("");
+        setModalOriginalAmount(null);
         setModalDueDate("");
     };
 
@@ -112,12 +187,24 @@ const InvoicesDataTable = ({
             return;
         }
 
+        const discountPercent = modalDiscount === ""
+            ? null
+            : Number(String(modalDiscount).replace(",", "."));
+        if (
+            discountPercent != null &&
+            (Number.isNaN(discountPercent) || discountPercent < 0 || discountPercent >= 100)
+        ) {
+            toast.error("Unesite ispravan popust (0–99.99%).");
+            return;
+        }
+
         router.patch(
             route("invoices.update", activeInvoice.id),
             {
                 status: modalStatus,
                 slip_description: slipDescription,
                 amount_due: amount,
+                discount_percent: discountPercent,
                 due_date: modalDueDate,
                 stay_on_page: true,
             },
@@ -189,7 +276,16 @@ const InvoicesDataTable = ({
             {
                 accessorKey: "amount_due",
                 header: "Iznos",
-                cell: ({ row }) => `${row.original.amount_due} €`,
+                cell: ({ row }) => (
+                    <div className="flex flex-col">
+                        <span>{Number(row.original.amount_due).toFixed(2)} €</span>
+                        {row.original.has_discount && row.original.discount_label && (
+                            <span className="text-xs font-medium text-brand-600 dark:text-brand-400">
+                                {row.original.discount_label}
+                            </span>
+                        )}
+                    </div>
+                ),
             },
             {
                 accessorKey: "payment_status",
@@ -308,6 +404,67 @@ const InvoicesDataTable = ({
         }
     };
 
+    const handleBulkDownloadSlips = async () => {
+        if (bulkDownloadProcessing || selectedRows.length === 0) return;
+
+        if (selectedRows.length > SLIP_DOWNLOAD_MAX_BATCH) {
+            toast.error(
+                `Možete preuzeti najviše ${SLIP_DOWNLOAD_MAX_BATCH} uplatnica odjednom.`,
+            );
+            return;
+        }
+
+        setBulkDownloadProcessing(true);
+        try {
+            const response = await axios.post(
+                route("invoices.bulkDownloadSlips"),
+                { invoice_ids: selectedRows },
+                { responseType: "blob" },
+            );
+
+            const contentType = response.headers["content-type"] || "";
+            const isZipFile =
+                contentType.includes("application/zip") ||
+                contentType.includes("application/x-zip-compressed") ||
+                contentType.includes("application/octet-stream");
+
+            if (!isZipFile) {
+                try {
+                    const json = JSON.parse(await response.data.text());
+                    toast.error(
+                        messageFromErrorPayload(
+                            json,
+                            "Došlo je do pogreške prilikom preuzimanja uplatnica.",
+                        ),
+                    );
+                } catch {
+                    toast.error("Neočekivani odgovor od servera. Molimo pokušajte ponovno.");
+                }
+                return;
+            }
+
+            const filename = filenameFromContentDisposition(
+                response.headers["content-disposition"],
+                "uplatnice.zip",
+            );
+            triggerBlobDownload(
+                new Blob([response.data], { type: "application/zip" }),
+                filename,
+            );
+            toast.success("Uplatnice su uspješno preuzete.");
+        } catch (error) {
+            const payload = await jsonFromAxiosBlobError(error);
+            toast.error(
+                messageFromErrorPayload(
+                    payload,
+                    "Došlo je do pogreške prilikom preuzimanja uplatnica.",
+                ),
+            );
+        } finally {
+            setBulkDownloadProcessing(false);
+        }
+    };
+
     const handleSendSingleSlipEmail = async () => {
         if (!activeInvoice) return;
         setSingleEmailProcessing(true);
@@ -375,6 +532,16 @@ const InvoicesDataTable = ({
         [data, selectedRows, columns]
     );
 
+    const invoiceFilterParams = () => ({
+        filter: globalFilter,
+        workshop_id: workshopId,
+        payment_status: paymentStatus,
+        group_id: groupId,
+        month: monthFilter,
+        membership_plan_id: membershipPlanId,
+        has_discount: hasDiscount,
+    });
+
     useEffect(() => {
         const timeout = setTimeout(() => {
             router.get(
@@ -382,18 +549,14 @@ const InvoicesDataTable = ({
                 {
                     page: pagination.current_page,
                     per_page: pagination.per_page,
-                    filter: globalFilter,
-                    workshop_id: workshopId,
-                    payment_status: paymentStatus,
-                    group_id: groupId,
-                    month: monthFilter,
+                    ...invoiceFilterParams(),
                 },
                 { preserveState: true },
             );
         }, 500);
 
         return () => clearTimeout(timeout);
-    }, [globalFilter, workshopId, paymentStatus, groupId, monthFilter, pagination.current_page, pagination.per_page]);
+    }, [globalFilter, workshopId, paymentStatus, groupId, monthFilter, membershipPlanId, hasDiscount, pagination.current_page, pagination.per_page]);
 
     const table = useReactTable({
         data,
@@ -408,11 +571,7 @@ const InvoicesDataTable = ({
         router.get(route("invoices.index"), {
             page,
             per_page: pagination.per_page,
-            filter: globalFilter,
-            workshop_id: workshopId,
-            payment_status: paymentStatus,
-            group_id: groupId,
-            month: monthFilter,
+            ...invoiceFilterParams(),
         });
     };
 
@@ -420,11 +579,7 @@ const InvoicesDataTable = ({
         router.get(route("invoices.index"), {
             page: 1,
             per_page: size,
-            filter: globalFilter,
-            workshop_id: workshopId,
-            payment_status: paymentStatus,
-            group_id: groupId,
-            month: monthFilter,
+            ...invoiceFilterParams(),
         });
     };
 
@@ -433,16 +588,73 @@ const InvoicesDataTable = ({
         setMonthFilter(dateStr || "");
     };
 
+    const closeOtherFilterDropdowns = (except) => {
+        if (except !== "workshop") setIsWorkshopDropdownOpen(false);
+        if (except !== "status") setIsStatusDropdownOpen(false);
+        if (except !== "group") setIsGroupDropdownOpen(false);
+        if (except !== "plan") setIsPlanDropdownOpen(false);
+        if (except !== "discount") setIsDiscountDropdownOpen(false);
+    };
+
+    const selectedPlan = membershipPlans.find(
+        (p) => p.id.toString() === membershipPlanId,
+    );
+
+    const formatPlanLabel = (plan, includeWorkshop = false) => {
+        const fee =
+            plan.total_fee != null
+                ? ` (${parseFloat(String(plan.total_fee)).toFixed(2)} EUR)`
+                : "";
+        if (includeWorkshop && plan.workshop_name) {
+            return `${plan.workshop_name} — ${plan.plan}${fee}`;
+        }
+        return `${plan.plan}${fee}`;
+    };
+
+    const discountFilterLabel =
+        hasDiscount === "1" || hasDiscount === "any"
+            ? "S popustom"
+            : hasDiscount === "0" || hasDiscount === "none"
+              ? "Bez popusta"
+              : "Popust";
+
+    const handleDiscountInputChange = (value) => {
+        setModalDiscount(value);
+        const percent = Number(String(value).replace(",", "."));
+        const currentAmount = Number(String(modalAmount).replace(",", "."));
+        const original =
+            modalOriginalAmount != null ? Number(modalOriginalAmount) : currentAmount;
+
+        if (value === "" || Number.isNaN(percent) || percent <= 0) {
+            if (modalOriginalAmount != null) {
+                setModalAmount(Number(modalOriginalAmount).toFixed(2));
+            }
+            if (value === "" || percent <= 0) {
+                setModalOriginalAmount(null);
+            }
+            return;
+        }
+
+        if (percent >= 100) {
+            return;
+        }
+
+        if (modalOriginalAmount == null && currentAmount > 0) {
+            setModalOriginalAmount(original);
+        }
+        setModalAmount((original * (1 - percent / 100)).toFixed(2));
+    };
+
     return (
         <div className="overflow-hidden rounded-xl bg-white dark:bg-white/[0.03]">
             {/* Bulk Actions Bar */}
             {selectedRows.length > 0 && (
-                <div className="flex items-center justify-between gap-3 bg-brand-50 border-b border-brand-100 px-4 py-3 dark:bg-brand-900/20 dark:border-brand-800">
+                <div className="flex flex-wrap items-center justify-between gap-3 bg-brand-50 border-b border-brand-100 px-4 py-3 dark:bg-brand-900/20 dark:border-brand-800">
                     <span className="text-sm font-medium text-brand-700 dark:text-brand-300">
                         Označeno {selectedRows.length}{" "}
                         {selectedRows.length === 1 ? "račun" : "računa"}
                     </span>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap justify-end">
                         <button
                             onClick={() => openConfirmModal("Plaćeno")}
                             className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition"
@@ -483,8 +695,17 @@ const InvoicesDataTable = ({
                         </button>
                         <button
                             type="button"
+                            onClick={handleBulkDownloadSlips}
+                            disabled={bulkDownloadProcessing || bulkEmailProcessing}
+                            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-brand-700 bg-white border border-brand-200 hover:bg-brand-50 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-800 dark:text-brand-300 dark:border-brand-800 dark:hover:bg-gray-700"
+                        >
+                            <ArrowDownTrayIcon className="w-4 h-4" />
+                            {bulkDownloadProcessing ? "Preuzimanje..." : "Preuzmi uplatnice"}
+                        </button>
+                        <button
+                            type="button"
                             onClick={() => setShowBulkEmailConfirm(true)}
-                            disabled={bulkEmailProcessing}
+                            disabled={bulkEmailProcessing || bulkDownloadProcessing}
                             className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <EnvelopeIcon className="w-4 h-4" />
@@ -553,6 +774,8 @@ const InvoicesDataTable = ({
                                 setPaymentStatus("");
                                 setGroupId("");
                                 setMonthFilter("");
+                                setMembershipPlanId("");
+                                setHasDiscount("");
                             }}
                             className="inline-flex items-center gap-1 px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-dark dark:hover:bg-gray-800 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100 transition"
                             title="Poništi filtere"
@@ -577,11 +800,12 @@ const InvoicesDataTable = ({
                         {/* Workshop Filter Dropdown */}
                         <div className="relative inline-block">
                             <button
-                                onClick={() =>
+                                onClick={() => {
+                                    closeOtherFilterDropdowns("workshop");
                                     setIsWorkshopDropdownOpen(
                                         !isWorkshopDropdownOpen,
-                                    )
-                                }
+                                    );
+                                }}
                                 className="inline-flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 rounded-lg dropdown-toggle border border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-dark dark:hover:bg-gray-800 min-w-[180px]"
                             >
                                 <span className="truncate">
@@ -672,11 +896,12 @@ const InvoicesDataTable = ({
                         {/* Payment Status Filter Dropdown */}
                         <div className="relative inline-block">
                             <button
-                                onClick={() =>
+                                onClick={() => {
+                                    closeOtherFilterDropdowns("status");
                                     setIsStatusDropdownOpen(
                                         !isStatusDropdownOpen,
-                                    )
-                                }
+                                    );
+                                }}
                                 className="inline-flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 rounded-lg dropdown-toggle border border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-dark dark:hover:bg-gray-800 min-w-[180px]"
                             >
                                 <span className="truncate">
@@ -756,7 +981,10 @@ const InvoicesDataTable = ({
                         {/* Group Filter Dropdown */}
                         <div className="relative inline-block">
                             <button
-                                onClick={() => setIsStatusDropdownOpen(false) || setIsWorkshopDropdownOpen(false) || setIsGroupDropdownOpen(!isGroupDropdownOpen)}
+                                onClick={() => {
+                                    closeOtherFilterDropdowns("group");
+                                    setIsGroupDropdownOpen(!isGroupDropdownOpen);
+                                }}
                                 className="inline-flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 rounded-lg dropdown-toggle border border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-dark dark:hover:bg-gray-800 min-w-[180px]"
                             >
                                 <span className="truncate">
@@ -818,6 +1046,170 @@ const InvoicesDataTable = ({
                                                 baseClassName=""
                                             >
                                                 {g.name}
+                                            </DropdownItem>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </Dropdown>
+                        </div>
+
+                        {/* Membership Plan Filter Dropdown */}
+                        <div className="relative inline-block">
+                            <button
+                                onClick={() => {
+                                    closeOtherFilterDropdowns("plan");
+                                    setIsPlanDropdownOpen(!isPlanDropdownOpen);
+                                }}
+                                className="inline-flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 rounded-lg dropdown-toggle border border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-dark dark:hover:bg-gray-800 min-w-[180px]"
+                            >
+                                <span className="truncate">
+                                    {selectedPlan
+                                        ? formatPlanLabel(
+                                              selectedPlan,
+                                              !workshopId,
+                                          )
+                                        : "Sve članarine"}
+                                </span>
+                                <svg
+                                    className={`duration-200 ease-in-out stroke-current ${
+                                        isPlanDropdownOpen ? "rotate-180" : ""
+                                    }`}
+                                    width="20"
+                                    height="20"
+                                    viewBox="0 0 20 20"
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <path
+                                        d="M4.79199 7.396L10.0003 12.6043L15.2087 7.396"
+                                        stroke=""
+                                        strokeWidth="1.5"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                    />
+                                </svg>
+                            </button>
+
+                            <Dropdown
+                                className="absolute left-0 top-full z-40 mt-2 w-full min-w-[260px] rounded-2xl border border-gray-200 bg-white p-3 shadow-theme-lg dark:border-gray-800 dark:bg-[#1E2635]"
+                                isOpen={isPlanDropdownOpen}
+                                onClose={() => setIsPlanDropdownOpen(false)}
+                            >
+                                <ul className="flex flex-col gap-1 max-h-[300px] overflow-y-auto">
+                                    <li>
+                                        <DropdownItem
+                                            onClick={() => {
+                                                setMembershipPlanId("");
+                                                setIsPlanDropdownOpen(false);
+                                            }}
+                                            className={`flex rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5 ${
+                                                !membershipPlanId
+                                                    ? "bg-gray-100 text-gray-900 dark:bg-white/10 dark:text-white"
+                                                    : "text-gray-700 dark:text-gray-300"
+                                            }`}
+                                            baseClassName=""
+                                        >
+                                            Sve članarine
+                                        </DropdownItem>
+                                    </li>
+                                    {membershipPlans.length > 0 && (
+                                        <li>
+                                            <span className="my-1.5 block h-px w-full bg-gray-200 dark:bg-[#353C49]"></span>
+                                        </li>
+                                    )}
+                                    {membershipPlans.map((plan) => (
+                                        <li key={plan.id}>
+                                            <DropdownItem
+                                                onClick={() => {
+                                                    setMembershipPlanId(
+                                                        plan.id.toString(),
+                                                    );
+                                                    setIsPlanDropdownOpen(false);
+                                                }}
+                                                className={`flex rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5 ${
+                                                    membershipPlanId ===
+                                                    plan.id.toString()
+                                                        ? "bg-gray-100 text-gray-900 dark:bg-white/10 dark:text-white"
+                                                        : "text-gray-700 dark:text-gray-300"
+                                                }`}
+                                                baseClassName=""
+                                            >
+                                                {formatPlanLabel(
+                                                    plan,
+                                                    !workshopId,
+                                                )}
+                                            </DropdownItem>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </Dropdown>
+                        </div>
+
+                        {/* Discount Filter Dropdown */}
+                        <div className="relative inline-block">
+                            <button
+                                onClick={() => {
+                                    closeOtherFilterDropdowns("discount");
+                                    setIsDiscountDropdownOpen(
+                                        !isDiscountDropdownOpen,
+                                    );
+                                }}
+                                className="inline-flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 rounded-lg dropdown-toggle border border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-dark dark:hover:bg-gray-800 min-w-[160px]"
+                            >
+                                <span className="truncate">
+                                    {discountFilterLabel}
+                                </span>
+                                <svg
+                                    className={`duration-200 ease-in-out stroke-current ${
+                                        isDiscountDropdownOpen
+                                            ? "rotate-180"
+                                            : ""
+                                    }`}
+                                    width="20"
+                                    height="20"
+                                    viewBox="0 0 20 20"
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <path
+                                        d="M4.79199 7.396L10.0003 12.6043L15.2087 7.396"
+                                        stroke=""
+                                        strokeWidth="1.5"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                    />
+                                </svg>
+                            </button>
+
+                            <Dropdown
+                                className="absolute left-0 top-full z-40 mt-2 w-full min-w-[220px] rounded-2xl border border-gray-200 bg-white p-3 shadow-theme-lg dark:border-gray-800 dark:bg-[#1E2635]"
+                                isOpen={isDiscountDropdownOpen}
+                                onClose={() =>
+                                    setIsDiscountDropdownOpen(false)
+                                }
+                            >
+                                <ul className="flex flex-col gap-1">
+                                    {[
+                                        { value: "", label: "Svi" },
+                                        { value: "1", label: "S popustom" },
+                                        { value: "0", label: "Bez popusta" },
+                                    ].map((option) => (
+                                        <li key={option.label}>
+                                            <DropdownItem
+                                                onClick={() => {
+                                                    setHasDiscount(option.value);
+                                                    setIsDiscountDropdownOpen(
+                                                        false,
+                                                    );
+                                                }}
+                                                className={`flex rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5 ${
+                                                    hasDiscount === option.value
+                                                        ? "bg-gray-100 text-gray-900 dark:bg-white/10 dark:text-white"
+                                                        : "text-gray-700 dark:text-gray-300"
+                                                }`}
+                                                baseClassName=""
+                                            >
+                                                {option.label}
                                             </DropdownItem>
                                         </li>
                                     ))}
@@ -1140,6 +1532,35 @@ const InvoicesDataTable = ({
                                                     setModalAmount(e.target.value)
                                                 }
                                             />
+                                            {modalOriginalAmount != null && (
+                                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                                    Osnovica:{" "}
+                                                    {Number(modalOriginalAmount).toFixed(2)} €
+                                                </p>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="invoice-discount">
+                                                Popust (%)
+                                            </Label>
+                                            <Input
+                                                type="number"
+                                                id="invoice-discount"
+                                                min="0"
+                                                max="99.99"
+                                                step={1}
+                                                placeholder="npr. 20"
+                                                value={modalDiscount}
+                                                onChange={(e) =>
+                                                    handleDiscountInputChange(
+                                                        e.target.value,
+                                                    )
+                                                }
+                                            />
+                                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                                Unesite postotak da se iznos
+                                                preračuna. Prazno = bez popusta.
+                                            </p>
                                         </div>
                                         <div>
                                             <Label htmlFor="invoice-due-date">

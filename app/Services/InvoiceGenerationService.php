@@ -205,6 +205,7 @@ class InvoiceGenerationService
 
         // Calculate amount
         $amount = $this->calculateInvoiceAmount($plan, $dueDate);
+        $discount = $plan->invoiceDiscountSnapshot($amount);
 
         // Get school year
         $schoolYear = SchoolYearService::getSchoolYearLabel($dueDate);
@@ -215,12 +216,14 @@ class InvoiceGenerationService
             'workshop_id' => $memberWorkshop->workshop_id,
             'membership_plan_id' => $plan->id,
             'amount_due' => $amount,
+            'discount_percent' => $discount['discount_percent'],
+            'original_amount' => $discount['original_amount'],
             'amount_paid' => 0,
             'due_date' => $dueDate->toDateString(),
             'payment_status' => 'Otvoreno',
             'reference_code' => $referenceCode,
             'school_year' => $schoolYear,
-            'notes' => 'Članarina za '.$dueDate->format('m/Y'),
+            'notes' => Invoice::defaultMembershipNotes($plan, $dueDate),
         ]);
 
         return $invoice;
@@ -440,12 +443,18 @@ class InvoiceGenerationService
             ->first()
             ?->membershipPlan;
 
+        $discount = $membershipPlan
+            ? $membershipPlan->invoiceDiscountSnapshot($amount)
+            : ['discount_percent' => null, 'original_amount' => null];
+
         // Create session invoice
         $invoice = Invoice::create([
             'member_id' => $member->id,
             'workshop_id' => $workshop->id,
             'membership_plan_id' => $membershipPlan?->id,
             'amount_due' => $amount,
+            'discount_percent' => $discount['discount_percent'],
+            'original_amount' => $discount['original_amount'],
             'amount_paid' => 0,
             'due_date' => $dueDate->toDateString(),
             'payment_status' => 'Otvoreno',

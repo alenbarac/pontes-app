@@ -1,5 +1,4 @@
 import { Link } from "@inertiajs/react";
-import { useState } from "react";
 import {
   ArrowRightIcon,
   BanknotesIcon,
@@ -27,25 +26,20 @@ function formatRate(value) {
 }
 
 export default function CashFlowWidget({ revenue }) {
-  const [period, setPeriod] = useState("current_month");
-
-  const periods = revenue?.periods || {};
-  const currentMonth = periods.current_month || {};
-  const schoolYear = periods.school_year || {};
-  const active = period === "school_year" ? schoolYear : currentMonth;
+  const active = revenue?.open || revenue?.periods?.school_year || {};
 
   const cards = [
     {
       title: "Očekivano",
       amount: formatCurrency(active.expected_amount),
-      subtitle: "Svi izdani računi za period",
+      subtitle: "Svi otvoreni računi",
       icon: ScaleIcon,
       iconClass: "text-brand-500",
     },
     {
       title: "Naplaćeno",
       amount: formatCurrency(active.collected_amount),
-      subtitle: "Već primljene uplate",
+      subtitle: "Već primljene uplate na otvorenim računima",
       icon: BanknotesIcon,
       iconClass: "text-success-500",
     },
@@ -71,50 +65,19 @@ export default function CashFlowWidget({ revenue }) {
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
-            Cash flow — {active.label}
-          </h3>
-
-          <div className="inline-flex w-fit items-center gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-900">
-            <button
-              type="button"
-              onClick={() => setPeriod("current_month")}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                period === "current_month"
-                  ? "bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white"
-                  : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-              }`}
-            >
-              {currentMonth.button_label || "Tekući mjesec"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setPeriod("school_year")}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                period === "school_year"
-                  ? "bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white"
-                  : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-              }`}
-            >
-              {schoolYear.button_label || "Školska godina"}
-            </button>
-          </div>
-        </div>
+        <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
+          Cash flow — otvoreni računi
+        </h3>
 
         {active.is_healthy ? (
           <div className="flex items-center gap-2 text-sm text-success-600 dark:text-success-400">
             <CheckCircleIcon className="h-5 w-5 shrink-0" />
-            <span>
-              {period === "school_year"
-                ? "Naplata školske godine uredna"
-                : "Naplata mjeseca uredna"}
-            </span>
+            <span>Naplata uredna</span>
           </div>
         ) : (
           <div className="flex items-center gap-2 text-sm text-warning-600 dark:text-warning-400">
             <ExclamationTriangleIcon className="h-5 w-5 shrink-0" />
-            <span>{active.late_count || 0} članarina kasni</span>
+            <span>{active.late_count || 0} računa kasni</span>
           </div>
         )}
       </div>

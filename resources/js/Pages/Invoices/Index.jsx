@@ -13,9 +13,12 @@ export default function Index({
     paymentStatus, 
     groupId,
     month,
+    membershipPlanId = "",
+    hasDiscount = "",
     workshops, 
     paymentStatuses,
     groups,
+    membershipPlans = [],
 }) {
     
     return (
@@ -41,9 +44,12 @@ export default function Index({
                     initialPaymentStatus={paymentStatus}
                     initialGroupId={groupId}
                     initialMonth={month}
+                    initialMembershipPlanId={membershipPlanId}
+                    initialHasDiscount={hasDiscount}
                     workshops={workshops}
                     paymentStatuses={paymentStatuses}
                     groups={groups}
+                    membershipPlans={membershipPlans}
                 />
             </ComponentCard>
         </AuthenticatedLayout>

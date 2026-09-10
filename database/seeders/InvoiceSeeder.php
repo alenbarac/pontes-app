@@ -50,7 +50,7 @@ class InvoiceSeeder extends Seeder
                     'due_date' => $dueDate->toDateString(),
                     'payment_status' => 'Otvoreno',
                     'reference_code' => $referenceCode,
-                    'notes' => 'Članarina za ' . $dueDate->format('m/Y'),
+                    'notes' => Invoice::defaultMembershipNotes($plan, $dueDate),
                 ]);
             }
         }
