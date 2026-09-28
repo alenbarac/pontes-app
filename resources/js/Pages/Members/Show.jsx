@@ -5,6 +5,7 @@ import Breadcrumb from "@/Components/Breadcrumb";
 import MemberInfoCard from "@/Components/Member/MemberInfoCard";
 import MemberInfoWorkshops from "@/Components/Member/MemberInfoWorkshops";
 import MemberDocuments from "@/Components/Member/MemberDocuments";
+import MemberSendHistory from "@/Components/Member/MemberSendHistory";
 import { TabButton } from "@/Components/ui/tabs/TabWithUnderline";
 
 export default function Show({ member, workshops, groups, membershipPlans, invoicesByWorkshop, documents = [] }) {
@@ -13,6 +14,7 @@ export default function Show({ member, workshops, groups, membershipPlans, invoi
     const tabs = [
         { id: "radionice", label: "Radionice" },
         { id: "dokumenti", label: "Dokumenti" },
+        { id: "evidencija-slanja", label: "Evidencija slanja" },
         { id: "osnovne-informacije", label: "Osnovne informacije" },
     ];
 
@@ -60,6 +62,10 @@ export default function Show({ member, workshops, groups, membershipPlans, invoi
                             memberId={member.id}
                             member={member}
                         />
+                    )}
+
+                    {activeTab === "evidencija-slanja" && (
+                        <MemberSendHistory invoicesByWorkshop={invoicesByWorkshop || {}} />
                     )}
                     
                     {activeTab === "osnovne-informacije" && (

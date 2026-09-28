@@ -338,6 +338,125 @@ test('invoice list exposes the latest successful slip mailing', function () {
         );
 });
 
+test('member profile exposes one slip line per invoice for evidencija slanja', function () {
+    $member = Member::factory()->create(['invoice_email' => 'roditelj@example.com']);
+    $workshop = Workshop::factory()->create(['name' => 'Drama']);
+
+    $resent = Invoice::factory()->create([
+        'member_id' => $member->id,
+        'workshop_id' => $workshop->id,
+        'due_date' => '2026-10-15',
+    ]);
+    InvoiceMailing::factory()->create([
+        'invoice_id' => $resent->id,
+        'recipient' => 'stari@example.com',
+        'sent_at' => '2026-09-01 09:00:00',
+    ]);
+    InvoiceMailing::factory()->create([
+        'invoice_id' => $resent->id,
+        'recipient' => 'roditelj@example.com',
+        'sent_at' => '2026-09-28 12:00:00',
+    ]);
+    InvoiceMailing::factory()->create([
+        'invoice_id' => $resent->id,
+        'type' => InvoiceMailing::TYPE_REMINDER,
+        'recipient' => 'roditelj@example.com',
+        'sent_at' => '2026-10-12 08:00:00',
+    ]);
+
+    $queued = Invoice::factory()->create([
+        'member_id' => $member->id,
+        'workshop_id' => $workshop->id,
+        'due_date' => '2026-09-15',
+    ]);
+    InvoiceMailing::factory()->queued()->create([
+        'invoice_id' => $queued->id,
+        'recipient' => 'roditelj@example.com',
+    ]);
+
+    $failed = Invoice::factory()->create([
+        'member_id' => $member->id,
+        'workshop_id' => $workshop->id,
+        'due_date' => '2026-08-15',
+    ]);
+    InvoiceMailing::factory()->create([
+        'invoice_id' => $failed->id,
+        'recipient' => 'prvo@example.com',
+        'sent_at' => '2026-08-02 09:00:00',
+    ]);
+    InvoiceMailing::factory()->failed()->create([
+        'invoice_id' => $failed->id,
+        'recipient' => 'roditelj@example.com',
+    ]);
+
+    $unsent = Invoice::factory()->create([
+        'member_id' => $member->id,
+        'workshop_id' => $workshop->id,
+        'due_date' => '2026-07-15',
+    ]);
+
+    $this->get(route('members.show', $member))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Members/Show')
+            ->where('invoicesByWorkshop', function ($groups) use ($resent, $queued, $failed, $unsent) {
+                $rows = collect($groups)->flatten(1)->keyBy('id');
+
+                $resentRow = $rows[$resent->id] ?? null;
+                $queuedRow = $rows[$queued->id] ?? null;
+                $failedRow = $rows[$failed->id] ?? null;
+                $unsentRow = $rows[$unsent->id] ?? null;
+
+                return is_array($resentRow)
+                    && $resentRow['slip_mailing']['status'] === InvoiceMailing::STATUS_SENT
+                    && $resentRow['slip_mailing']['resent'] === true
+                    && $resentRow['slip_mailing']['recipient'] === 'roditelj@example.com'
+                    && $resentRow['slip_mailing']['sent_on'] === '28.09.'
+                    && $resentRow['slip_mailing']['error'] === null
+                    && str_contains((string) $resentRow['slip_sent_at'], '2026-09-28')
+                    && $resentRow['reminder_mailing']['status'] === InvoiceMailing::STATUS_SENT
+                    && $resentRow['reminder_mailing']['sent_on'] === '12.10.'
+                    && $resentRow['reminder_mailing']['recipient'] === 'roditelj@example.com'
+                    && is_array($queuedRow)
+                    && $queuedRow['slip_mailing']['status'] === InvoiceMailing::STATUS_QUEUED
+                    && $queuedRow['slip_mailing']['resent'] === false
+                    && $queuedRow['slip_mailing']['sent_on'] === null
+                    && $queuedRow['reminder_mailing'] === null
+                    && is_array($failedRow)
+                    && $failedRow['slip_mailing']['status'] === InvoiceMailing::STATUS_FAILED
+                    && $failedRow['slip_mailing']['resent'] === false
+                    && $failedRow['slip_mailing']['error'] === InvoiceMailing::FAILURE_MESSAGE
+                    && is_array($unsentRow)
+                    && $unsentRow['slip_mailing'] === null
+                    && $unsentRow['slip_sent_at'] === null
+                    && $unsentRow['reminder_mailing'] === null;
+            })
+        );
+});
+
+test('invoice list exposes the latest slip mailing when the last attempt failed', function () {
+    $invoice = Invoice::factory()->create();
+    InvoiceMailing::factory()->create([
+        'invoice_id' => $invoice->id,
+        'sent_at' => '2026-09-01 09:00:00',
+    ]);
+    $failed = InvoiceMailing::factory()->failed()->create([
+        'invoice_id' => $invoice->id,
+        'recipient' => 'parent@example.test',
+    ]);
+
+    $this->get(route('invoices.index', ['filter' => $invoice->reference_code]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Invoices/Index')
+            ->where('invoices.data.0.id', $invoice->id)
+            ->where('invoices.data.0.latest_slip_mailing.id', $failed->id)
+            ->where('invoices.data.0.latest_slip_mailing.status', InvoiceMailing::STATUS_FAILED)
+            ->where('invoices.data.0.latest_slip_mailing.error', InvoiceMailing::FAILURE_MESSAGE)
+            ->where('invoices.data.0.latest_successful_slip_mailing.status', InvoiceMailing::STATUS_SENT)
+        );
+});
+
 test('group send all refuses more than 100 invoices', function () {
     $workshop = Workshop::factory()->create();
     $group = MemberGroup::query()->create(['name' => 'Velika grupa']);

@@ -76,6 +76,78 @@ class Invoice extends Model
     }
 
     /**
+     * Newest slip attempt of any status (queued, sent, or failed).
+     */
+    public function latestSlipMailing()
+    {
+        return $this->hasOne(InvoiceMailing::class)->ofMany(
+            ['id' => 'max'],
+            function ($query) {
+                $query->where('type', InvoiceMailing::TYPE_SLIP);
+            }
+        );
+    }
+
+    /**
+     * Newest reminder attempt, when that mailing type exists.
+     */
+    public function latestReminderMailing()
+    {
+        return $this->hasOne(InvoiceMailing::class)->ofMany(
+            ['id' => 'max'],
+            function ($query) {
+                $query->where('type', InvoiceMailing::TYPE_REMINDER);
+            }
+        );
+    }
+
+    /**
+     * Latest slip attempt for Evidencija slanja. Resent is true only when
+     * that latest attempt itself succeeded and an earlier slip did too.
+     *
+     * @return array{status: string, sent_at: string|null, sent_on: string|null, recipient: string|null, error: string|null, resent: bool}|null
+     */
+    public function staffSlipMailing(): ?array
+    {
+        $latest = $this->latestSlipMailing;
+
+        if ($latest === null) {
+            return null;
+        }
+
+        $resent = $latest->status === InvoiceMailing::STATUS_SENT
+            && $this->successfulSlipMailingCount() > 1;
+
+        return $latest->toStaffSummary($resent);
+    }
+
+    /**
+     * @return array{status: string, sent_at: string|null, sent_on: string|null, recipient: string|null, error: string|null, resent: bool}|null
+     */
+    public function staffReminderMailing(): ?array
+    {
+        $latest = $this->latestReminderMailing;
+
+        if ($latest === null) {
+            return null;
+        }
+
+        return $latest->toStaffSummary(false);
+    }
+
+    private function successfulSlipMailingCount(): int
+    {
+        if (array_key_exists('successful_slip_mailings_count', $this->attributes)) {
+            return (int) $this->attributes['successful_slip_mailings_count'];
+        }
+
+        return (int) $this->mailings()
+            ->where('type', InvoiceMailing::TYPE_SLIP)
+            ->where('status', InvoiceMailing::STATUS_SENT)
+            ->count();
+    }
+
+    /**
      * Opis plaćanja (second line on the slip). Custom slip_description wins;
      * otherwise generated invoice notes, then Članarina.
      */

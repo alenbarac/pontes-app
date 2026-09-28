@@ -38,6 +38,7 @@ class InvoiceController extends Controller
             'workshop',
             'membershipPlan',
             'latestSuccessfulSlipMailing',
+            'latestSlipMailing',
         ])
             ->when($filter, function ($query, $filter) {
                 $query->where(function ($q) use ($filter) {

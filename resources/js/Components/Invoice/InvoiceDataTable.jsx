@@ -7,6 +7,7 @@ import {
 import { router } from "@inertiajs/react";
 import axios from "axios";
 import InvoiceActionsDropdown from "./InvoiceActionColumn";
+import SlipMailingBadge from "@/Components/Member/SlipMailingBadge";
 import { Dropdown } from "@/ui/dropdown/Dropdown";
 import { DropdownItem } from "@/ui/dropdown/DropdownItem";
 import { Modal } from "@/Components/ui/modal";
@@ -308,6 +309,13 @@ const InvoicesDataTable = ({
                         </span>
                     );
                 },
+            },
+            {
+                accessorKey: "latest_slip_mailing",
+                header: "Slanje",
+                cell: ({ row }) => (
+                    <SlipMailingBadge mailing={row.original.latest_slip_mailing} />
+                ),
             },
             {
                 accessorKey: "actions",

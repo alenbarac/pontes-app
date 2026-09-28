@@ -6,6 +6,7 @@ use App\Http\Requests\BulkSendPaymentSlipsForMembersRequest;
 use App\Http\Requests\StoreMemberRequest;
 use App\Http\Requests\UpdateMemberRequest;
 use App\Http\Resources\MemberResource;
+use App\Models\InvoiceMailing;
 use App\Models\Member;
 use App\Models\MemberGroup;
 use App\Models\MemberGroupWorkshop;
@@ -271,9 +272,20 @@ class MemberController extends Controller
         $member->load([
             'workshops.memberships',
             'workshopGroups.group',
-            'invoices.workshop',
-            'invoices.membershipPlan',
-            'invoices.latestSuccessfulSlipMailing',
+            'invoices' => function ($query) {
+                $query->with([
+                    'workshop',
+                    'membershipPlan',
+                    'latestSuccessfulSlipMailing',
+                    'latestSlipMailing',
+                    'latestReminderMailing',
+                ])->withCount([
+                    'mailings as successful_slip_mailings_count' => function ($mailingQuery) {
+                        $mailingQuery->where('type', InvoiceMailing::TYPE_SLIP)
+                            ->where('status', InvoiceMailing::STATUS_SENT);
+                    },
+                ]);
+            },
             'documents.documentTemplate',
         ]);
 
@@ -320,6 +332,8 @@ class MemberController extends Controller
                     'has_discount' => $invoice->has_discount,
                     'discount_label' => $invoice->discount_label,
                     'slip_sent_at' => $invoice->latestSuccessfulSlipMailing?->sent_at?->toIso8601String(),
+                    'slip_mailing' => $invoice->staffSlipMailing(),
+                    'reminder_mailing' => $invoice->staffReminderMailing(),
                 ];
             })->values()->all();
         })->toArray();

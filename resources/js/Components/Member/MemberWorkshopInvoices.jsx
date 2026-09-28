@@ -12,6 +12,7 @@ import Label from "@/Components/form/Label";
 import Input from "@/Components/form/input/InputField";
 import { CalendarDaysIcon, TrashIcon, Cog8ToothIcon, EnvelopeIcon } from "@heroicons/react/24/outline";
 import { Table, TableHeader, TableBody, TableRow, TableCell } from "@/Components/ui/table";
+import SlipMailingBadge from "@/Components/Member/SlipMailingBadge";
 
 const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
     const { props } = usePage();
@@ -452,6 +453,9 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                                     Status
                                 </TableCell>
                                 <TableCell isHeader className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                                    Slanje
+                                </TableCell>
+                                <TableCell isHeader className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                                     Dospijeće
                                 </TableCell>
                                 <TableCell isHeader className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
@@ -485,6 +489,9 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                                         >
                                             {invoice.payment_status}
                                         </span>
+                                    </TableCell>
+                                    <TableCell className="px-4 py-3">
+                                        <SlipMailingBadge mailing={invoice.slip_mailing} />
                                     </TableCell>
                                     <TableCell className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
                                         {format(
