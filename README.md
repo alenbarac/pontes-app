@@ -61,70 +61,82 @@ In order to ensure that the Laravel community is welcoming to all, please review
 
 If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
 
-## Email Testing (Local Development)
+## Payment slip email
 
-For testing email functionality locally, configure the mail driver in your `.env` file:
+Each uplatnica is one transactional message with its own PDF. The recipient is `members.invoice_email` only (the “Email za račune” field). Other member email fields are ignored. An empty `invoice_email` is skipped in a bulk send; a single send returns an error.
 
-### Option 1: Log Driver (Default - Recommended for Development)
-Emails are written to `storage/logs/laravel.log`:
+Staff sends queue one `SendInvoiceMailing` job per invoice. Every environment uses the Laravel `smtp` mailer. `MAIL_HOST`, `MAIL_USERNAME`, `MAIL_PASSWORD`, and `MAIL_FROM_*` are the only mail settings that change between environments.
+
+### Local
+
+Log mail and run the database queue:
 
 ```env
 MAIL_MAILER=log
 MAIL_FROM_ADDRESS=noreply@example.com
 MAIL_FROM_NAME="Pontes App"
+QUEUE_CONNECTION=database
+MAIL_BULK_SENDS_PER_SECOND=1
 ```
-
-View emails by checking `storage/logs/laravel.log` after sending.
-
-### Option 2: Mailtrap (Recommended for Testing)
-Use Mailtrap to catch and preview emails in a web interface:
-
-1. Sign up at [mailtrap.io](https://mailtrap.io)
-2. Create an inbox and get SMTP credentials
-3. Configure `.env`:
-
-```env
-MAIL_MAILER=smtp
-MAIL_HOST=smtp.mailtrap.io
-MAIL_PORT=2525
-MAIL_USERNAME=your_mailtrap_username
-MAIL_PASSWORD=your_mailtrap_password
-MAIL_ENCRYPTION=tls
-MAIL_FROM_ADDRESS=noreply@example.com
-MAIL_FROM_NAME="Pontes App"
-```
-
-**Testing Email Sending:**
-
-Use the test command to verify your email configuration:
 
 ```bash
-# Send a simple test email
-php artisan mail:test --to=your-email@example.com
+php artisan queue:work
+```
 
-# Test with an actual invoice (sends payment slip)
-php artisan mail:test --invoice=334 --to=your-email@example.com
-# Or use the member's email from the invoice
+Logged messages are in `storage/logs/laravel.log`.
+
+To preview the Croatian body and the PDF, use a [Mailtrap Email Sandbox](https://mailtrap.io) inbox with the staging SMTP block below. The sandbox stores the message. It does not deliver to parents. Keep `MAIL_BULK_SENDS_PER_SECOND=1`. The sandbox rejects faster sends.
+
+`php artisan mail:test` sends immediately and skips the queue. Use it to check SMTP credentials:
+
+```bash
+php artisan mail:test --to=your-email@example.com
 php artisan mail:test --invoice=334
 ```
 
-After running the command, check your Mailtrap inbox to see the email.
+The test suite forces `MAIL_MAILER=array` in `phpunit.xml`, so PHPUnit never opens an SMTP connection.
 
-### Option 3: Array Driver (For Unit Testing)
-Emails are stored in memory (useful for testing):
+### Laravel Cloud staging (`develop`)
+
+Staging uses Mailtrap **Email Sandbox** and a Laravel Cloud **managed queue**. This environment does not email parents.
+
+In the Cloud dashboard for the staging environment:
+
+1. Attach a managed queue on **Flex**, standard size (about 512 MiB). Cloud sets `QUEUE_CONNECTION=cloud` and injects `queue.connections.cloud` at boot from `LARAVEL_CLOUD_MANAGED_QUEUES_CONFIG`. Leave that connection in place. `sync` runs every slip inside the HTTP request and will time out a group send. The app requires Laravel 11.55+ and `aws/aws-sdk-php`. A Flex worker stops a job after 90 seconds. `SendInvoiceMailing` allows 75 seconds, which covers one PDF and one SMTP send.
+2. Set Sandbox SMTP from the inbox credentials (not an Email Sending API token):
 
 ```env
-MAIL_MAILER=array
+MAIL_MAILER=smtp
+MAIL_HOST=sandbox.smtp.mailtrap.io
+MAIL_PORT=2525
+MAIL_USERNAME=<sandbox inbox username>
+MAIL_PASSWORD=<sandbox inbox password>
+MAIL_ENCRYPTION=tls
 MAIL_FROM_ADDRESS=noreply@example.com
 MAIL_FROM_NAME="Pontes App"
+MAIL_BULK_SENDS_PER_SECOND=1
 ```
 
-Access sent emails in tests using `Mail::assertSent()`.
+After a `develop` deploy, check one group for one month:
 
-### Payment Slip Email Feature
-The payment slip email feature sends PDF attachments using **`members.invoice_email` only** (the “Email za račune” field). Other member e-mail fields are not used for slips.
+1. Send the group from the app.
+2. In the Sandbox inbox, each message is addressed to that member's `invoice_email`, the body is the Croatian uplatnica text, and the PDF is attached.
+3. On the member profile, **Evidencija slanja** shows **Poslana** with the send date.
+4. Send the same group again and leave resend unconfirmed. Nothing new is queued.
 
-If `invoice_email` is empty, that member is skipped in bulk sends or an error is shown for a single send.
+### Production
+
+Production uses Mailtrap **Email Sending** when that environment is ready. Sandbox and Sending are separate products and separate credentials:
+
+```env
+MAIL_HOST=live.smtp.mailtrap.io
+MAIL_PORT=587
+MAIL_USERNAME=api
+MAIL_PASSWORD=<sending api token>
+MAIL_ENCRYPTION=tls
+```
+
+Verify SPF and DKIM for `MAIL_FROM_ADDRESS` before the first real send. Raise `MAIL_BULK_SENDS_PER_SECOND` to match the sending plan. Staging keeps `sandbox.smtp.mailtrap.io` and the sandbox inbox password.
 
 ## License
 
