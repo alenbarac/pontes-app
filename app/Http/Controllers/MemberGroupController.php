@@ -256,7 +256,11 @@ class MemberGroupController extends Controller
         }
 
         $memberIds = $resolution['member_ids'];
-        $result = $this->paymentSlipEmailService->sendForMembersInMonth($memberIds, $request->validated('month'));
+        $result = $this->paymentSlipEmailService->sendForMembersInMonth(
+            $memberIds,
+            $request->validated('month'),
+            $request->boolean('resend'),
+        );
 
         if (! empty($result['invalid_month'])) {
             return response()->json([
@@ -275,6 +279,7 @@ class MemberGroupController extends Controller
         $summary = [
             'sent' => $result['sent'],
             'skipped_no_email' => $result['skipped_no_email'],
+            'skipped_already_sent' => $result['skipped_already_sent'],
             'failed' => $result['failed'],
         ];
 

@@ -26,6 +26,7 @@ class BulkSendInvoiceEmailsRequest extends FormRequest
         return [
             'invoice_ids' => ['required', 'array', 'min:1', 'max:'.self::MAX_BATCH],
             'invoice_ids.*' => ['integer', 'exists:invoices,id'],
+            'resend' => ['sometimes', 'boolean'],
         ];
     }
 }

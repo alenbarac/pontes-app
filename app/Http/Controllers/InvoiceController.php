@@ -32,7 +32,13 @@ class InvoiceController extends Controller
         $membershipPlanId = $request->get('membership_plan_id', '');
         $hasDiscount = $request->get('has_discount', '');
 
-        $query = Invoice::with(['member', 'member.workshopGroups.group', 'workshop', 'membershipPlan'])
+        $query = Invoice::with([
+            'member',
+            'member.workshopGroups.group',
+            'workshop',
+            'membershipPlan',
+            'latestSuccessfulSlipMailing',
+        ])
             ->when($filter, function ($query, $filter) {
                 $query->where(function ($q) use ($filter) {
                     $q->whereHas('member', fn ($q) => $q->where('first_name', 'like', "%$filter%")
@@ -396,15 +402,22 @@ class InvoiceController extends Controller
     {
         $invoice->load(['member', 'workshop', 'membershipPlan']);
 
-        $result = $this->paymentSlipEmailService->sendForInvoice($invoice);
+        $result = $this->paymentSlipEmailService->sendForInvoice($invoice, $request->boolean('resend'));
 
         if (! $result['ok']) {
-            $errorMessage = ($result['reason'] ?? '') === 'no_email'
-                ? 'Član nema unesenu e-mail adresu za račune. Molimo unesite polje „Email za račune” (invoice_email) u podacima člana.'
-                : 'Došlo je do greške pri slanju e-maila. Molimo pokušajte ponovno.';
+            $reason = $result['reason'] ?? '';
+            $errorMessage = match ($reason) {
+                'no_email' => 'Član nema unesenu e-mail adresu za račune. Molimo unesite polje „Email za račune” (invoice_email) u podacima člana.',
+                'already_sent' => 'Uplatnica je već poslana. Potvrdite ponovno slanje ako je želite poslati još jednom.',
+                default => 'Došlo je do greške pri slanju e-maila. Molimo pokušajte ponovno.',
+            };
 
             if ($request->expectsJson()) {
-                return response()->json(['message' => $errorMessage], 422);
+                return response()->json([
+                    'message' => $errorMessage,
+                    'reason' => $reason !== '' ? $reason : 'mail_error',
+                    'sent_at' => $result['sent_at'] ?? null,
+                ], 422);
             }
 
             if ($request->header('X-Inertia') || $request->has('stay_on_page')) {
@@ -435,11 +448,15 @@ class InvoiceController extends Controller
      */
     public function bulkSendSlipEmails(BulkSendInvoiceEmailsRequest $request): JsonResponse
     {
-        $summary = $this->paymentSlipEmailService->sendForInvoiceIds($request->validated('invoice_ids'));
+        $summary = $this->paymentSlipEmailService->sendForInvoiceIds(
+            $request->validated('invoice_ids'),
+            $request->boolean('resend'),
+        );
 
         return response()->json([
             'sent' => $summary['sent'],
             'skipped_no_email' => $summary['skipped_no_email'],
+            'skipped_already_sent' => $summary['skipped_already_sent'],
             'failed' => $summary['failed'],
             'message' => $this->paymentSlipEmailService->humanSummary($summary),
         ]);

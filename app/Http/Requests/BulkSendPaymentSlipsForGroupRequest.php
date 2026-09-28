@@ -20,6 +20,7 @@ class BulkSendPaymentSlipsForGroupRequest extends FormRequest
     {
         return [
             'month' => ['required', 'regex:'.MonthString::REGEX],
+            'resend' => ['sometimes', 'boolean'],
             'send_scope' => ['required', Rule::in(['selected', 'all'])],
             'member_ids' => ['exclude_if:send_scope,all', 'required_if:send_scope,selected', 'array', 'min:1'],
             'member_ids.*' => ['integer', 'exists:members,id'],

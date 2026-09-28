@@ -21,6 +21,7 @@ class BulkSendPaymentSlipsForMembersRequest extends FormRequest
             'member_ids' => ['required', 'array', 'min:1', 'max:'.BulkSendInvoiceEmailsRequest::MAX_BATCH],
             'member_ids.*' => ['integer', 'exists:members,id'],
             'month' => ['required', 'regex:'.MonthString::REGEX],
+            'resend' => ['sometimes', 'boolean'],
         ];
     }
 }

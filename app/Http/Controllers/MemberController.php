@@ -176,7 +176,8 @@ class MemberController extends Controller
 
         $result = $this->paymentSlipEmailService->sendForMembersInMonth(
             $validated['member_ids'],
-            $validated['month']
+            $validated['month'],
+            $request->boolean('resend'),
         );
 
         if (! empty($result['invalid_month'])) {
@@ -196,6 +197,7 @@ class MemberController extends Controller
         $summary = [
             'sent' => $result['sent'],
             'skipped_no_email' => $result['skipped_no_email'],
+            'skipped_already_sent' => $result['skipped_already_sent'],
             'failed' => $result['failed'],
         ];
 
@@ -267,6 +269,7 @@ class MemberController extends Controller
             'workshopGroups.group',
             'invoices.workshop',
             'invoices.membershipPlan',
+            'invoices.latestSuccessfulSlipMailing',
             'documents.documentTemplate',
         ]);
 
@@ -312,6 +315,7 @@ class MemberController extends Controller
                         : null,
                     'has_discount' => $invoice->has_discount,
                     'discount_label' => $invoice->discount_label,
+                    'slip_sent_at' => $invoice->latestSuccessfulSlipMailing?->sent_at?->toIso8601String(),
                 ];
             })->values()->all();
         })->toArray();

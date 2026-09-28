@@ -56,6 +56,25 @@ class Invoice extends Model
         return $this->belongsTo(MembershipPlan::class);
     }
 
+    public function mailings()
+    {
+        return $this->hasMany(InvoiceMailing::class);
+    }
+
+    /**
+     * Newest successfully emailed payment slip, if one exists.
+     */
+    public function latestSuccessfulSlipMailing()
+    {
+        return $this->hasOne(InvoiceMailing::class)->ofMany(
+            ['sent_at' => 'max', 'id' => 'max'],
+            function ($query) {
+                $query->where('type', InvoiceMailing::TYPE_SLIP)
+                    ->where('status', InvoiceMailing::STATUS_SENT);
+            }
+        );
+    }
+
     /**
      * Opis plaćanja (second line on the slip). Custom slip_description wins;
      * otherwise generated invoice notes, then Članarina.
