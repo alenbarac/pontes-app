@@ -2,16 +2,36 @@
 
 namespace App\Services;
 
-use App\Mail\PaymentSlipMailable;
+use App\Jobs\SendInvoiceMailing;
 use App\Models\Invoice;
 use App\Models\InvoiceMailing;
 use App\Models\Member;
 use App\Support\MonthString;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
+use Throwable;
 
 class PaymentSlipEmailService
 {
+    public const MAX_INVOICES_PER_SEND = 100;
+
+    public static function maxInvoicesMessage(): string
+    {
+        return 'Možete poslati najviše '.self::MAX_INVOICES_PER_SEND.' uplatnica odjednom.';
+    }
+
+    /**
+     * @return array{message: string, errors: array{invoices: list<string>}}
+     */
+    public function capExceededPayload(): array
+    {
+        $message = self::maxInvoicesMessage();
+
+        return [
+            'message' => $message,
+            'errors' => ['invoices' => [$message]],
+        ];
+    }
+
     /**
      * Payment slips are sent only to `members.invoice_email` (email za račune).
      *
@@ -27,107 +47,41 @@ class PaymentSlipEmailService
     }
 
     /**
-     * Send a single invoice slip.
+     * Queue a single invoice slip. The worker sends the PDF and updates the log.
      *
-     * A successful `slip` mailing is not sent again unless `$resend` is true.
+     * A successful `slip` mailing is not queued again unless `$resend` is true.
      * `loadMissing` is defensive for direct callers; `sendForInvoiceIds`
      * already eager-loads the same relations so it is a no-op there.
      *
-     * @return array{ok: bool, reason?: string, message?: string, recipient?: string, reference_code?: string, invoice_id?: int, sent_at?: string|null}
+     * @return array{ok: bool, reason?: string, message?: string, recipient?: string, reference_code?: string, invoice_id?: int, sent_at?: string|null, invoice_mailing_id?: int}
      */
     public function sendForInvoice(Invoice $invoice, bool $resend = false): array
     {
         $invoice->loadMissing(['member', 'workshop', 'membershipPlan']);
 
-        if (! $resend) {
-            $alreadySent = $this->latestSuccessfulSlip($invoice);
-            if ($alreadySent !== null) {
-                return [
-                    'ok' => false,
-                    'reason' => 'already_sent',
-                    'message' => 'Uplatnica je već poslana.',
-                    'invoice_id' => $invoice->id,
-                    'reference_code' => $invoice->reference_code,
-                    'recipient' => $alreadySent->recipient,
-                    'sent_at' => $alreadySent->sent_at?->toIso8601String(),
-                ];
-            }
-        }
-
-        $recipient = $this->resolveRecipient($invoice->member);
-        if ($recipient === null) {
-            return [
-                'ok' => false,
-                'reason' => 'no_email',
-                'message' => 'Član nema unesenu e-mail adresu za račune (invoice_email).',
-                'invoice_id' => $invoice->id,
-                'reference_code' => $invoice->reference_code,
-            ];
-        }
-
-        try {
-            $mailable = new PaymentSlipMailable($invoice, $recipient['email']);
-            Mail::to($recipient['email'])->send($mailable);
-        } catch (\Throwable $e) {
-            $this->recordMailing(
-                $invoice,
-                $recipient['email'],
-                InvoiceMailing::STATUS_FAILED,
-                'Slanje uplatnice nije uspjelo.'
-            );
-
-            Log::error('Failed to send payment slip email', [
-                'invoice_id' => $invoice->id,
-                'reference_code' => $invoice->reference_code,
-                'recipient_email' => $recipient['email'],
-                'error' => $e->getMessage(),
-            ]);
-
-            return [
-                'ok' => false,
-                'reason' => 'mail_error',
-                'message' => 'Greška pri slanju e-pošte.',
-                'invoice_id' => $invoice->id,
-                'reference_code' => $invoice->reference_code,
-            ];
-        }
-
-        $mailing = $this->recordMailing($invoice, $recipient['email'], InvoiceMailing::STATUS_SENT);
-
-        Log::info('Payment slip email sent', [
-            'invoice_id' => $invoice->id,
-            'reference_code' => $invoice->reference_code,
-            'recipient_email' => $recipient['email'],
-            'email_source' => $recipient['source'],
-            'invoice_mailing_id' => $mailing->id,
-        ]);
-
-        return [
-            'ok' => true,
-            'recipient' => $recipient['email'],
-            'reference_code' => $invoice->reference_code,
-            'invoice_id' => $invoice->id,
-            'sent_at' => $mailing->sent_at?->toIso8601String(),
-        ];
+        return $this->queueSlip($invoice, $resend);
     }
 
     /**
-     * Send slips for the given invoice IDs (synchronously, in order).
+     * Queue one job per invoice and return immediately.
      *
-     * The detailed exception message is logged via `sendForInvoice` and is
-     * intentionally not echoed back into the API response (it can leak SMTP
-     * server / network details). The client receives a generic message.
-     *
-     * Successful slips are skipped unless `$resend` is true.
+     * Missing `invoice_email` rows and slips that already have a successful
+     * mailing are skipped (unless `$resend` is true). The HTTP response does
+     * not wait for SMTP. More than {@see self::MAX_INVOICES_PER_SEND} invoices
+     * is refused without queueing any of them.
      *
      * @param  array<int>  $invoiceIds
-     * @return array{sent: int, skipped_no_email: list<array<string, mixed>>, skipped_already_sent: list<array<string, mixed>>, failed: list<array<string, mixed>>}
+     * @return array{queued: int, skipped_no_email: list<array<string, mixed>>, skipped_already_sent: list<array<string, mixed>>, failed: list<array<string, mixed>>, exceeds_cap: bool}
      */
     public function sendForInvoiceIds(array $invoiceIds, bool $resend = false): array
     {
         $invoiceIds = array_values(array_unique(array_map('intval', $invoiceIds)));
 
-        $sent = 0;
+        if (count($invoiceIds) > self::MAX_INVOICES_PER_SEND) {
+            return $this->emptyDispatchSummary(exceedsCap: true);
+        }
+
+        $queued = 0;
         $skippedNoEmail = [];
         $skippedAlreadySent = [];
         $failed = [];
@@ -138,22 +92,7 @@ class PaymentSlipEmailService
             ->get()
             ->keyBy('id');
 
-        // Sending is a long-running, side-effecting loop. Don't let an aborted
-        // request kill us mid-batch — finish the batch and report the summary.
-        @set_time_limit(0);
-        ignore_user_abort(true);
-
-        // Optional per-message throttle for SMTP providers with low per-second
-        // caps (e.g. Mailtrap Testing tier returns 550 5.7.0 above ~1/sec).
-        $throttleMicroseconds = (int) (((float) config('mail.bulk_throttle_seconds', 0)) * 1_000_000);
-        $isFirst = true;
-
         foreach ($invoiceIds as $id) {
-            if (! $isFirst && $throttleMicroseconds > 0) {
-                usleep($throttleMicroseconds);
-            }
-            $isFirst = false;
-
             $invoice = $invoices->get($id);
             if (! $invoice) {
                 $failed[] = [
@@ -165,9 +104,9 @@ class PaymentSlipEmailService
                 continue;
             }
 
-            $result = $this->sendForInvoice($invoice, $resend);
+            $result = $this->queueSlip($invoice, $resend);
             if ($result['ok']) {
-                $sent++;
+                $queued++;
             } elseif (($result['reason'] ?? '') === 'no_email') {
                 $skippedNoEmail[] = [
                     'invoice_id' => $invoice->id,
@@ -192,30 +131,28 @@ class PaymentSlipEmailService
         }
 
         return [
-            'sent' => $sent,
+            'queued' => $queued,
             'skipped_no_email' => $skippedNoEmail,
             'skipped_already_sent' => $skippedAlreadySent,
             'failed' => $failed,
+            'exceeds_cap' => false,
         ];
     }
 
     /**
-     * Resolve invoices for given members and calendar month (due_date), then send each slip.
+     * Resolve invoices for given members and calendar month (due_date), then queue each slip.
      *
      * Successful slips are skipped unless `$resend` is true.
      *
      * @param  array<int>  $memberIds
-     * @return array{sent: int, skipped_no_email: list<array<string, mixed>>, skipped_already_sent: list<array<string, mixed>>, failed: list<array<string, mixed>>, invoice_count: int}
+     * @return array{queued: int, skipped_no_email: list<array<string, mixed>>, skipped_already_sent: list<array<string, mixed>>, failed: list<array<string, mixed>>, exceeds_cap: bool, invoice_count: int, invalid_month: bool}
      */
     public function sendForMembersInMonth(array $memberIds, string $monthYyyyMm, bool $resend = false): array
     {
         $parsed = MonthString::parse($monthYyyyMm);
         if ($parsed === null) {
             return [
-                'sent' => 0,
-                'skipped_no_email' => [],
-                'skipped_already_sent' => [],
-                'failed' => [],
+                ...$this->emptyDispatchSummary(false),
                 'invoice_count' => 0,
                 'invalid_month' => true,
             ];
@@ -226,10 +163,7 @@ class PaymentSlipEmailService
         $memberIds = array_values(array_unique(array_map('intval', $memberIds)));
         if ($memberIds === []) {
             return [
-                'sent' => 0,
-                'skipped_no_email' => [],
-                'skipped_already_sent' => [],
-                'failed' => [],
+                ...$this->emptyDispatchSummary(false),
                 'invoice_count' => 0,
                 'invalid_month' => false,
             ];
@@ -333,12 +267,12 @@ class PaymentSlipEmailService
     }
 
     /**
-     * @param  array{sent: int, skipped_no_email?: list<array<string, mixed>>, skipped_already_sent?: list<array<string, mixed>>, failed?: list<array<string, mixed>>}  $summary
+     * @param  array{queued: int, skipped_no_email?: list<array<string, mixed>>, skipped_already_sent?: list<array<string, mixed>>, failed?: list<array<string, mixed>>}  $summary
      */
     public function humanSummary(array $summary): string
     {
         $parts = [];
-        $parts[] = 'Poslano: '.$summary['sent'].'.';
+        $parts[] = 'Stavljeno u red: '.$summary['queued'].'.';
 
         $skipCount = count($summary['skipped_no_email'] ?? []);
         if ($skipCount > 0) {
@@ -411,6 +345,87 @@ class PaymentSlipEmailService
             ->pluck('invoice_id')
             ->mapWithKeys(fn ($id) => [(int) $id => true])
             ->all();
+    }
+
+    /**
+     * @return array{ok: bool, reason?: string, message?: string, recipient?: string, reference_code?: string, invoice_id?: int, sent_at?: string|null, invoice_mailing_id?: int}
+     */
+    private function queueSlip(Invoice $invoice, bool $resend): array
+    {
+        if (! $resend) {
+            $alreadySent = $this->latestSuccessfulSlip($invoice);
+            if ($alreadySent !== null) {
+                return [
+                    'ok' => false,
+                    'reason' => 'already_sent',
+                    'message' => 'Uplatnica je već poslana.',
+                    'invoice_id' => $invoice->id,
+                    'reference_code' => $invoice->reference_code,
+                    'recipient' => $alreadySent->recipient,
+                    'sent_at' => $alreadySent->sent_at?->toIso8601String(),
+                ];
+            }
+        }
+
+        $recipient = $this->resolveRecipient($invoice->member);
+        if ($recipient === null) {
+            return [
+                'ok' => false,
+                'reason' => 'no_email',
+                'message' => 'Član nema unesenu e-mail adresu za račune (invoice_email).',
+                'invoice_id' => $invoice->id,
+                'reference_code' => $invoice->reference_code,
+            ];
+        }
+
+        $mailing = $this->recordMailing($invoice, $recipient['email'], InvoiceMailing::STATUS_QUEUED);
+
+        try {
+            SendInvoiceMailing::dispatch($mailing->id);
+        } catch (Throwable $e) {
+            $mailing->update([
+                'status' => InvoiceMailing::STATUS_FAILED,
+                'error' => InvoiceMailing::FAILURE_MESSAGE,
+            ]);
+
+            Log::error('Failed to queue payment slip email', [
+                'invoice_id' => $invoice->id,
+                'reference_code' => $invoice->reference_code,
+                'recipient_email' => $recipient['email'],
+                'invoice_mailing_id' => $mailing->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'ok' => false,
+                'reason' => 'mail_error',
+                'message' => 'Greška pri slanju e-pošte.',
+                'invoice_id' => $invoice->id,
+                'reference_code' => $invoice->reference_code,
+            ];
+        }
+
+        return [
+            'ok' => true,
+            'recipient' => $recipient['email'],
+            'reference_code' => $invoice->reference_code,
+            'invoice_id' => $invoice->id,
+            'invoice_mailing_id' => $mailing->id,
+        ];
+    }
+
+    /**
+     * @return array{queued: int, skipped_no_email: list<array<string, mixed>>, skipped_already_sent: list<array<string, mixed>>, failed: list<array<string, mixed>>, exceeds_cap: bool}
+     */
+    private function emptyDispatchSummary(bool $exceedsCap): array
+    {
+        return [
+            'queued' => 0,
+            'skipped_no_email' => [],
+            'skipped_already_sent' => [],
+            'failed' => [],
+            'exceeds_cap' => $exceedsCap,
+        ];
     }
 
     private function recordMailing(Invoice $invoice, string $recipient, string $status, ?string $error = null): InvoiceMailing

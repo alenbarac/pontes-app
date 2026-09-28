@@ -11,6 +11,11 @@ return [
     | API, giving you convenient access to each backend using identical
     | syntax for each. The default queue connection is defined below.
     |
+    | Local development keeps the database driver and `php artisan queue:work`.
+    | A Laravel Cloud managed queue sets QUEUE_CONNECTION=cloud and injects
+    | the connection at runtime (Laravel 11.55+ and aws/aws-sdk-php). Do not
+    | leave that environment on the sync driver.
+    |
     */
 
     'default' => env('QUEUE_CONNECTION', 'database'),

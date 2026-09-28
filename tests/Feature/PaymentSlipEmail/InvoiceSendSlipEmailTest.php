@@ -1,19 +1,25 @@
 <?php
 
-use App\Mail\PaymentSlipMailable;
+use App\Jobs\SendInvoiceMailing;
 use App\Models\Invoice;
 use App\Models\InvoiceMailing;
 use App\Models\Member;
+use App\Models\MemberGroup;
+use App\Models\MemberGroupWorkshop;
 use App\Models\User;
+use App\Models\Workshop;
+use App\Services\PaymentSlipEmailService;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Queue;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
     Mail::fake();
+    Queue::fake();
     $this->actingAs(User::factory()->create());
 });
 
-test('single send dispatches a PaymentSlipMailable to invoice_email', function () {
+test('single send queues a slip mailing and dispatches SendInvoiceMailing', function () {
     $member = Member::factory()->create([
         'invoice_email' => 'parent@example.test',
     ]);
@@ -26,19 +32,18 @@ test('single send dispatches a PaymentSlipMailable to invoice_email', function (
     $response->assertOk()
         ->assertJsonPath('recipient', 'parent@example.test');
 
-    Mail::assertSent(PaymentSlipMailable::class, fn ($mail) => $mail->hasTo('parent@example.test')
-        && $mail->invoice->is($invoice));
+    Queue::assertPushed(SendInvoiceMailing::class, 1);
+    Mail::assertNothingSent();
 
     $this->assertDatabaseHas('invoice_mailings', [
         'invoice_id' => $invoice->id,
         'member_id' => $member->id,
         'type' => InvoiceMailing::TYPE_SLIP,
         'recipient' => 'parent@example.test',
-        'status' => InvoiceMailing::STATUS_SENT,
+        'status' => InvoiceMailing::STATUS_QUEUED,
         'error' => null,
+        'sent_at' => null,
     ]);
-
-    expect(InvoiceMailing::query()->where('invoice_id', $invoice->id)->first()?->sent_at)->not->toBeNull();
 });
 
 test('single send returns 422 when invoice_email missing', function () {
@@ -53,6 +58,7 @@ test('single send returns 422 when invoice_email missing', function () {
     $response->assertStatus(422)
         ->assertJsonPath('reason', 'no_email');
     Mail::assertNothingSent();
+    Queue::assertNothingPushed();
     $this->assertDatabaseCount('invoice_mailings', 0);
 });
 
@@ -70,11 +76,12 @@ test('bulk send sends per invoice and skips members with no invoice_email', func
     ]);
 
     $response->assertOk()
-        ->assertJsonPath('sent', 2)
+        ->assertJsonPath('queued', 2)
         ->assertJsonCount(1, 'skipped_no_email')
         ->assertJsonCount(0, 'failed');
 
-    Mail::assertSent(PaymentSlipMailable::class, 2);
+    Queue::assertPushed(SendInvoiceMailing::class, 2);
+    Mail::assertNothingSent();
 });
 
 test('bulk send rejects batches over the cap', function () {
@@ -89,6 +96,7 @@ test('bulk send rejects batches over the cap', function () {
         ->assertJsonValidationErrors(['invoice_ids']);
 
     Mail::assertNothingSent();
+    Queue::assertNothingPushed();
 });
 
 test('second send skips an invoice that already has a successful slip', function () {
@@ -101,12 +109,18 @@ test('second send skips an invoice that already has a successful slip', function
 
     $this->postJson(route('invoices.sendEmail', $invoice))->assertOk();
 
+    InvoiceMailing::query()->where('invoice_id', $invoice->id)->update([
+        'status' => InvoiceMailing::STATUS_SENT,
+        'sent_at' => now(),
+    ]);
+
     $response = $this->postJson(route('invoices.sendEmail', $invoice));
 
     $response->assertStatus(422)
         ->assertJsonPath('reason', 'already_sent');
 
-    Mail::assertSent(PaymentSlipMailable::class, 1);
+    Queue::assertPushed(SendInvoiceMailing::class, 1);
+    Mail::assertNothingSent();
     expect(InvoiceMailing::query()->where('invoice_id', $invoice->id)->where('status', InvoiceMailing::STATUS_SENT)->count())->toBe(1);
 });
 
@@ -120,12 +134,19 @@ test('resend confirmed sends again and appends another slip mailing', function (
 
     $this->postJson(route('invoices.sendEmail', $invoice))->assertOk();
 
+    InvoiceMailing::query()->where('invoice_id', $invoice->id)->update([
+        'status' => InvoiceMailing::STATUS_SENT,
+        'sent_at' => now()->subMinute(),
+    ]);
+
     $this->postJson(route('invoices.sendEmail', $invoice), ['resend' => true])
         ->assertOk()
         ->assertJsonPath('recipient', 'parent@example.test');
 
-    Mail::assertSent(PaymentSlipMailable::class, 2);
-    expect(InvoiceMailing::query()->where('invoice_id', $invoice->id)->where('status', InvoiceMailing::STATUS_SENT)->count())->toBe(2);
+    Queue::assertPushed(SendInvoiceMailing::class, 2);
+    Mail::assertNothingSent();
+    expect(InvoiceMailing::query()->where('invoice_id', $invoice->id)->where('status', InvoiceMailing::STATUS_QUEUED)->count())->toBe(1)
+        ->and(InvoiceMailing::query()->where('invoice_id', $invoice->id)->where('status', InvoiceMailing::STATUS_SENT)->count())->toBe(1);
 });
 
 test('bulk send skips slips that were already sent unless resend is confirmed', function () {
@@ -148,12 +169,13 @@ test('bulk send skips slips that were already sent unless resend is confirmed', 
     ]);
 
     $skipped->assertOk()
-        ->assertJsonPath('sent', 1)
+        ->assertJsonPath('queued', 1)
         ->assertJsonCount(1, 'skipped_already_sent')
         ->assertJsonPath('skipped_already_sent.0.invoice_id', $sentInvoice->id)
-        ->assertJsonPath('message', 'Poslano: 1. Već poslano (preskočeno): 1.');
+        ->assertJsonPath('message', 'Stavljeno u red: 1. Već poslano (preskočeno): 1.');
 
-    Mail::assertSent(PaymentSlipMailable::class, 1);
+    Queue::assertPushed(SendInvoiceMailing::class, 1);
+    Mail::assertNothingSent();
 
     $resent = $this->postJson(route('invoices.bulkSendSlipEmails'), [
         'invoice_ids' => [$sentInvoice->id, $newInvoice->id],
@@ -161,41 +183,11 @@ test('bulk send skips slips that were already sent unless resend is confirmed', 
     ]);
 
     $resent->assertOk()
-        ->assertJsonPath('sent', 2)
+        ->assertJsonPath('queued', 2)
         ->assertJsonCount(0, 'skipped_already_sent');
 
-    Mail::assertSent(PaymentSlipMailable::class, 3);
-});
-
-test('a failed slip mailing stores a short error and no smtp detail', function () {
-    $member = Member::factory()->create([
-        'invoice_email' => 'parent@example.test',
-    ]);
-    $invoice = Invoice::factory()->create([
-        'member_id' => $member->id,
-    ]);
-
-    Mail::shouldReceive('to')
-        ->once()
-        ->andReturn(new class
-        {
-            public function send(): void
-            {
-                throw new RuntimeException('535 5.7.8 authentication failed for secret-host');
-            }
-        });
-
-    $this->postJson(route('invoices.sendEmail', $invoice))
-        ->assertStatus(422)
-        ->assertJsonPath('reason', 'mail_error')
-        ->assertJsonPath('message', 'Došlo je do greške pri slanju e-maila. Molimo pokušajte ponovno.');
-
-    $mailing = InvoiceMailing::query()->where('invoice_id', $invoice->id)->first();
-    expect($mailing)->not->toBeNull()
-        ->and($mailing->status)->toBe(InvoiceMailing::STATUS_FAILED)
-        ->and($mailing->error)->toBe('Slanje uplatnice nije uspjelo.')
-        ->and($mailing->sent_at)->toBeNull()
-        ->and($mailing->error)->not->toContain('secret-host');
+    Queue::assertPushed(SendInvoiceMailing::class, 3);
+    Mail::assertNothingSent();
 });
 
 test('a failed slip mailing does not block the next send', function () {
@@ -215,8 +207,9 @@ test('a failed slip mailing does not block the next send', function () {
         ->assertOk()
         ->assertJsonPath('recipient', 'parent@example.test');
 
-    Mail::assertSent(PaymentSlipMailable::class, 1);
-    expect(InvoiceMailing::query()->where('invoice_id', $invoice->id)->where('status', InvoiceMailing::STATUS_SENT)->count())->toBe(1);
+    Queue::assertPushed(SendInvoiceMailing::class, 1);
+    Mail::assertNothingSent();
+    expect(InvoiceMailing::query()->where('invoice_id', $invoice->id)->where('status', InvoiceMailing::STATUS_QUEUED)->count())->toBe(1);
 });
 
 test('preview counts already sent slips and excludes them from deliverable', function () {
@@ -260,11 +253,12 @@ test('preview counts already sent slips and excludes them from deliverable', fun
         'member_ids' => [$sentMember->id, $openMember->id, $noEmail->id],
         'month' => '2026-09',
     ])->assertOk()
-        ->assertJsonPath('sent', 1)
+        ->assertJsonPath('queued', 1)
         ->assertJsonCount(1, 'skipped_already_sent')
         ->assertJsonCount(1, 'skipped_no_email');
 
-    Mail::assertSent(PaymentSlipMailable::class, 1);
+    Queue::assertPushed(SendInvoiceMailing::class, 1);
+    Mail::assertNothingSent();
 });
 
 test('only a successful slip mailing marks an invoice as already emailed', function () {
@@ -342,4 +336,31 @@ test('invoice list exposes the latest successful slip mailing', function () {
                     && str_contains((string) $row['slip_sent_at'], '2026-09-20');
             })
         );
+});
+
+test('group send all refuses more than 100 invoices', function () {
+    $workshop = Workshop::factory()->create();
+    $group = MemberGroup::query()->create(['name' => 'Velika grupa']);
+    $member = Member::factory()->create(['invoice_email' => 'parent@example.test']);
+
+    MemberGroupWorkshop::query()->create([
+        'member_id' => $member->id,
+        'workshop_id' => $workshop->id,
+        'member_group_id' => $group->id,
+    ]);
+
+    Invoice::factory()->count(PaymentSlipEmailService::MAX_INVOICES_PER_SEND + 1)->create([
+        'member_id' => $member->id,
+        'workshop_id' => $workshop->id,
+        'due_date' => '2026-09-15',
+    ]);
+
+    $this->postJson(route('member-groups.bulk-send-slip-emails', $group), [
+        'month' => '2026-09',
+        'send_scope' => 'all',
+    ])->assertStatus(422)
+        ->assertJsonPath('message', PaymentSlipEmailService::maxInvoicesMessage());
+
+    Queue::assertNothingPushed();
+    $this->assertDatabaseCount('invoice_mailings', 0);
 });

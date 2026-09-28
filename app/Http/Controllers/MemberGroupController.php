@@ -269,6 +269,10 @@ class MemberGroupController extends Controller
             ], 422);
         }
 
+        if (! empty($result['exceeds_cap'])) {
+            return response()->json($this->paymentSlipEmailService->capExceededPayload(), 422);
+        }
+
         if (($result['invoice_count'] ?? 0) === 0) {
             return response()->json([
                 'message' => 'Nema računa za odabrane članove u tom mjesecu.',
@@ -277,7 +281,7 @@ class MemberGroupController extends Controller
         }
 
         $summary = [
-            'sent' => $result['sent'],
+            'queued' => $result['queued'],
             'skipped_no_email' => $result['skipped_no_email'],
             'skipped_already_sent' => $result['skipped_already_sent'],
             'failed' => $result['failed'],

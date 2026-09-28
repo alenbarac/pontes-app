@@ -7,9 +7,9 @@ use Illuminate\Foundation\Http\FormRequest;
 class BulkSendInvoiceEmailsRequest extends FormRequest
 {
     /**
-     * Synchronous send is bounded so a single HTTP request stays under any
-     * reasonable web-server / proxy timeout. Larger groups should be sent
-     * in successive batches from the UI.
+     * Selected invoice IDs per request. Sending itself is queued.
+     * Group "send all" is capped separately at
+     * PaymentSlipEmailService::MAX_INVOICES_PER_SEND.
      */
     public const MAX_BATCH = 50;
 

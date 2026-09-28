@@ -186,7 +186,7 @@ export default function BulkSlipsEmailModal({
             const { data } = await axios.post(sendUrl, payload, {
                 headers: { Accept: "application/json" },
             });
-            toast.success(data.message || "E-poruke poslane.");
+            toast.success(data.message || "Uplatnice su stavljene u red za slanje.");
             onSuccess?.();
         } catch (error) {
             const res = error.response;

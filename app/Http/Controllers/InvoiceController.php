@@ -427,7 +427,7 @@ class InvoiceController extends Controller
             return redirect()->route('invoices.index')->with('error', $errorMessage);
         }
 
-        $successMessage = 'Uplatnica je uspješno poslana na e-mail adresu: '.$result['recipient'];
+        $successMessage = 'Uplatnica je stavljena u red za slanje na e-mail adresu: '.$result['recipient'];
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -444,7 +444,7 @@ class InvoiceController extends Controller
     }
 
     /**
-     * Send payment slips by e-mail for many invoices (synchronous, JSON).
+     * Queue payment-slip e-mails for many invoices (JSON).
      */
     public function bulkSendSlipEmails(BulkSendInvoiceEmailsRequest $request): JsonResponse
     {
@@ -453,8 +453,12 @@ class InvoiceController extends Controller
             $request->boolean('resend'),
         );
 
+        if ($summary['exceeds_cap']) {
+            return response()->json($this->paymentSlipEmailService->capExceededPayload(), 422);
+        }
+
         return response()->json([
-            'sent' => $summary['sent'],
+            'queued' => $summary['queued'],
             'skipped_no_email' => $summary['skipped_no_email'],
             'skipped_already_sent' => $summary['skipped_already_sent'],
             'failed' => $summary['failed'],

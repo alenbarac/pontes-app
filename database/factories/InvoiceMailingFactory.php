@@ -31,11 +31,20 @@ class InvoiceMailingFactory extends Factory
         ];
     }
 
+    public function queued(): static
+    {
+        return $this->state(fn () => [
+            'status' => InvoiceMailing::STATUS_QUEUED,
+            'error' => null,
+            'sent_at' => null,
+        ]);
+    }
+
     public function failed(): static
     {
         return $this->state(fn () => [
             'status' => InvoiceMailing::STATUS_FAILED,
-            'error' => 'Slanje uplatnice nije uspjelo.',
+            'error' => InvoiceMailing::FAILURE_MESSAGE,
             'sent_at' => null,
         ]);
     }

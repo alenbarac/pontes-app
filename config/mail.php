@@ -115,18 +115,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Bulk Send Throttle (seconds between messages)
+    | Bulk Send Rate (queued slip emails)
     |--------------------------------------------------------------------------
     |
-    | Floating-point seconds to sleep between consecutive messages in
-    | synchronous bulk send loops (e.g. PaymentSlipEmailService). Useful
-    | when the SMTP provider has a per-second cap.
-    |
-    | 0 (default) = no delay; production providers like Postmark / Mailgun
-    | / SES typically allow far more than 1 msg/sec on the cheapest tier.
-    | 1.1 is a safe value for the Mailtrap "Testing" sandbox.
+    | SendInvoiceMailing is rate-limited to this many messages per second.
+    | Mailtrap Sandbox rejects faster than about 1/sec. Production SMTP can
+    | be higher (set MAIL_BULK_SENDS_PER_SECOND). When that variable is
+    | unset, a legacy MAIL_BULK_THROTTLE_SECONDS interval is converted
+    | (1.1 seconds => 1/sec). Otherwise the limit is 1/sec.
     |
     */
+
+    'bulk_sends_per_second' => env('MAIL_BULK_SENDS_PER_SECOND'),
 
     'bulk_throttle_seconds' => (float) env('MAIL_BULK_THROTTLE_SECONDS', 0),
 
