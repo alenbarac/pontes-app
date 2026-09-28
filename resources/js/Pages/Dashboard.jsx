@@ -3,9 +3,10 @@ import { Head } from "@inertiajs/react";
 import CashFlowWidget from "@/Components/Dashboard/CashFlowWidget";
 import RevenueTrendChart from "@/Components/Dashboard/RevenueTrendChart";
 import DashboardQuickActions from "@/Components/Dashboard/DashboardQuickActions";
+import MailingStatusCard from "@/Components/Dashboard/MailingStatusCard";
 import GroupCards from "@/Components/Dashboard/GroupCards";
 
-export default function Dashboard({ revenue, groups }) {
+export default function Dashboard({ revenue, groups, mailingCard }) {
     return (
         <AuthenticatedLayout
             header={
@@ -22,7 +23,10 @@ export default function Dashboard({ revenue, groups }) {
                     <div className="xl:col-span-2">
                         <RevenueTrendChart trend={revenue?.trend} />
                     </div>
-                    <DashboardQuickActions />
+                    <div className="space-y-6">
+                        <DashboardQuickActions />
+                        <MailingStatusCard snapshot={mailingCard} />
+                    </div>
                 </div>
 
                 <GroupCards groups={groups} />

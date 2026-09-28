@@ -210,25 +210,29 @@ export default function Show({
                     headerAction={
                         <div className="flex flex-wrap gap-2 justify-end">
                             {selectedMembers.length > 0 && (
+                                <Button
+                                    onClick={handleBulkDownloadSlips}
+                                    variant="outline"
+                                    size="sm"
+                                    startIcon={
+                                        <ArrowDownTrayIcon className="h-4 w-4" />
+                                    }
+                                >
+                                    Preuzmi uplatnice
+                                </Button>
+                            )}
+                            <Button
+                                onClick={handleBulkSendSlipsEmail}
+                                variant="outline"
+                                size="sm"
+                                startIcon={
+                                    <EnvelopeIcon className="h-4 w-4" />
+                                }
+                            >
+                                Pošalji uplatnice
+                            </Button>
+                            {selectedMembers.length > 0 && (
                                 <>
-                                    <Button
-                                        onClick={handleBulkReassign}
-                                        variant="primary"
-                                        size="sm"
-                                    >
-                                        Premjesti odabrane (
-                                        {selectedMembers.length})
-                                    </Button>
-                                    <Button
-                                        onClick={handleBulkDownloadSlips}
-                                        variant="outline"
-                                        size="sm"
-                                        startIcon={
-                                            <ArrowDownTrayIcon className="h-4 w-4" />
-                                        }
-                                    >
-                                        Preuzmi uplatnice
-                                    </Button>
                                     <Button
                                         onClick={handleBulkGenerateDocuments}
                                         variant="outline"
@@ -239,18 +243,15 @@ export default function Show({
                                     >
                                         Generiraj dokument
                                     </Button>
+                                    <Button
+                                        onClick={handleBulkReassign}
+                                        variant="primary"
+                                        size="sm"
+                                    >
+                                        Premjesti
+                                    </Button>
                                 </>
                             )}
-                            <Button
-                                onClick={handleBulkSendSlipsEmail}
-                                variant="outline"
-                                size="sm"
-                                startIcon={
-                                    <EnvelopeIcon className="h-4 w-4" />
-                                }
-                            >
-                                Pošalji e-poštom
-                            </Button>
                         </div>
                     }
                 >
@@ -511,6 +512,7 @@ export default function Show({
                 onClose={slipsEmailModal.closeModal}
                 mode="group"
                 groupId={group.id}
+                groupName={group.name}
                 selectedMemberIds={selectedMembers}
                 members={members.data}
                 groupTotalMembers={statistics.total_members}

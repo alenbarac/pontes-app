@@ -9,6 +9,7 @@ import {
     DocumentCurrencyEuroIcon,
     DocumentTextIcon,
     AcademicCapIcon,
+    EnvelopeIcon,
 } from "@heroicons/react/24/outline";
 import { useSidebar } from "@/context/SidebarContext";
 
@@ -62,6 +63,12 @@ const navItems: NavItem[] = [
     },
 
     {
+        icon: <EnvelopeIcon className="w-5 h-5" />,
+        name: "Evidencija slanja",
+        path: "/mailings",
+    },
+
+    {
         icon: <DocumentTextIcon className="w-5 h-5" />,
         name: "Dokumenti",
         subItems: [
@@ -84,10 +91,16 @@ const AppSidebar: React.FC = () => {
     const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
 
     // A simple active check using window.location.pathname.
-    const isActive = useCallback(
-        (path: string) => window.location.pathname === path,
-        [],
-    );
+    const isActive = useCallback((path: string) => {
+        if (path === "/mailings") {
+            return (
+                window.location.pathname === "/mailings" ||
+                window.location.pathname.startsWith("/mailings/")
+            );
+        }
+
+        return window.location.pathname === path;
+    }, []);
 
     // State to track which submenu is open.
     const [openSubmenu, setOpenSubmenu] = useState<{ index: number } | null>(

@@ -24,6 +24,7 @@ class InvoiceMailing extends Model
     public const FAILURE_MESSAGE = 'Slanje uplatnice nije uspjelo.';
 
     protected $fillable = [
+        'mailing_id',
         'invoice_id',
         'member_id',
         'type',
@@ -40,6 +41,11 @@ class InvoiceMailing extends Model
     protected $appends = [
         'sent_on',
     ];
+
+    public function mailing()
+    {
+        return $this->belongsTo(Mailing::class);
+    }
 
     public function invoice()
     {

@@ -172,7 +172,7 @@ test('bulk send skips slips that were already sent unless resend is confirmed', 
         ->assertJsonPath('queued', 1)
         ->assertJsonCount(1, 'skipped_already_sent')
         ->assertJsonPath('skipped_already_sent.0.invoice_id', $sentInvoice->id)
-        ->assertJsonPath('message', 'Pokrenuto je slanje 1 uplatnice. 1 uplatnica je već poslana i zato je preskočena.');
+        ->assertJsonPath('message', 'Slanje je pokrenuto. 1 uplatnica šalje se.');
 
     Queue::assertPushed(SendInvoiceMailing::class, 1);
     Mail::assertNothingSent();

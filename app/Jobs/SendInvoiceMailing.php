@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Mail\PaymentSlipMailable;
 use App\Models\Invoice;
 use App\Models\InvoiceMailing;
+use App\Models\Mailing;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -130,6 +131,8 @@ class SendInvoiceMailing implements ShouldQueue
             'sent_at' => now(),
         ]);
 
+        $this->syncParent($mailing);
+
         Log::info('Payment slip email sent', [
             'invoice_id' => $invoice->id,
             'reference_code' => $invoice->reference_code,
@@ -231,5 +234,16 @@ class SendInvoiceMailing implements ShouldQueue
             'error' => InvoiceMailing::FAILURE_MESSAGE,
             'sent_at' => null,
         ]);
+
+        $this->syncParent($mailing);
+    }
+
+    private function syncParent(InvoiceMailing $mailing): void
+    {
+        if ($mailing->mailing_id === null) {
+            return;
+        }
+
+        Mailing::query()->find($mailing->mailing_id)?->refreshCompletion();
     }
 }

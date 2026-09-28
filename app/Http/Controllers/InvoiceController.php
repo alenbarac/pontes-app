@@ -428,12 +428,13 @@ class InvoiceController extends Controller
             return redirect()->route('invoices.index')->with('error', $errorMessage);
         }
 
-        $successMessage = 'Pokrenuto je slanje uplatnice na e-mail adresu: '.$result['recipient'];
+        $successMessage = $this->paymentSlipEmailService->startedMessage(1);
 
         if ($request->expectsJson()) {
             return response()->json([
                 'message' => $successMessage,
                 'recipient' => $result['recipient'],
+                'mailing_id' => $result['mailing_id'] ?? null,
             ]);
         }
 
@@ -463,7 +464,8 @@ class InvoiceController extends Controller
             'skipped_no_email' => $summary['skipped_no_email'],
             'skipped_already_sent' => $summary['skipped_already_sent'],
             'failed' => $summary['failed'],
-            'message' => $this->paymentSlipEmailService->humanSummary($summary),
+            'mailing_id' => $summary['mailing_id'] ?? null,
+            'message' => $summary['message'] ?? $this->paymentSlipEmailService->humanSummary($summary),
         ]);
     }
 

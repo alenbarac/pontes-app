@@ -12,6 +12,7 @@ use App\Models\MemberGroupWorkshop;
 use App\Models\Workshop;
 use App\Services\PaymentSlipEmailService;
 use App\Services\PaymentSlipPdfService;
+use App\Services\SlipMailingBatch;
 use App\Support\MonthString;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -260,6 +261,7 @@ class MemberGroupController extends Controller
             $memberIds,
             $request->validated('month'),
             $request->boolean('resend'),
+            SlipMailingBatch::forGroup($memberGroup->id, $memberGroup->name, $request->validated('month')),
         );
 
         if (! empty($result['invalid_month'])) {
@@ -280,16 +282,18 @@ class MemberGroupController extends Controller
             ], 422);
         }
 
-        $summary = [
+        return response()->json([
             'queued' => $result['queued'],
             'skipped_no_email' => $result['skipped_no_email'],
             'skipped_already_sent' => $result['skipped_already_sent'],
             'failed' => $result['failed'],
-        ];
-
-        return response()->json([
-            ...$summary,
-            'message' => $this->paymentSlipEmailService->humanSummary($summary),
+            'mailing_id' => $result['mailing_id'] ?? null,
+            'message' => $result['message'] ?? $this->paymentSlipEmailService->humanSummary([
+                'queued' => $result['queued'],
+                'skipped_no_email' => $result['skipped_no_email'],
+                'skipped_already_sent' => $result['skipped_already_sent'],
+                'failed' => $result['failed'],
+            ]),
         ]);
     }
 

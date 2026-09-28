@@ -13,6 +13,7 @@ import Input from "@/Components/form/input/InputField";
 import { CalendarDaysIcon, TrashIcon, Cog8ToothIcon, EnvelopeIcon } from "@heroicons/react/24/outline";
 import { Table, TableHeader, TableBody, TableRow, TableCell } from "@/Components/ui/table";
 import SlipMailingBadge from "@/Components/Member/SlipMailingBadge";
+import { notifyMailingStarted } from "@/lib/mailingActivity";
 
 const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
     const { props } = usePage();
@@ -308,11 +309,10 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                 preserveState: false,
                 onSuccess: (page) => {
                     setSendingEmail(false);
-                    // Close the modal
                     closeInvoiceDetails();
-                    // Show success message from flash or default message
-                    const successMessage = page?.props?.flash?.success || 
-                                         "Pokrenuto je slanje uplatnice na e-mail.";
+                    notifyMailingStarted();
+                    const successMessage = page?.props?.flash?.success ||
+                                         "Slanje je pokrenuto. 1 uplatnica šalje se.";
                     toast.success(successMessage);
                 },
                 onError: (errors) => {
@@ -870,17 +870,17 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                                     }}
                                     disabled={sendingEmail}
                                     className="inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700"
-                                    title={sendingEmail ? "Slanje u tijeku..." : "Pošalji uplatnicu na e-mail"}
+                                    title={sendingEmail ? "Pokretanje..." : "Pošalji uplatnicu"}
                                 >
                                     {sendingEmail ? (
                                         <>
                                             <Cog8ToothIcon className="h-4 w-4 animate-spin" />
-                                            Slanje...
+                                            Pokretanje...
                                         </>
                                     ) : (
                                         <>
                                             <EnvelopeIcon className="h-4 w-4" />
-                                            Pošalji e-mail
+                                            Pošalji uplatnicu
                                         </>
                                     )}
                                 </button>

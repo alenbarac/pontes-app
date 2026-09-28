@@ -300,7 +300,7 @@ const MembersDataTable: React.FC<MembersDataTableProps> = ({
                             startIcon={<EnvelopeIcon className="h-4 w-4" />}
                             onClick={() => slipEmailModal.openModal()}
                         >
-                            Pošalji uplatnice e-poštom
+                            Pošalji uplatnice
                         </Button>
                         <Button
                             variant="outline"
