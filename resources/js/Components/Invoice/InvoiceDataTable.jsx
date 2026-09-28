@@ -383,7 +383,7 @@ const InvoicesDataTable = ({
                 { invoice_ids: selectedRows },
                 { headers: { Accept: "application/json" } },
             );
-            toast.success(data.message || "Uplatnice su stavljene u red za slanje.");
+            toast.success(data.message || "Pokrenuto je slanje uplatnica.");
             setSelectedRows([]);
             setShowBulkEmailConfirm(false);
         } catch (error) {
@@ -474,7 +474,7 @@ const InvoicesDataTable = ({
                 {},
                 { headers: { Accept: "application/json" } },
             );
-            toast.success(data.message || "Uplatnica je stavljena u red.");
+            toast.success(data.message || "Pokrenuto je slanje uplatnice.");
         } catch (error) {
             const res = error.response;
             let msg = "Greška pri slanju e-pošte.";

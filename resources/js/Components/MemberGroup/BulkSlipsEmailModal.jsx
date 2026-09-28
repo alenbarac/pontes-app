@@ -4,6 +4,73 @@ import Button from "@/Components/ui/button/Button";
 import toast from "react-hot-toast";
 import axios from "axios";
 
+const MAX_INVOICES_PER_SEND = 100;
+const MAX_INVOICES_MESSAGE =
+    "Možete poslati najviše 100 uplatnica odjednom.";
+
+function croatianPlural(count, one, few, many) {
+    const mod10 = count % 10;
+    const mod100 = count % 100;
+    if (mod10 === 1 && mod100 !== 11) return one;
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
+    return many;
+}
+
+function alreadySentPreview(count) {
+    const noun = croatianPlural(count, "uplatnica je već poslana", "uplatnice su već poslane", "uplatnica je već poslano");
+    const skipped = croatianPlural(count, "bit će preskočena", "bit će preskočene", "bit će preskočeno");
+    return `${count} ${noun} i ${skipped}, osim ako potvrdite ponovno slanje.`;
+}
+
+function alreadySentConfirm(count) {
+    const noun = croatianPlural(
+        count,
+        "uplatnica je već poslana.",
+        "uplatnice su već poslane.",
+        "uplatnica je već poslano.",
+    );
+    return `${count} ${noun} Potvrdom će slanje biti pokrenuto još jednom.`;
+}
+
+function uplatniceAfterSlanje(count) {
+    return croatianPlural(count, "uplatnice", "uplatnice", "uplatnica");
+}
+
+function queueToastMessage(data) {
+    if (typeof data?.message === "string" && data.message.trim() !== "") {
+        return data.message;
+    }
+
+    const parts = [];
+    const queued = data?.queued ?? 0;
+    if (queued > 0) {
+        parts.push(
+            `Pokrenuto je slanje ${queued} ${uplatniceAfterSlanje(queued)}.`,
+        );
+    }
+
+    const noEmail = data?.skipped_no_email?.length ?? 0;
+    const already = data?.skipped_already_sent?.length ?? 0;
+    const failed = data?.failed?.length ?? 0;
+    if (noEmail > 0) {
+        parts.push(
+            `${noEmail} ${croatianPlural(noEmail, "uplatnica nema e-mail i zato je preskočena", "uplatnice nemaju e-mail i zato su preskočene", "uplatnica nema e-mail i zato su preskočene")}.`,
+        );
+    }
+    if (already > 0) {
+        parts.push(
+            `${already} ${croatianPlural(already, "uplatnica je već poslana i zato je preskočena", "uplatnice su već poslane i zato su preskočene", "uplatnica je već poslano i zato su preskočene")}.`,
+        );
+    }
+    if (failed > 0) {
+        parts.push(
+            `${failed} ${croatianPlural(failed, "uplatnica nije mogla krenuti na slanje", "uplatnice nisu mogle krenuti na slanje", "uplatnica nije moglo krenuti na slanje")}.`,
+        );
+    }
+
+    return parts.length > 0 ? parts.join(" ") : "Slanje nije pokrenuto.";
+}
+
 /**
  * Send payment-slip e-mails by month with a pre-flight preview.
  *
@@ -40,6 +107,7 @@ export default function BulkSlipsEmailModal({
     const [preview, setPreview] = useState(null);
     const [previewLoading, setPreviewLoading] = useState(false);
     const [previewError, setPreviewError] = useState(null);
+    const [resendStep, setResendStep] = useState(false);
 
     const selectedMembersData = useMemo(() => {
         const ids = new Set(selectedMemberIds);
@@ -103,6 +171,18 @@ export default function BulkSlipsEmailModal({
     const requestIdRef = useRef(0);
 
     useEffect(() => {
+        if (!isOpen) {
+            setResendStep(false);
+        }
+    }, [isOpen]);
+
+    const previewKey = previewPayload ? JSON.stringify(previewPayload) : "";
+
+    useEffect(() => {
+        setResendStep(false);
+    }, [previewKey]);
+
+    useEffect(() => {
         if (!isOpen) return;
         if (!previewPayload) {
             setPreview(null);
@@ -144,19 +224,22 @@ export default function BulkSlipsEmailModal({
     const noInvoicesAtAll = hasPreview && preview.invoices_count === 0;
     const someInvoices = hasPreview && preview.invoices_count > 0;
     const deliverable = preview?.deliverable_count ?? 0;
-    const submitDisabled =
-        processing ||
-        previewLoading ||
-        !someInvoices ||
-        deliverable === 0 ||
+    const alreadySent = preview?.already_sent_count ?? 0;
+    const overCap = someInvoices && preview.invoices_count > MAX_INVOICES_PER_SEND;
+    const selectionMissing =
         (mode === "group" &&
             sendScope === "selected" &&
             selectedMemberIds.length === 0) ||
         (mode === "members" && selectedMemberIds.length === 0);
+    const submitDisabled =
+        processing ||
+        previewLoading ||
+        !someInvoices ||
+        overCap ||
+        deliverable === 0 ||
+        selectionMissing;
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-
+    const postSend = async (resend) => {
         if (mode === "group" && sendScope === "selected" && selectedMemberIds.length === 0) {
             toast.error("Molimo odaberite barem jednog člana.");
             return;
@@ -167,11 +250,17 @@ export default function BulkSlipsEmailModal({
             return;
         }
 
+        if (overCap) {
+            toast.error(MAX_INVOICES_MESSAGE);
+            return;
+        }
+
         const payload =
             mode === "group"
                 ? {
                       month: selectedMonth,
                       send_scope: sendScope,
+                      resend,
                       ...(sendScope === "selected"
                           ? { member_ids: selectedMemberIds }
                           : {}),
@@ -179,6 +268,7 @@ export default function BulkSlipsEmailModal({
                 : {
                       month: selectedMonth,
                       member_ids: selectedMemberIds,
+                      resend,
                   };
 
         try {
@@ -186,7 +276,14 @@ export default function BulkSlipsEmailModal({
             const { data } = await axios.post(sendUrl, payload, {
                 headers: { Accept: "application/json" },
             });
-            toast.success(data.message || "Uplatnice su stavljene u red za slanje.");
+            const message = queueToastMessage(data);
+            const failedCount = data?.failed?.length ?? 0;
+            if (failedCount > 0 && (data?.queued ?? 0) === 0) {
+                toast.error(message);
+            } else {
+                toast.success(message);
+            }
+            setResendStep(false);
             onSuccess?.();
         } catch (error) {
             const res = error.response;
@@ -208,6 +305,24 @@ export default function BulkSlipsEmailModal({
         } finally {
             setProcessing(false);
         }
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+
+        if (resendStep) {
+            await postSend(true);
+            return;
+        }
+
+        if (deliverable === 0) {
+            if (alreadySent > 0 && !overCap) {
+                setResendStep(true);
+            }
+            return;
+        }
+
+        await postSend(false);
     };
 
     const showSelectedList = mode === "members" || sendScope === "selected";
@@ -346,13 +461,25 @@ export default function BulkSlipsEmailModal({
                             <div className="space-y-1.5">
                                 <p className="text-gray-700 dark:text-gray-300">
                                     <strong>{deliverable}</strong>{" "}
-                                    {deliverable === 1
-                                        ? "uplatnica"
-                                        : "uplatnica/e"}{" "}
-                                    spremno za slanje (od{" "}
-                                    {preview.invoices_count} pronađenih računa
-                                    za {monthLabel}).
+                                    {croatianPlural(
+                                        deliverable,
+                                        "uplatnica pripremljena je za slanje",
+                                        "uplatnice pripremljene su za slanje",
+                                        "uplatnica pripremljeno je za slanje",
+                                    )}{" "}
+                                    (od {preview.invoices_count} pronađenih
+                                    računa za {monthLabel}).
                                 </p>
+                                {overCap && (
+                                    <p className="text-red-600 dark:text-red-400 font-medium">
+                                        {MAX_INVOICES_MESSAGE}
+                                    </p>
+                                )}
+                                {alreadySent > 0 && (
+                                    <p className="text-amber-700 dark:text-amber-400">
+                                        {alreadySentPreview(alreadySent)}
+                                    </p>
+                                )}
                                 {preview.members_without_invoice > 0 && (
                                     <p className="text-amber-700 dark:text-amber-400">
                                         {preview.members_without_invoice}{" "}
@@ -385,28 +512,93 @@ export default function BulkSlipsEmailModal({
                         )}
                     </div>
 
-                    <div className="flex items-center justify-end gap-3 mt-6">
-                        <Button
-                            type="button"
-                            onClick={onClose}
-                            variant="outline"
-                            size="sm"
-                            disabled={processing}
-                        >
-                            Odustani
-                        </Button>
-                        <Button
-                            type="submit"
-                            variant="primary"
-                            size="sm"
-                            disabled={submitDisabled}
-                        >
-                            {processing
-                                ? "Slanje..."
-                                : someInvoices && deliverable > 0
-                                  ? `Pošalji ${deliverable} uplatnica`
-                                  : "Pošalji"}
-                        </Button>
+                    {resendStep && (
+                        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
+                            <p className="font-medium mb-1">
+                                Potvrda ponovnog slanja
+                            </p>
+                            <p>
+                                {alreadySentConfirm(alreadySent)}
+                                {deliverable > 0
+                                    ? " Pokrenut će se i slanje uplatnica koje još nisu poslane."
+                                    : ""}
+                            </p>
+                        </div>
+                    )}
+
+                    <div className="flex flex-wrap items-center justify-end gap-3 mt-6">
+                        {resendStep ? (
+                            <>
+                                <Button
+                                    type="button"
+                                    onClick={() => setResendStep(false)}
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={processing}
+                                >
+                                    Natrag
+                                </Button>
+                                <Button
+                                    type="button"
+                                    onClick={() => {
+                                        void postSend(true);
+                                    }}
+                                    variant="primary"
+                                    size="sm"
+                                    disabled={processing || overCap}
+                                >
+                                    {processing
+                                        ? "Slanje je u tijeku..."
+                                        : "Potvrdi ponovno slanje"}
+                                </Button>
+                            </>
+                        ) : (
+                            <>
+                                <Button
+                                    type="button"
+                                    onClick={onClose}
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={processing}
+                                >
+                                    Odustani
+                                </Button>
+                                {alreadySent > 0 && (
+                                    <Button
+                                        type="button"
+                                        onClick={() => setResendStep(true)}
+                                        variant={
+                                            deliverable > 0
+                                                ? "outline"
+                                                : "primary"
+                                        }
+                                        size="sm"
+                                        disabled={
+                                            processing ||
+                                            previewLoading ||
+                                            overCap ||
+                                            !someInvoices
+                                        }
+                                    >
+                                        Ponovno pošalji
+                                    </Button>
+                                )}
+                                {(deliverable > 0 || alreadySent === 0) && (
+                                    <Button
+                                        type="submit"
+                                        variant="primary"
+                                        size="sm"
+                                        disabled={submitDisabled}
+                                    >
+                                        {processing
+                                            ? "Slanje je u tijeku..."
+                                            : someInvoices && deliverable > 0
+                                              ? `Pošalji ${deliverable} uplatnica`
+                                              : "Pošalji"}
+                                    </Button>
+                                )}
+                            </>
+                        )}
                     </div>
                 </form>
             </div>

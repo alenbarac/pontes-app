@@ -272,24 +272,71 @@ class PaymentSlipEmailService
     public function humanSummary(array $summary): string
     {
         $parts = [];
-        $parts[] = 'Stavljeno u red: '.$summary['queued'].'.';
+        $queued = (int) ($summary['queued'] ?? 0);
+
+        if ($queued > 0) {
+            $parts[] = 'Pokrenuto je slanje '.$queued.' '.$this->uplatniceAfterSlanje($queued).'.';
+        }
 
         $skipCount = count($summary['skipped_no_email'] ?? []);
         if ($skipCount > 0) {
-            $parts[] = 'Bez e-maila (preskočeno): '.$skipCount.'.';
+            $parts[] = $skipCount.' '.$this->croatianCountForm(
+                $skipCount,
+                'uplatnica nema e-mail i zato je preskočena',
+                'uplatnice nemaju e-mail i zato su preskočene',
+                'uplatnica nema e-mail i zato su preskočene',
+            ).'.';
         }
 
         $alreadySentCount = count($summary['skipped_already_sent'] ?? []);
         if ($alreadySentCount > 0) {
-            $parts[] = 'Već poslano (preskočeno): '.$alreadySentCount.'.';
+            $parts[] = $alreadySentCount.' '.$this->croatianCountForm(
+                $alreadySentCount,
+                'uplatnica je već poslana i zato je preskočena',
+                'uplatnice su već poslane i zato su preskočene',
+                'uplatnica je već poslano i zato su preskočene',
+            ).'.';
         }
 
         $failCount = count($summary['failed'] ?? []);
         if ($failCount > 0) {
-            $parts[] = 'Greške: '.$failCount.'.';
+            $parts[] = $failCount.' '.$this->croatianCountForm(
+                $failCount,
+                'uplatnica nije mogla krenuti na slanje',
+                'uplatnice nisu mogle krenuti na slanje',
+                'uplatnica nije moglo krenuti na slanje',
+            ).'.';
+        }
+
+        if ($parts === []) {
+            return 'Slanje nije pokrenuto.';
         }
 
         return implode(' ', $parts);
+    }
+
+    /**
+     * Noun after "slanje N": 1 uplatnice, 3 uplatnice, 13 uplatnica.
+     */
+    private function uplatniceAfterSlanje(int $count): string
+    {
+        return $this->croatianCountForm($count, 'uplatnice', 'uplatnice', 'uplatnica');
+    }
+
+    private function croatianCountForm(int $count, string $one, string $few, string $many): string
+    {
+        $mod10 = $count % 10;
+        $mod100 = $count % 100;
+
+        if ($mod10 === 1 && $mod100 !== 11) {
+            return $one;
+        }
+
+        if ($mod10 >= 2 && $mod10 <= 4 && ($mod100 < 12 || $mod100 > 14)) {
+            return $few;
+        }
+
+        return $many;
     }
 
     /**

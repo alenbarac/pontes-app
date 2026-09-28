@@ -427,7 +427,7 @@ class InvoiceController extends Controller
             return redirect()->route('invoices.index')->with('error', $errorMessage);
         }
 
-        $successMessage = 'Uplatnica je stavljena u red za slanje na e-mail adresu: '.$result['recipient'];
+        $successMessage = 'Pokrenuto je slanje uplatnice na e-mail adresu: '.$result['recipient'];
 
         if ($request->expectsJson()) {
             return response()->json([

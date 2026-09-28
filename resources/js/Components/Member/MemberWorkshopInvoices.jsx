@@ -311,7 +311,7 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                     closeInvoiceDetails();
                     // Show success message from flash or default message
                     const successMessage = page?.props?.flash?.success || 
-                                         "Uplatnica je stavljena u red za slanje na e-mail.";
+                                         "Pokrenuto je slanje uplatnice na e-mail.";
                     toast.success(successMessage);
                 },
                 onError: (errors) => {
