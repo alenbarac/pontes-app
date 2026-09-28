@@ -118,10 +118,12 @@ return [
     | Bulk Send Rate (queued slip emails)
     |--------------------------------------------------------------------------
     |
-    | SendInvoiceMailing is rate-limited to this many messages per second.
-    | Mailtrap Sandbox rejects faster than about 1/sec. Production SMTP can
-    | be higher (set MAIL_BULK_SENDS_PER_SECOND). When that variable is
-    | unset, a legacy MAIL_BULK_THROTTLE_SECONDS interval is converted
+    | SendInvoiceMailing allows this many SMTP attempts per second, and only
+    | one worker can take the slot. At 1/sec the next attempt waits two
+    | seconds, because the Mailtrap Sandbox rejects a faster cadence. A
+    | sandbox "too many emails per second" reply stays queued and is tried
+    | again. Production SMTP can be higher. When this variable is unset, a
+    | legacy MAIL_BULK_THROTTLE_SECONDS interval is converted
     | (1.1 seconds => 1/sec). Otherwise the limit is 1/sec.
     |
     */

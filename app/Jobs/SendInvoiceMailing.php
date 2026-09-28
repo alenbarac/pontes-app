@@ -3,27 +3,34 @@
 namespace App\Jobs;
 
 use App\Mail\PaymentSlipMailable;
+use App\Models\Invoice;
 use App\Models\InvoiceMailing;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\Middleware\RateLimited;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\RateLimiter;
 use Throwable;
 
 class SendInvoiceMailing implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public const RATE_LIMITER = 'invoice-mailings';
+    public const SEND_SLOT = 'invoice-mailings';
 
     /**
-     * Rate-limit releases increment attempts. Zero means unlimited attempts
-     * so a 1/sec sandbox cap cannot fail a job that is only waiting its turn.
-     * Real send errors stop after {@see $maxExceptions}.
+     * A sandbox "too many emails per second" reply is delayed, not failed.
+     * After this many delays the slip is marked failed.
+     */
+    public const MAX_PROVIDER_LIMIT_DELAYS = 30;
+
+    /**
+     * Slot releases do not count as attempts. Real send errors stop after
+     * {@see $maxExceptions}.
      */
     public int $tries = 0;
 
@@ -60,11 +67,17 @@ class SendInvoiceMailing implements ShouldQueue
     }
 
     /**
-     * @return array<int, object>
+     * Seconds until another slip may open an SMTP connection.
+     * One per second is spaced to two seconds: the sandbox rejects a send
+     * that starts as the previous one-second window is still open.
      */
-    public function middleware(): array
+    public static function secondsUntilNextSend(): int
     {
-        return [new RateLimited(self::RATE_LIMITER)];
+        if (self::sendsPerSecond() <= 1) {
+            return 2;
+        }
+
+        return 1;
     }
 
     public function handle(): void
@@ -85,9 +98,21 @@ class SendInvoiceMailing implements ShouldQueue
             return;
         }
 
+        if (! $this->claimSendSlot()) {
+            $this->release(self::secondsUntilNextSend());
+
+            return;
+        }
+
         try {
             Mail::to($mailing->recipient)->send(new PaymentSlipMailable($invoice, $mailing->recipient));
         } catch (Throwable $e) {
+            if ($this->isTemporaryProviderLimit($e)) {
+                $this->postponeForProviderLimit($mailing, $invoice);
+
+                return;
+            }
+
             Log::error('Failed to send payment slip email', [
                 'invoice_id' => $invoice->id,
                 'invoice_mailing_id' => $mailing->id,
@@ -122,6 +147,77 @@ class SendInvoiceMailing implements ShouldQueue
         }
 
         $this->markFailed($mailing);
+    }
+
+    /**
+     * One shared slot across queue workers. The check and the hit stay
+     * inside a short cache gate so two workers cannot both send.
+     */
+    private function claimSendSlot(): bool
+    {
+        $gate = self::SEND_SLOT.':gate';
+
+        if (! Cache::add($gate, 1, 10)) {
+            return false;
+        }
+
+        try {
+            if (RateLimiter::tooManyAttempts(self::SEND_SLOT, self::sendsPerSecond())) {
+                return false;
+            }
+
+            RateLimiter::hit(self::SEND_SLOT, self::secondsUntilNextSend());
+
+            return true;
+        } finally {
+            Cache::forget($gate);
+        }
+    }
+
+    private function postponeForProviderLimit(InvoiceMailing $mailing, Invoice $invoice): void
+    {
+        $attempt = $this->nextProviderLimitAttempt($mailing->id);
+
+        Log::warning('Payment slip email delayed by the mail provider', [
+            'invoice_id' => $invoice->id,
+            'invoice_mailing_id' => $mailing->id,
+            'reference_code' => $invoice->reference_code,
+            'recipient_email' => $mailing->recipient,
+            'attempt' => $attempt,
+        ]);
+
+        if ($attempt >= self::MAX_PROVIDER_LIMIT_DELAYS) {
+            $this->markFailed($mailing);
+            $this->fail();
+
+            return;
+        }
+
+        $this->release(self::secondsUntilNextSend());
+    }
+
+    private function nextProviderLimitAttempt(int $mailingId): int
+    {
+        $key = self::SEND_SLOT.':provider-limit:'.$mailingId;
+        $attempt = (int) Cache::get($key, 0) + 1;
+        Cache::put($key, $attempt, 3600);
+
+        return $attempt;
+    }
+
+    private function isTemporaryProviderLimit(Throwable $e): bool
+    {
+        $current = $e;
+
+        while ($current !== null) {
+            if (str_contains(strtolower($current->getMessage()), 'too many emails per second')) {
+                return true;
+            }
+
+            $current = $current->getPrevious();
+        }
+
+        return false;
     }
 
     private function markFailed(InvoiceMailing $mailing): void

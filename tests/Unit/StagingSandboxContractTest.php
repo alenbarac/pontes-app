@@ -46,6 +46,7 @@ test('staging mail docs keep the sandbox host at one send per second', function 
     $job = new SendInvoiceMailing(1);
 
     expect(SendInvoiceMailing::sendsPerSecond())->toBe(1)
+        ->and(SendInvoiceMailing::secondsUntilNextSend())->toBe(2)
         ->and($job->timeout)->toBeLessThan(90)
         ->and($job->maxExceptions)->toBe(3);
 });

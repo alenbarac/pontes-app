@@ -117,6 +117,8 @@ MAIL_FROM_NAME="Pontes App"
 MAIL_BULK_SENDS_PER_SECOND=1
 ```
 
+That setting spaces SMTP attempts two seconds apart, and only one worker sends at a time. The lock uses the application cache, so staging `CACHE_STORE` stays `database`. If the sandbox still replies “too many emails per second”, the slip stays **U redu** and is tried again.
+
 After a `develop` deploy, check one group for one month:
 
 1. Send the group from the app.

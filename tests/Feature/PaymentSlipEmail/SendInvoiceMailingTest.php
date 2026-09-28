@@ -5,10 +5,19 @@ use App\Mail\PaymentSlipMailable;
 use App\Models\Invoice;
 use App\Models\InvoiceMailing;
 use App\Models\Member;
-use Illuminate\Cache\RateLimiting\Limit;
-use Illuminate\Queue\Middleware\RateLimited;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
+
+beforeEach(function () {
+    config([
+        'mail.bulk_sends_per_second' => 1,
+        'mail.bulk_throttle_seconds' => 0,
+    ]);
+
+    RateLimiter::clear(SendInvoiceMailing::SEND_SLOT);
+    Cache::forget(SendInvoiceMailing::SEND_SLOT.':gate');
+});
 
 test('the job marks the mailing sent when the slip email is accepted', function () {
     Mail::fake();
@@ -103,21 +112,105 @@ test('slip jobs retry three exceptions and stay under the flex time limit', func
     expect($job->tries)->toBe(0)
         ->and($job->maxExceptions)->toBe(3)
         ->and($job->timeout)->toBeLessThan(90)
-        ->and($job->middleware()[0])->toBeInstanceOf(RateLimited::class);
+        ->and(SendInvoiceMailing::secondsUntilNextSend())->toBe(2);
 });
 
-test('the slip rate limit defaults to one send per second', function () {
-    config([
-        'mail.bulk_sends_per_second' => null,
-        'mail.bulk_throttle_seconds' => 0,
+test('a sandbox rate limit releases the job and leaves the slip queued', function () {
+    Mail::shouldReceive('to')
+        ->once()
+        ->andReturn(new class
+        {
+            public function send(): void
+            {
+                throw new RuntimeException('Expected response code "354" but got code "550", with message "550 5.7.0 Too many emails per second. Please upgrade your plan https://mailtrap.io/billing/plans/testing".');
+            }
+        });
+
+    $member = Member::factory()->create([
+        'invoice_email' => 'parent@example.test',
+    ]);
+    $invoice = Invoice::factory()->create([
+        'member_id' => $member->id,
+    ]);
+    $mailing = InvoiceMailing::factory()->queued()->create([
+        'invoice_id' => $invoice->id,
+        'recipient' => 'parent@example.test',
     ]);
 
-    $limit = RateLimiter::limiter(SendInvoiceMailing::RATE_LIMITER)(new stdClass);
+    $job = (new SendInvoiceMailing($mailing->id))->withFakeQueueInteractions();
+    $job->handle();
 
-    expect($limit)->toBeInstanceOf(Limit::class)
-        ->and($limit->maxAttempts)->toBe(1)
-        ->and($limit->decaySeconds)->toBe(1)
-        ->and($limit->key)->toBe(SendInvoiceMailing::RATE_LIMITER);
+    $job->assertReleased(2);
+
+    $mailing->refresh();
+    expect($mailing->status)->toBe(InvoiceMailing::STATUS_QUEUED)
+        ->and($mailing->error)->toBeNull()
+        ->and($mailing->sent_at)->toBeNull();
+});
+
+test('a slip waits when another send already holds the slot', function () {
+    Mail::fake();
+
+    RateLimiter::hit(SendInvoiceMailing::SEND_SLOT, SendInvoiceMailing::secondsUntilNextSend());
+
+    $member = Member::factory()->create([
+        'invoice_email' => 'parent@example.test',
+    ]);
+    $invoice = Invoice::factory()->create([
+        'member_id' => $member->id,
+    ]);
+    $mailing = InvoiceMailing::factory()->queued()->create([
+        'invoice_id' => $invoice->id,
+        'recipient' => 'parent@example.test',
+    ]);
+
+    $job = (new SendInvoiceMailing($mailing->id))->withFakeQueueInteractions();
+    $job->handle();
+
+    $job->assertReleased(2);
+    Mail::assertNothingSent();
+
+    $mailing->refresh();
+    expect($mailing->status)->toBe(InvoiceMailing::STATUS_QUEUED);
+});
+
+test('repeated sandbox rate limits eventually mark the slip failed', function () {
+    Mail::shouldReceive('to')
+        ->once()
+        ->andReturn(new class
+        {
+            public function send(): void
+            {
+                throw new RuntimeException('550 5.7.0 Too many emails per second');
+            }
+        });
+
+    $member = Member::factory()->create([
+        'invoice_email' => 'parent@example.test',
+    ]);
+    $invoice = Invoice::factory()->create([
+        'member_id' => $member->id,
+    ]);
+    $mailing = InvoiceMailing::factory()->queued()->create([
+        'invoice_id' => $invoice->id,
+        'recipient' => 'parent@example.test',
+    ]);
+
+    Cache::put(
+        SendInvoiceMailing::SEND_SLOT.':provider-limit:'.$mailing->id,
+        SendInvoiceMailing::MAX_PROVIDER_LIMIT_DELAYS - 1,
+        3600,
+    );
+
+    $job = (new SendInvoiceMailing($mailing->id))->withFakeQueueInteractions();
+    $job->handle();
+
+    $job->assertFailed();
+
+    $mailing->refresh();
+    expect($mailing->status)->toBe(InvoiceMailing::STATUS_FAILED)
+        ->and($mailing->error)->toBe(InvoiceMailing::FAILURE_MESSAGE)
+        ->and($mailing->error)->not->toContain('550');
 });
 
 test('the slip rate limit follows sends per second and a legacy throttle interval', function () {
