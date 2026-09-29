@@ -1,36 +1,28 @@
-import { Link, usePage } from "@inertiajs/react";
+import { Link } from "@inertiajs/react";
 import { Table, TableHeader, TableBody, TableRow, TableCell } from "@/Components/ui/table";
 
-const columns = ["Datum", "Sadržaj", "Grupa", "Status"];
+const columns = ["Datum", "Sadržaj", "Primatelji", "Status"];
 
-export default function MailingStatusCard() {
-    const { mailingActivity } = usePage().props;
-    const rows = mailingActivity?.recent ?? [];
+export default function GroupMailingActivity({ mailings = [] }) {
+    const rows = Array.isArray(mailings) ? mailings : [];
 
     return (
-        <div className="flex h-full max-h-[28rem] min-h-0 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] xl:max-h-none">
-            <div className="mb-4 flex shrink-0 items-center justify-between gap-3">
-                <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Evidencija slanja</h3>
-                <Link href={route("mailings.index")} className="text-sm font-medium text-brand-600 hover:text-brand-700">
-                    Otvori
-                </Link>
-            </div>
+        <div className="mt-3 border-t border-gray-200 pt-3 dark:border-gray-800">
+            <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">Email Radnje</p>
 
-            {!mailingActivity ? (
-                <p className="text-sm text-gray-500 dark:text-gray-400">Učitavanje...</p>
-            ) : rows.length === 0 ? (
-                <p className="text-sm text-gray-500 dark:text-gray-400">Još nema slanja.</p>
+            {rows.length === 0 ? (
+                <p className="text-sm text-gray-800 dark:text-white/90">Još nema slanja za ovu grupu.</p>
             ) : (
-                <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-gray-200 dark:border-white/[0.05]">
-                    <div className="custom-scrollbar h-full overflow-auto">
+                <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-white/[0.05]">
+                    <div className="max-w-full overflow-x-auto">
                         <Table>
-                            <TableHeader className="sticky top-0 z-10 border-b border-gray-200 bg-gray-50 dark:border-white/[0.05] dark:bg-gray-900">
+                            <TableHeader className="border-b border-gray-200 bg-gray-50 dark:border-white/[0.05]">
                                 <TableRow>
                                     {columns.map((heading) => (
                                         <TableCell
                                             key={heading}
                                             isHeader
-                                            className="sticky top-0 bg-gray-50 px-4 py-2.5 text-start text-theme-xs font-medium text-gray-500 dark:bg-gray-900 dark:text-gray-400"
+                                            className="px-4 py-2.5 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400"
                                         >
                                             {heading}
                                         </TableCell>
@@ -40,7 +32,7 @@ export default function MailingStatusCard() {
                             <TableBody>
                                 {rows.map((row) => (
                                     <TableRow key={row.id} className="border-b border-gray-100 last:border-0 dark:border-white/[0.05]">
-                                        <TableCell className="whitespace-nowrap px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+                                        <TableCell className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
                                             {row.started_at}
                                         </TableCell>
                                         <TableCell className="px-4 py-3 text-sm">
@@ -49,9 +41,9 @@ export default function MailingStatusCard() {
                                             </Link>
                                         </TableCell>
                                         <TableCell className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
-                                            {row.group_name}
+                                            {row.total}
                                         </TableCell>
-                                        <TableCell className="whitespace-nowrap px-4 py-3 text-sm text-gray-800 dark:text-white/90">
+                                        <TableCell className="px-4 py-3 text-sm text-gray-800 dark:text-white/90">
                                             {row.status_label}
                                         </TableCell>
                                     </TableRow>

@@ -229,7 +229,7 @@ class SendInvoiceMailing implements ShouldQueueAfterCommit
 
     private function markFailed(InvoiceMailing $mailing): void
     {
-        if ($mailing->status === InvoiceMailing::STATUS_SENT) {
+        if ($mailing->status === InvoiceMailing::STATUS_SENT || $mailing->status === InvoiceMailing::STATUS_CANCELLED) {
             return;
         }
 

@@ -69,8 +69,9 @@ class MailingResource extends JsonResource
             'queued' => $counts['queued'],
             'total' => $counts['total'],
             'processed' => $counts['sent'] + $counts['failed'],
-            'status' => $this->derivedStatus($counts),
-            'status_label' => $this->statusLabel($counts),
+            'status' => $this->derivedStatus($mailing, $counts),
+            'status_label' => $this->statusLabel($mailing, $counts),
+            'is_closed' => $mailing->closed_at !== null,
             'url' => route('mailings.show', $mailing),
         ];
 
@@ -105,8 +106,12 @@ class MailingResource extends JsonResource
     /**
      * @param  array{sent: int, failed: int, queued: int, total: int}  $counts
      */
-    private function derivedStatus(array $counts): string
+    private function derivedStatus(Mailing $mailing, array $counts): string
     {
+        if ($mailing->closed_at !== null) {
+            return Mailing::STATUS_CLOSED;
+        }
+
         if ($counts['queued'] > 0) {
             return Mailing::STATUS_IN_PROGRESS;
         }
@@ -121,8 +126,12 @@ class MailingResource extends JsonResource
     /**
      * @param  array{sent: int, failed: int, queued: int, total: int}  $counts
      */
-    private function statusLabel(array $counts): string
+    private function statusLabel(Mailing $mailing, array $counts): string
     {
+        if ($mailing->closed_at !== null) {
+            return 'Zatvoreno';
+        }
+
         if ($counts['queued'] === 0 && $counts['failed'] === 0) {
             return $counts['sent'].' poslano';
         }

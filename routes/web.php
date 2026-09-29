@@ -61,6 +61,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/mailings', [MailingController::class, 'index'])->name('mailings.index');
     Route::get('/mailings/{mailing}', [MailingController::class, 'show'])->name('mailings.show');
     Route::post('/mailings/{mailing}/retry-failed', [MailingController::class, 'retryFailed'])->name('mailings.retry-failed');
+    Route::post('/mailings/{mailing}/close', [MailingController::class, 'close'])->name('mailings.close');
+    Route::delete('/mailings/{mailing}', [MailingController::class, 'destroy'])->name('mailings.destroy');
 
     Route::resource('memberships', MembershipController::class);
 

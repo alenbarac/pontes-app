@@ -25,6 +25,8 @@ class Mailing extends Model
 
     public const STATUS_SENT = 'sent';
 
+    public const STATUS_CLOSED = 'closed';
+
     protected $fillable = [
         'type',
         'label',
@@ -34,11 +36,13 @@ class Mailing extends Model
         'user_id',
         'started_at',
         'completed_at',
+        'closed_at',
     ];
 
     protected $casts = [
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
+        'closed_at' => 'datetime',
     ];
 
     public static function labelFor(?string $month): string
@@ -154,6 +158,10 @@ class Mailing extends Model
      */
     public function refreshCompletion(): void
     {
+        if (static::query()->whereKey($this->id)->whereNotNull('closed_at')->exists()) {
+            return;
+        }
+
         $counts = $this->attemptCounts();
 
         if ($counts['total'] === 0) {
@@ -181,6 +189,45 @@ class Mailing extends Model
         if ($updated > 0) {
             $this->completed_at = $stamp;
         }
+    }
+
+    /**
+     * Stop unfinished recipients and flag the batch done. Messages already
+     * sent stay sent. A later worker will not reopen the batch.
+     */
+    public function closeOpenAttempts(): void
+    {
+        InvoiceMailing::query()
+            ->where('mailing_id', $this->id)
+            ->where('status', InvoiceMailing::STATUS_QUEUED)
+            ->update([
+                'status' => InvoiceMailing::STATUS_CANCELLED,
+                'error' => null,
+                'sent_at' => null,
+            ]);
+
+        $stamp = now();
+
+        $this->forceFill([
+            'completed_at' => $this->completed_at ?? $stamp,
+            'closed_at' => $stamp,
+        ])->save();
+    }
+
+    /**
+     * Latest batches started for this group, newest first. Any mailing type
+     * is included so later reminders and documents show up in the same log.
+     *
+     * @return Collection<int, self>
+     */
+    public static function recentForGroup(int $groupId, int $limit = 5): Collection
+    {
+        return self::query()
+            ->where('member_group_id', $groupId)
+            ->latest('started_at')
+            ->latest('id')
+            ->limit($limit)
+            ->get();
     }
 
     /**

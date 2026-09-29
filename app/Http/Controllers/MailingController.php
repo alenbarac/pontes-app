@@ -54,4 +54,24 @@ class MailingController extends Controller
 
         return back()->with($queued > 0 ? 'success' : 'error', $message);
     }
+
+    public function close(Mailing $mailing): RedirectResponse
+    {
+        if ($mailing->closed_at !== null) {
+            return back()->with('error', 'Slanje je već označeno kao završeno.');
+        }
+
+        $mailing->closeOpenAttempts();
+
+        return back()->with('success', 'Slanje je označeno kao završeno.');
+    }
+
+    public function destroy(Mailing $mailing): RedirectResponse
+    {
+        $mailing->delete();
+
+        return redirect()
+            ->route('mailings.index')
+            ->with('success', 'Slanje je obrisano iz evidencije.');
+    }
 }

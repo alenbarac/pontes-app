@@ -13,7 +13,7 @@ use Illuminate\Http\Request;
 class MailingActivitySnapshot
 {
     /**
-     * @return array{active: list<array<string, mixed>>, recent_finished: list<array<string, mixed>>, latest: array<string, mixed>|null}
+     * @return array{active: list<array<string, mixed>>, recent_finished: list<array<string, mixed>>, recent: list<array<string, mixed>>, latest: array<string, mixed>|null}
      */
     public function toArray(?Request $request = null): array
     {
@@ -21,16 +21,24 @@ class MailingActivitySnapshot
 
         $active = Mailing::query()
             ->with('memberGroup:id,name')
+            ->whereNull('closed_at')
             ->whereHas('invoiceMailings', fn ($query) => $query->where('status', InvoiceMailing::STATUS_QUEUED))
             ->latest('id')
             ->get();
 
-        $recent = Mailing::query()
+        $recentFinished = Mailing::query()
             ->with('memberGroup:id,name')
             ->whereNotNull('completed_at')
             ->where('completed_at', '>=', now()->subDay())
             ->latest('completed_at')
             ->limit(10)
+            ->get();
+
+        $recent = Mailing::query()
+            ->with('memberGroup:id,name')
+            ->latest('started_at')
+            ->latest('id')
+            ->limit(20)
             ->get();
 
         $latest = Mailing::query()
@@ -39,7 +47,7 @@ class MailingActivitySnapshot
             ->first();
 
         $counts = Mailing::countsFor(
-            $active->concat($recent)->when($latest !== null, fn ($rows) => $rows->push($latest))->unique('id')
+            $active->concat($recentFinished)->concat($recent)->when($latest !== null, fn ($rows) => $rows->push($latest))->unique('id')
         );
 
         $present = function (Mailing $mailing) use ($counts, $request): array {
@@ -52,7 +60,8 @@ class MailingActivitySnapshot
                 ->map($present)
                 ->values()
                 ->all(),
-            'recent_finished' => $recent->map($present)->values()->all(),
+            'recent_finished' => $recentFinished->map($present)->values()->all(),
+            'recent' => $recent->map($present)->values()->all(),
             'latest' => $latest ? $present($latest) : null,
         ];
     }

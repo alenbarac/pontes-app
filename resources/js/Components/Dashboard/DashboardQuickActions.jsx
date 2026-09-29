@@ -1,12 +1,11 @@
 import { Link } from "@inertiajs/react";
 import {
-  ArrowRightIcon,
   UsersIcon,
   UserPlusIcon,
+  DocumentPlusIcon,
   DocumentArrowUpIcon,
   DocumentTextIcon,
 } from "@heroicons/react/24/outline";
-import MailingStatusCard from "@/Components/Dashboard/MailingStatusCard";
 
 const actions = [
   {
@@ -20,6 +19,12 @@ const actions = [
     description: "Brzi unos novog člana",
     href: "/members/create",
     icon: UserPlusIcon,
+  },
+  {
+    title: "Generiranje računa",
+    description: "Generiranje mjesečnih računa",
+    href: "/invoices/generate",
+    icon: DocumentPlusIcon,
   },
   {
     title: "Uvoz-mbanking",
@@ -37,17 +42,11 @@ const actions = [
 
 export default function DashboardQuickActions() {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
-      <div className="mb-4">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
-          Brze radnje
-        </h3>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Najčešće korišteni ekrani
-        </p>
-      </div>
-
-      <div className="space-y-3">
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+      <p className="shrink-0 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+        Brze radnje
+      </p>
+      <div className="flex flex-wrap gap-2">
         {actions.map((action) => {
           const Icon = action.icon;
 
@@ -55,28 +54,14 @@ export default function DashboardQuickActions() {
             <Link
               key={action.title}
               href={action.href}
-              className="flex items-center justify-between rounded-xl border border-gray-200 px-4 py-3 transition-colors hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-900/50"
+              title={action.description}
+              className="inline-flex items-center gap-2 rounded-lg bg-brand-50 px-3 py-2 text-sm font-medium text-brand-600 ring-1 ring-inset ring-brand-100 transition-colors hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-400 dark:ring-brand-500/20 dark:hover:bg-brand-500/20"
             >
-              <div className="flex items-center gap-3">
-                <Icon className="h-5 w-5 text-brand-500" />
-                <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">
-                    {action.title}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {action.description}
-                  </p>
-                </div>
-              </div>
-
-              <ArrowRightIcon className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+              <Icon className="h-4 w-4 shrink-0" />
+              {action.title}
             </Link>
           );
         })}
-      </div>
-
-      <div className="mt-5 border-t border-gray-200 pt-4 dark:border-gray-800">
-        <MailingStatusCard />
       </div>
     </div>
   );

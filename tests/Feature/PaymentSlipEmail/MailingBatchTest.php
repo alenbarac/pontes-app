@@ -163,7 +163,9 @@ test('a partial reload reports queued progress and drops the batch when it finis
         ->assertJsonCount(0, 'props.mailingActivity.active')
         ->assertJsonPath('props.mailingActivity.latest.id', $mailing->id)
         ->assertJsonPath('props.mailingActivity.latest.status', Mailing::STATUS_SENT)
-        ->assertJsonPath('props.mailingActivity.recent_finished.0.id', $mailing->id);
+        ->assertJsonPath('props.mailingActivity.recent_finished.0.id', $mailing->id)
+        ->assertJsonPath('props.mailingActivity.recent.0.id', $mailing->id)
+        ->assertJsonPath('props.mailingActivity.recent.0.label', 'Uplatnice 09/2026');
 });
 
 test('an older queued attempt does not keep a finished batch open', function () {
@@ -243,4 +245,55 @@ test('a finished batch with only successful slips is labelled as sent', function
             ->where('mailings.data.0.status_label', '14 poslano')
             ->where('mailings.data.0.total', 14)
         );
+});
+
+test('closing a mailing cancels queued recipients and drops it from the active list', function () {
+    $mailing = Mailing::factory()->create([
+        'label' => 'Uplatnice 09/2026',
+        'completed_at' => null,
+    ]);
+
+    $queued = InvoiceMailing::factory()->queued()->create([
+        'mailing_id' => $mailing->id,
+    ]);
+    $sent = InvoiceMailing::factory()->create([
+        'mailing_id' => $mailing->id,
+        'status' => InvoiceMailing::STATUS_SENT,
+        'sent_at' => now(),
+    ]);
+
+    $this->post(route('mailings.close', $mailing))
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Slanje je označeno kao završeno.');
+
+    expect($queued->fresh()->status)->toBe(InvoiceMailing::STATUS_CANCELLED)
+        ->and($sent->fresh()->status)->toBe(InvoiceMailing::STATUS_SENT)
+        ->and($mailing->fresh()->closed_at)->not->toBeNull()
+        ->and($mailing->fresh()->completed_at)->not->toBeNull();
+
+    $activeIds = collect(app(\App\Services\MailingActivitySnapshot::class)->toArray()['active'])->pluck('id');
+    expect($activeIds)->not->toContain($mailing->id);
+
+    $this->get(route('mailings.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('mailings.data.0.status_label', 'Zatvoreno')
+            ->where('mailings.data.0.is_closed', true)
+            ->where('mailings.data.0.queued', 0));
+});
+
+test('deleting a mailing removes the batch and its recipients', function () {
+    $mailing = Mailing::factory()->create([
+        'label' => 'Uplatnice 09/2026',
+    ]);
+    $recipient = InvoiceMailing::factory()->queued()->create([
+        'mailing_id' => $mailing->id,
+    ]);
+
+    $this->delete(route('mailings.destroy', $mailing))
+        ->assertRedirect(route('mailings.index'))
+        ->assertSessionHas('success', 'Slanje je obrisano iz evidencije.');
+
+    $this->assertDatabaseMissing('mailings', ['id' => $mailing->id]);
+    $this->assertDatabaseMissing('invoice_mailings', ['id' => $recipient->id]);
 });

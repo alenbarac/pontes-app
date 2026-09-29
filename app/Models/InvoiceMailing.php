@@ -21,6 +21,8 @@ class InvoiceMailing extends Model
 
     public const STATUS_FAILED = 'failed';
 
+    public const STATUS_CANCELLED = 'cancelled';
+
     public const FAILURE_MESSAGE = 'Slanje uplatnice nije uspjelo.';
 
     protected $fillable = [

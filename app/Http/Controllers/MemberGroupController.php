@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\BulkSendPaymentSlipsForGroupRequest;
 use App\Http\Requests\MemberGroupRequest;
+use App\Http\Resources\MailingResource;
 use App\Http\Resources\MemberGroupResource;
 use App\Http\Resources\MemberResource;
 use App\Models\Invoice;
+use App\Models\Mailing;
 use App\Models\MemberGroup;
 use App\Models\MemberGroupWorkshop;
 use App\Models\Workshop;
@@ -167,7 +169,24 @@ class MemberGroupController extends Controller
             'otherGroups' => $otherGroups,
             'workshops' => $workshops,
             'search' => $request->search ?? '',
+            'groupMailings' => $this->recentGroupMailings($memberGroup),
         ]);
+    }
+
+    /**
+     * Same rows as Evidencija slanja, limited to batches started for this group.
+     *
+     * @return list<array<string, mixed>>
+     */
+    protected function recentGroupMailings(MemberGroup $memberGroup): array
+    {
+        $mailings = Mailing::recentForGroup($memberGroup->id);
+        $counts = Mailing::countsFor($mailings);
+
+        return $mailings
+            ->map(fn (Mailing $mailing) => (new MailingResource($mailing, $counts[$mailing->id] ?? null))->resolve(request()))
+            ->values()
+            ->all();
     }
 
     /**

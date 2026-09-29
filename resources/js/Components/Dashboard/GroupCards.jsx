@@ -31,7 +31,7 @@ export default function GroupCards({ groups = [] }) {
         </Link>
       </div>
       <div className="px-6 pb-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {groups.map((group) => {
             return (
               <Link

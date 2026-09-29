@@ -26,6 +26,7 @@ import BulkReassignModal from "@/Components/MemberGroup/BulkReassignModal";
 import BulkSlipsDownloadModal from "@/Components/MemberGroup/BulkSlipsDownloadModal";
 import BulkSlipsEmailModal from "@/Components/MemberGroup/BulkSlipsEmailModal";
 import MemberGroupEditForm from "@/Components/MemberGroup/MemberGroupEditForm";
+import GroupMailingActivity from "@/Components/MemberGroup/GroupMailingActivity";
 import TemplateSelectorModal from "@/Components/Documents/TemplateSelectorModal";
 import toast from "react-hot-toast";
 
@@ -37,6 +38,7 @@ export default function Show({
     otherGroups,
     workshops = [],
     search: initialSearch = "",
+    groupMailings = [],
 }) {
     const [selectedMembers, setSelectedMembers] = useState([]);
     const [search, setSearch] = useState(initialSearch);
@@ -202,6 +204,7 @@ export default function Show({
                             </p>
                         </div>
                     )}
+                    <GroupMailingActivity mailings={groupMailings} />
                 </ComponentCard>
 
                 {/* Members Table */}
@@ -209,18 +212,17 @@ export default function Show({
                     title="Članovi grupe"
                     headerAction={
                         <div className="flex flex-wrap gap-2 justify-end">
-                            {selectedMembers.length > 0 && (
-                                <Button
-                                    onClick={handleBulkDownloadSlips}
-                                    variant="outline"
-                                    size="sm"
-                                    startIcon={
-                                        <ArrowDownTrayIcon className="h-4 w-4" />
-                                    }
-                                >
-                                    Preuzmi uplatnice
-                                </Button>
-                            )}
+                            <Button
+                                onClick={handleBulkDownloadSlips}
+                                variant="outline"
+                                size="sm"
+                                disabled={selectedMembers.length === 0}
+                                startIcon={
+                                    <ArrowDownTrayIcon className="h-4 w-4" />
+                                }
+                            >
+                                Preuzmi uplatnice
+                            </Button>
                             <Button
                                 onClick={handleBulkSendSlipsEmail}
                                 variant="outline"
@@ -231,27 +233,25 @@ export default function Show({
                             >
                                 Pošalji uplatnice
                             </Button>
-                            {selectedMembers.length > 0 && (
-                                <>
-                                    <Button
-                                        onClick={handleBulkGenerateDocuments}
-                                        variant="outline"
-                                        size="sm"
-                                        startIcon={
-                                            <DocumentTextIcon className="h-4 w-4" />
-                                        }
-                                    >
-                                        Generiraj dokument
-                                    </Button>
-                                    <Button
-                                        onClick={handleBulkReassign}
-                                        variant="primary"
-                                        size="sm"
-                                    >
-                                        Premjesti
-                                    </Button>
-                                </>
-                            )}
+                            <Button
+                                onClick={handleBulkGenerateDocuments}
+                                variant="outline"
+                                size="sm"
+                                disabled={selectedMembers.length === 0}
+                                startIcon={
+                                    <DocumentTextIcon className="h-4 w-4" />
+                                }
+                            >
+                                Generiraj dokument
+                            </Button>
+                            <Button
+                                onClick={handleBulkReassign}
+                                variant="primary"
+                                size="sm"
+                                disabled={selectedMembers.length === 0}
+                            >
+                                Premjesti
+                            </Button>
                         </div>
                     }
                 >
@@ -518,6 +518,7 @@ export default function Show({
                 groupTotalMembers={statistics.total_members}
                 onSuccess={() => {
                     slipsEmailModal.closeModal();
+                    router.reload({ only: ["groupMailings"] });
                 }}
             />
 
