@@ -75,6 +75,7 @@ class MembersImport implements ToCollection, WithColumnLimit, WithHeadingRow, Wi
                 'e-mail', 'E-MAIL', 'E-mail', 'email',
                 'e_mail', 'e-mail_', '_e-mail',
                 'email_', '_email',
+                'e-mail adresa', 'e_mail_adresa', 'email adresa',
             ]);
             $imeUplatnica = $this->getValue($row, [
                 'ime uplatnica', 'IME UPLATNICA', 'Ime uplatnica',
@@ -221,6 +222,7 @@ class MembersImport implements ToCollection, WithColumnLimit, WithHeadingRow, Wi
 
                 if ($existingMember) {
                     $this->applySlipPayerName($existingMember, $slipPayerName);
+                    $this->syncContactEmail($existingMember, $email);
                     $this->syncEnrollment($existingMember, $workshop, $membershipPlan, $memberGroup);
                     $this->updatedCount++;
                     $this->recordDiscounted(
@@ -521,6 +523,43 @@ class MembersImport implements ToCollection, WithColumnLimit, WithHeadingRow, Wi
         $value = trim((string) $imeUplatnica);
 
         return $value === '' ? null : $value;
+    }
+
+    /**
+     * The spreadsheet address replaces email, invoice_email, and parent_email
+     * when it differs. An empty cell leaves the stored addresses in place.
+     * members.email is unique, so a shared address is kept on the invoice
+     * fields when another member already uses it as their login email.
+     */
+    private function syncContactEmail(Member $member, ?string $email): void
+    {
+        $email = trim((string) $email);
+        if ($email === '') {
+            return;
+        }
+
+        $updates = [];
+
+        if ($member->invoice_email !== $email) {
+            $updates['invoice_email'] = $email;
+        }
+
+        if ($member->parent_email !== $email) {
+            $updates['parent_email'] = $email;
+        }
+
+        $takenByAnother = Member::query()
+            ->where('email', $email)
+            ->where('id', '!=', $member->id)
+            ->exists();
+
+        if (! $takenByAnother && $member->email !== $email) {
+            $updates['email'] = $email;
+        }
+
+        if ($updates !== []) {
+            $member->update($updates);
+        }
     }
 
     private function applySlipPayerName(Member $member, ?string $slipPayerName): void

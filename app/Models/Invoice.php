@@ -216,20 +216,31 @@ class Invoice extends Model
             $dueDate = Carbon::parse($dueDate);
         }
 
-        // Count existing invoices for this member-month (across all workshops) to get sequence
-        // This ensures uniqueness even if a member has multiple workshops in the same month
-        $existingCount = static::where('member_id', $memberId)
-            ->whereYear('due_date', $dueDate->year)
-            ->whereMonth('due_date', $dueDate->month)
-            ->count();
+        // Sequence is taken from reference codes that already use this prefix.
+        // Counting member_id + due month misses rows whose member or due date
+        // no longer matches the code (re-imported members, edited due dates),
+        // and the unique index then rejects YYYYMM-CCC-001.
+        $memberIdPadded = str_pad((string) $memberId, 3, '0', STR_PAD_LEFT);
+        $prefix = $dueDate->format('Ym').'-'.$memberIdPadded.'-';
 
-        $sequence = str_pad($existingCount + 1, 3, '0', STR_PAD_LEFT);
-        $memberIdPadded = str_pad($memberId, 3, '0', STR_PAD_LEFT);
+        $taken = static::query()
+            ->where('reference_code', 'like', $prefix.'%')
+            ->pluck('reference_code');
 
-        // Format: YYYYMM-CCC-NNN (14 characters, well within HUB3's 22-char limit)
-        return $dueDate->format('Ym').'-'.
-               $memberIdPadded.'-'.
-               $sequence;
+        $sequence = ($taken
+            ->map(function (string $code) use ($prefix) {
+                $suffix = substr($code, strlen($prefix));
+
+                return ctype_digit($suffix) ? (int) $suffix : 0;
+            })
+            ->max() ?? 0) + 1;
+
+        do {
+            $referenceCode = $prefix.str_pad((string) $sequence, 3, '0', STR_PAD_LEFT);
+            $sequence++;
+        } while ($taken->contains($referenceCode));
+
+        return $referenceCode;
     }
 
     /**

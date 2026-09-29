@@ -138,6 +138,100 @@ test('members import template includes the IME UPLATNICA column', function () {
     expect($response->streamedContent())->toContain('IME UPLATNICA');
 });
 
+test('import replaces a stored email when the spreadsheet address differs', function () {
+    $member = Member::factory()->create([
+        'first_name' => 'Neva',
+        'last_name' => 'Baretic',
+        'email' => 'nevabaretic@import.local',
+        'invoice_email' => null,
+        'parent_email' => null,
+    ]);
+
+    $file = membersCsv([
+        ['Grupa 1', 'Neva Baretic', '1950', '', 'neva.baretic@hotmail.com', 'Mjesečna članarina'],
+    ]);
+
+    $import = new MembersImport;
+    Excel::import($import, $file);
+
+    $member->refresh();
+
+    expect($import->getResults()['updated_count'])->toBe(1)
+        ->and($import->getResults()['failed_count'])->toBe(0)
+        ->and($member->email)->toBe('neva.baretic@hotmail.com')
+        ->and($member->invoice_email)->toBe('neva.baretic@hotmail.com')
+        ->and($member->parent_email)->toBe('neva.baretic@hotmail.com');
+});
+
+test('import does not clear an email when the spreadsheet cell is empty', function () {
+    $member = Member::factory()->create([
+        'first_name' => 'Neva',
+        'last_name' => 'Baretic',
+        'email' => 'neva.baretic@hotmail.com',
+        'invoice_email' => 'neva.baretic@hotmail.com',
+        'parent_email' => 'neva.baretic@hotmail.com',
+    ]);
+
+    $file = membersCsv([
+        ['Grupa 1', 'Neva Baretic', '1950', '', '', 'Mjesečna članarina'],
+    ]);
+
+    Excel::import(new MembersImport, $file);
+
+    $member->refresh();
+
+    expect($member->email)->toBe('neva.baretic@hotmail.com')
+        ->and($member->invoice_email)->toBe('neva.baretic@hotmail.com');
+});
+
+test('import keeps a shared address on invoice fields when the login email is already taken', function () {
+    Member::factory()->create([
+        'first_name' => 'Ana',
+        'last_name' => 'Baretic',
+        'email' => 'neva.baretic@hotmail.com',
+    ]);
+    $member = Member::factory()->create([
+        'first_name' => 'Neva',
+        'last_name' => 'Baretic',
+        'email' => 'nevabaretic@import.local',
+        'invoice_email' => null,
+        'parent_email' => null,
+    ]);
+
+    $file = membersCsv([
+        ['Grupa 1', 'Neva Baretic', '1950', '', 'neva.baretic@hotmail.com', 'Mjesečna članarina'],
+    ]);
+
+    Excel::import(new MembersImport, $file);
+
+    $member->refresh();
+
+    expect($member->email)->toBe('nevabaretic@import.local')
+        ->and($member->invoice_email)->toBe('neva.baretic@hotmail.com')
+        ->and($member->parent_email)->toBe('neva.baretic@hotmail.com');
+});
+
+test('import reads an E-MAIL ADRESA column', function () {
+    $file = UploadedFile::fake()->createWithContent(
+        'members.csv',
+        implode("\n", [
+            'GRUPA,IME I PREZIME,E-MAIL ADRESA,ČLANARINA',
+            'Grupa 1,Neva Baretic,neva.baretic@hotmail.com,Mjesečna članarina',
+        ])
+    );
+
+    $import = new MembersImport;
+    Excel::import($import, $file);
+
+    $neva = Member::where('first_name', 'Neva')->where('last_name', 'Baretic')->first();
+
+    expect($import->getResults()['created_count'])->toBe(1)
+        ->and($import->getResults()['failed_count'])->toBe(0)
+        ->and($neva)->not->toBeNull()
+        ->and($neva->email)->toBe('neva.baretic@hotmail.com')
+        ->and($neva->invoice_email)->toBe('neva.baretic@hotmail.com');
+});
+
 test('member import only reads the first six spreadsheet columns', function () {
     $import = new MembersImport;
 
