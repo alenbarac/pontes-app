@@ -6,6 +6,7 @@ import {
   DocumentArrowUpIcon,
   DocumentTextIcon,
 } from "@heroicons/react/24/outline";
+import MailingStatusCard from "@/Components/Dashboard/MailingStatusCard";
 
 const actions = [
   {
@@ -72,6 +73,10 @@ export default function DashboardQuickActions() {
             </Link>
           );
         })}
+      </div>
+
+      <div className="mt-5 border-t border-gray-200 pt-4 dark:border-gray-800">
+        <MailingStatusCard />
       </div>
     </div>
   );

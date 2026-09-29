@@ -43,7 +43,7 @@ export default function MailingStatusCard() {
     const latest = mailingActivity?.latest ?? null;
 
     return (
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+        <div>
             <div className="mb-3 flex items-center justify-between gap-3">
                 <h3 className="text-sm font-semibold text-gray-800 dark:text-white">Evidencija slanja</h3>
                 <Link href={route("mailings.index")} className="text-xs font-medium text-brand-600 hover:text-brand-700">
