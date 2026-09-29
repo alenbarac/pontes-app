@@ -7,7 +7,7 @@ use App\Models\Invoice;
 use App\Models\InvoiceMailing;
 use App\Models\Mailing;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Contracts\Queue\ShouldQueueAfterCommit;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
@@ -17,7 +17,11 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Throwable;
 
-class SendInvoiceMailing implements ShouldQueue
+/**
+ * Dispatched after the surrounding database transaction commits, so the
+ * invoice_mailings row exists before a worker loads it.
+ */
+class SendInvoiceMailing implements ShouldQueueAfterCommit
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 

@@ -403,7 +403,7 @@ class InvoiceController extends Controller
     {
         $invoice->load(['member', 'workshop', 'membershipPlan']);
 
-        $result = $this->paymentSlipEmailService->sendForInvoice($invoice, $request->boolean('resend'));
+        $result = $this->paymentSlipEmailService->sendForInvoice($invoice, $request->boolean('resend'), $request->user()?->id);
 
         if (! $result['ok']) {
             $reason = $result['reason'] ?? '';
@@ -453,6 +453,7 @@ class InvoiceController extends Controller
         $summary = $this->paymentSlipEmailService->sendForInvoiceIds(
             $request->validated('invoice_ids'),
             $request->boolean('resend'),
+            userId: $request->user()?->id,
         );
 
         if ($summary['exceeds_cap']) {

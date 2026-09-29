@@ -56,11 +56,11 @@ class PaymentSlipEmailService
      *
      * @return array{ok: bool, reason?: string, message?: string, recipient?: string, reference_code?: string, invoice_id?: int, sent_at?: string|null, invoice_mailing_id?: int}
      */
-    public function sendForInvoice(Invoice $invoice, bool $resend = false): array
+    public function sendForInvoice(Invoice $invoice, bool $resend = false, ?int $userId = null): array
     {
         $invoice->loadMissing(['member', 'workshop', 'membershipPlan']);
 
-        $batch = SlipMailingBatch::forInvoices();
+        $batch = SlipMailingBatch::forInvoices($userId);
         $result = $this->queueSlip($invoice, $resend, $batch);
         if ($result['ok'] ?? false) {
             $result['mailing_id'] = $batch->mailing?->id;
@@ -80,7 +80,7 @@ class PaymentSlipEmailService
      * @param  array<int>  $invoiceIds
      * @return array{queued: int, skipped_no_email: list<array<string, mixed>>, skipped_already_sent: list<array<string, mixed>>, failed: list<array<string, mixed>>, exceeds_cap: bool, mailing_id: int|null, message?: string}
      */
-    public function sendForInvoiceIds(array $invoiceIds, bool $resend = false, ?SlipMailingBatch $batch = null): array
+    public function sendForInvoiceIds(array $invoiceIds, bool $resend = false, ?SlipMailingBatch $batch = null, ?int $userId = null): array
     {
         $invoiceIds = array_values(array_unique(array_map('intval', $invoiceIds)));
 
@@ -88,7 +88,7 @@ class PaymentSlipEmailService
             return $this->emptyDispatchSummary(exceedsCap: true);
         }
 
-        $batch ??= SlipMailingBatch::forInvoices();
+        $batch ??= SlipMailingBatch::forInvoices($userId);
         $queued = 0;
         $skippedNoEmail = [];
         $skippedAlreadySent = [];
@@ -161,7 +161,7 @@ class PaymentSlipEmailService
      * @param  array<int>  $memberIds
      * @return array{queued: int, skipped_no_email: list<array<string, mixed>>, skipped_already_sent: list<array<string, mixed>>, failed: list<array<string, mixed>>, exceeds_cap: bool, mailing_id: int|null, invoice_count: int, invalid_month: bool, message?: string}
      */
-    public function sendForMembersInMonth(array $memberIds, string $monthYyyyMm, bool $resend = false, ?SlipMailingBatch $batch = null): array
+    public function sendForMembersInMonth(array $memberIds, string $monthYyyyMm, bool $resend = false, ?SlipMailingBatch $batch = null, ?int $userId = null): array
     {
         $parsed = MonthString::parse($monthYyyyMm);
         if ($parsed === null) {
@@ -193,7 +193,7 @@ class PaymentSlipEmailService
         $summary = $this->sendForInvoiceIds(
             $invoiceIds,
             $resend,
-            $batch ?? SlipMailingBatch::forMembers($monthYyyyMm),
+            $batch ?? SlipMailingBatch::forMembers($monthYyyyMm, $userId),
         );
 
         return $summary + [

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Support\MonthString;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -23,24 +24,6 @@ class Mailing extends Model
     public const STATUS_FINISHED_WITH_ERRORS = 'finished_with_errors';
 
     public const STATUS_SENT = 'sent';
-
-    /**
-     * @var array<int, string>
-     */
-    private const CROATIAN_MONTHS = [
-        1 => 'Siječanj',
-        2 => 'Veljača',
-        3 => 'Ožujak',
-        4 => 'Travanj',
-        5 => 'Svibanj',
-        6 => 'Lipanj',
-        7 => 'Srpanj',
-        8 => 'Kolovoz',
-        9 => 'Rujan',
-        10 => 'Listopad',
-        11 => 'Studeni',
-        12 => 'Prosinac',
-    ];
 
     protected $fillable = [
         'type',
@@ -83,27 +66,6 @@ class Mailing extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
-    }
-
-    public function groupName(): string
-    {
-        return match ($this->source) {
-            self::SOURCE_GROUP => $this->memberGroup?->name ?: 'Grupa',
-            self::SOURCE_MEMBERS => 'Odabrani članovi',
-            default => 'Računi',
-        };
-    }
-
-    public function monthLabel(): ?string
-    {
-        $parsed = $this->month !== null ? MonthString::parse($this->month) : null;
-        if ($parsed === null) {
-            return null;
-        }
-
-        [$year, $month] = $parsed;
-
-        return self::CROATIAN_MONTHS[$month].' '.$year;
     }
 
     /**
@@ -166,69 +128,11 @@ class Mailing extends Model
     }
 
     /**
-     * @param  array{sent: int, failed: int, queued: int, total: int}  $counts
-     */
-    public function derivedStatus(array $counts): string
-    {
-        if ($counts['queued'] > 0) {
-            return self::STATUS_IN_PROGRESS;
-        }
-
-        if ($counts['failed'] > 0) {
-            return self::STATUS_FINISHED_WITH_ERRORS;
-        }
-
-        return self::STATUS_SENT;
-    }
-
-    /**
-     * Index status: "14 poslano" when every recipient was sent, otherwise "10 / 11".
+     * One row per invoice: the latest attempt.
      *
-     * @param  array{sent: int, failed: int, queued: int, total: int}  $counts
+     * @return Collection<int, InvoiceMailing>
      */
-    public function statusLabel(array $counts): string
-    {
-        if ($counts['queued'] === 0 && $counts['failed'] === 0) {
-            return $counts['sent'].' poslano';
-        }
-
-        return $counts['sent'].' / '.$counts['total'];
-    }
-
-    /**
-     * @param  array{sent: int, failed: int, queued: int, total: int}|null  $counts
-     * @return array<string, mixed>
-     */
-    public function summary(?array $counts = null): array
-    {
-        $counts ??= $this->attemptCounts();
-
-        return [
-            'id' => $this->id,
-            'type' => $this->type,
-            'label' => $this->label,
-            'source' => $this->source,
-            'group_name' => $this->groupName(),
-            'month' => $this->month,
-            'month_label' => $this->monthLabel(),
-            'started_at' => $this->formatStamp($this->started_at),
-            'completed_at' => $this->formatStamp($this->completed_at),
-            'sent' => $counts['sent'],
-            'failed' => $counts['failed'],
-            'queued' => $counts['queued'],
-            'total' => $counts['total'],
-            'processed' => $counts['sent'] + $counts['failed'],
-            'status' => $this->derivedStatus($counts),
-            'status_label' => $this->statusLabel($counts),
-        ];
-    }
-
-    /**
-     * One row per recipient: the latest attempt for that invoice.
-     *
-     * @return list<array<string, mixed>>
-     */
-    public function recipientRows(): array
+    public function latestAttempts(): Collection
     {
         $latest = InvoiceMailing::query()
             ->selectRaw('MAX(id) as id')
@@ -240,44 +144,42 @@ class Mailing extends Model
             ->joinSub($latest, 'latest', 'latest.id', '=', 'invoice_mailings.id')
             ->with('member:id,first_name,last_name')
             ->orderBy('invoice_mailings.id')
-            ->get()
-            ->map(function (InvoiceMailing $row) {
-                $name = trim(($row->member->first_name ?? '').' '.($row->member->last_name ?? ''));
-
-                return [
-                    'id' => $row->id,
-                    'invoice_id' => $row->invoice_id,
-                    'member_id' => $row->member_id,
-                    'member_name' => $name !== '' ? $name : 'Član',
-                    'recipient' => $row->recipient,
-                    'status' => $row->status,
-                    'error' => $row->status === InvoiceMailing::STATUS_FAILED ? $row->error : null,
-                ];
-            })
-            ->sortBy('member_name', SORT_NATURAL | SORT_FLAG_CASE)
-            ->values()
-            ->all();
+            ->get();
     }
 
     /**
-     * Close the batch once nothing is still queued. A retry clears completed_at.
+     * Close the batch once the latest attempt of every invoice has left the queue.
+     * A retry clears completed_at. The update is conditional so two workers
+     * finishing together do not rely on a stale in-memory timestamp.
      */
     public function refreshCompletion(): void
     {
-        $queued = $this->invoiceMailings()
-            ->where('status', InvoiceMailing::STATUS_QUEUED)
-            ->exists();
+        $counts = $this->attemptCounts();
 
-        if ($queued) {
-            if ($this->completed_at !== null) {
-                $this->forceFill(['completed_at' => null])->save();
-            }
+        if ($counts['total'] === 0) {
+            return;
+        }
+
+        if ($counts['queued'] > 0) {
+            static::query()
+                ->whereKey($this->id)
+                ->whereNotNull('completed_at')
+                ->update(['completed_at' => null]);
+
+            $this->completed_at = null;
 
             return;
         }
 
-        if ($this->invoiceMailings()->exists() && $this->completed_at === null) {
-            $this->forceFill(['completed_at' => now()])->save();
+        $stamp = now();
+
+        $updated = static::query()
+            ->whereKey($this->id)
+            ->whereNull('completed_at')
+            ->update(['completed_at' => $stamp]);
+
+        if ($updated > 0) {
+            $this->completed_at = $stamp;
         }
     }
 
@@ -293,13 +195,4 @@ class Mailing extends Model
             'total' => 0,
         ];
     }
-
-    private function formatStamp(mixed $value): ?string
-    {
-        if ($value === null) {
-            return null;
-        }
-
-        return $value->timezone(config('app.timezone'))->format('d.m.Y. H:i');
-    }
-};
+}

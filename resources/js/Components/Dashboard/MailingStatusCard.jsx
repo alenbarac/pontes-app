@@ -1,6 +1,4 @@
-import { Link } from "@inertiajs/react";
-import { useEffect, useState } from "react";
-import { getMailingActivity, subscribeMailingActivity } from "@/lib/mailingActivity";
+import { Link, usePage } from "@inertiajs/react";
 
 function lineFor(item) {
     if (!item) {
@@ -39,17 +37,10 @@ function Progress({ item }) {
     );
 }
 
-export default function MailingStatusCard({ snapshot }) {
-    const [live, setLive] = useState(getMailingActivity());
-
-    useEffect(() => subscribeMailingActivity(setLive), []);
-
-    const data = live.loaded
-        ? { active: live.active, latest: live.latest }
-        : snapshot ?? { active: [], latest: null };
-
-    const active = data.active ?? [];
-    const latest = data.latest;
+export default function MailingStatusCard() {
+    const { mailingActivity } = usePage().props;
+    const active = mailingActivity?.active ?? [];
+    const latest = mailingActivity?.latest ?? null;
 
     return (
         <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
@@ -60,7 +51,9 @@ export default function MailingStatusCard({ snapshot }) {
                 </Link>
             </div>
 
-            {active.length > 0 ? (
+            {!mailingActivity ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400">Učitavanje...</p>
+            ) : active.length > 0 ? (
                 <div className="space-y-4">
                     <p className="text-xs text-gray-500 dark:text-gray-400">Slanje u tijeku</p>
                     {active.map((item) => (

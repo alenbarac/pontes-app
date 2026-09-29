@@ -261,7 +261,7 @@ class MemberGroupController extends Controller
             $memberIds,
             $request->validated('month'),
             $request->boolean('resend'),
-            SlipMailingBatch::forGroup($memberGroup->id, $memberGroup->name, $request->validated('month')),
+            SlipMailingBatch::forGroup($memberGroup->id, $memberGroup->name, $request->validated('month'), $request->user()?->id),
         );
 
         if (! empty($result['invalid_month'])) {

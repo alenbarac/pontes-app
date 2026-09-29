@@ -43,12 +43,28 @@ function sendButtonLabel(count) {
 }
 
 /**
+ * One row the members table or group page may pass through.
+ * The modal no longer lists names; counts come from the preview.
+ *
+ * @typedef {object} SlipEmailMember
+ * @property {number} id
+ * @property {string} [first_name]
+ * @property {string} [last_name]
+ */
+
+/**
  * Pre-flight for sending payment slips. The request only queues the batch.
  *
- * Props:
- *  - mode: 'group' | 'members'
- *  - groupId, groupName: when mode === 'group'
- *  - selectedMemberIds, groupTotalMembers
+ * @param {object} props
+ * @param {boolean} props.isOpen
+ * @param {() => void} props.onClose
+ * @param {'group' | 'members'} props.mode
+ * @param {number} [props.groupId]
+ * @param {string} [props.groupName]
+ * @param {number[]} props.selectedMemberIds
+ * @param {SlipEmailMember[]} [props.members]
+ * @param {number} [props.groupTotalMembers]
+ * @param {() => void} [props.onSuccess]
  */
 export default function BulkSlipsEmailModal({
     isOpen,
@@ -57,6 +73,7 @@ export default function BulkSlipsEmailModal({
     groupId,
     groupName,
     selectedMemberIds,
+    members: _members,
     groupTotalMembers,
     onSuccess,
 }) {

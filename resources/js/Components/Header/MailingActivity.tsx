@@ -1,13 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "@inertiajs/react";
+import { Link, usePage, usePoll } from "@inertiajs/react";
 import { BellIcon } from "@heroicons/react/24/outline";
 import { croatianPlural } from "@/utils/slipMailing";
-import {
-    bootstrapMailingActivity,
-    dismissMailingNotice,
-    getMailingActivity,
-    subscribeMailingActivity,
-} from "@/lib/mailingActivity";
+import { dismissMailingNotice, readDismissedMailingIds } from "@/lib/mailingActivity";
 
 type MailingItem = {
     id: number;
@@ -15,24 +10,40 @@ type MailingItem = {
     month_label: string | null;
     sent: number;
     failed: number;
+    queued: number;
     total: number;
     processed: number;
     url: string;
 };
 
 type ActivityState = {
-    active: MailingItem[];
-    recentFinished: MailingItem[];
-    dismissedIds: number[];
-    loaded: boolean;
+    active?: MailingItem[];
+    recent_finished?: MailingItem[];
+    latest?: MailingItem | null;
 };
 
-function useActivity(): ActivityState {
-    const [snapshot, setSnapshot] = useState<ActivityState>(getMailingActivity());
+type MailingPageProps = {
+    mailingActivity?: ActivityState | null;
+    mailing?: { queued?: number };
+    mailings?: { data?: { queued?: number }[] };
+};
 
-    useEffect(() => subscribeMailingActivity(setSnapshot), []);
+function pollKeys(component: string): string[] {
+    if (component === "Mailings/Show") {
+        return ["mailingActivity", "mailing"];
+    }
 
-    return snapshot;
+    if (component === "Mailings/Index") {
+        return ["mailingActivity", "mailings"];
+    }
+
+    return ["mailingActivity"];
+}
+
+function MailingPoll({ component }: { component: string }) {
+    usePoll(2000, { only: pollKeys(component) });
+
+    return null;
 }
 
 function finishedCopy(item: MailingItem): string {
@@ -65,14 +76,72 @@ function ProgressBar({ processed, total }: { processed: number; total: number })
 }
 
 export default function MailingActivity() {
-    const activity = useActivity();
+    const page = usePage();
+    const props = page.props as MailingPageProps;
+    const activity = props.mailingActivity;
     const [progressOpen, setProgressOpen] = useState(false);
     const [bellOpen, setBellOpen] = useState(false);
-    const rootRef = useRef<HTMLDivElement>(null);
+    const [dismissedIds, setDismissedIds] = useState<number[]>(() => readDismissedMailingIds());
 
-    useEffect(() => {
-        bootstrapMailingActivity();
-    }, []);
+    const active = activity?.active ?? [];
+    const pageQueued =
+        (page.component === "Mailings/Show" && (props.mailing?.queued ?? 0) > 0) ||
+        (page.component === "Mailings/Index" &&
+            (props.mailings?.data ?? []).some((row) => (row.queued ?? 0) > 0));
+    const shouldPoll = active.length > 0 || pageQueued;
+
+    const dismissed = new Set(dismissedIds);
+    const notices = (activity?.recent_finished ?? []).filter((item) => !dismissed.has(item.id));
+    const processed = active.reduce((sum, item) => sum + (item.processed ?? 0), 0);
+    const total = active.reduce((sum, item) => sum + (item.total ?? 0), 0);
+
+    const dismiss = (id: number) => {
+        dismissMailingNotice(id);
+        setDismissedIds(readDismissedMailingIds());
+    };
+
+    return (
+        <>
+            {shouldPoll ? <MailingPoll component={page.component} /> : null}
+            {active.length === 0 && notices.length === 0 ? null : (
+                <ActivityControls
+                    active={active}
+                    notices={notices}
+                    processed={processed}
+                    total={total}
+                    progressOpen={progressOpen}
+                    bellOpen={bellOpen}
+                    setProgressOpen={setProgressOpen}
+                    setBellOpen={setBellOpen}
+                    dismiss={dismiss}
+                />
+            )}
+        </>
+    );
+}
+
+function ActivityControls({
+    active,
+    notices,
+    processed,
+    total,
+    progressOpen,
+    bellOpen,
+    setProgressOpen,
+    setBellOpen,
+    dismiss,
+}: {
+    active: MailingItem[];
+    notices: MailingItem[];
+    processed: number;
+    total: number;
+    progressOpen: boolean;
+    bellOpen: boolean;
+    setProgressOpen: (value: boolean | ((open: boolean) => boolean)) => void;
+    setBellOpen: (value: boolean | ((open: boolean) => boolean)) => void;
+    dismiss: (id: number) => void;
+}) {
+    const rootRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const onPointerDown = (event: MouseEvent) => {
@@ -84,17 +153,7 @@ export default function MailingActivity() {
 
         document.addEventListener("mousedown", onPointerDown);
         return () => document.removeEventListener("mousedown", onPointerDown);
-    }, []);
-
-    const active = activity.active ?? [];
-    const dismissed = new Set(activity.dismissedIds ?? []);
-    const notices = (activity.recentFinished ?? []).filter((item) => !dismissed.has(item.id));
-    const processed = active.reduce((sum, item) => sum + (item.processed ?? 0), 0);
-    const total = active.reduce((sum, item) => sum + (item.total ?? 0), 0);
-
-    if (active.length === 0 && notices.length === 0) {
-        return null;
-    }
+    }, [setBellOpen, setProgressOpen]);
 
     return (
         <div ref={rootRef} className="flex items-center gap-2">
@@ -188,7 +247,7 @@ export default function MailingActivity() {
                                             <button
                                                 type="button"
                                                 aria-label="Zatvori obavijest"
-                                                onClick={() => dismissMailingNotice(item.id)}
+                                                onClick={() => dismiss(item.id)}
                                                 className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
                                             >
                                                 ✕

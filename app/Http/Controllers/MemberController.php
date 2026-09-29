@@ -180,7 +180,7 @@ class MemberController extends Controller
             $validated['member_ids'],
             $validated['month'],
             $request->boolean('resend'),
-            SlipMailingBatch::forMembers($validated['month']),
+            SlipMailingBatch::forMembers($validated['month'], $request->user()?->id),
         );
 
         if (! empty($result['invalid_month'])) {

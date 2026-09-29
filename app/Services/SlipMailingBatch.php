@@ -20,30 +20,33 @@ class SlipMailingBatch
         public readonly ?int $memberGroupId = null,
         public readonly ?string $month = null,
         public readonly string $audience = '',
+        public readonly ?int $userId = null,
     ) {}
 
-    public static function forGroup(int $memberGroupId, string $groupName, string $month): self
+    public static function forGroup(int $memberGroupId, string $groupName, string $month, ?int $userId = null): self
     {
         return new self(
             source: Mailing::SOURCE_GROUP,
             memberGroupId: $memberGroupId,
             month: $month,
             audience: 'članovima grupe '.$groupName,
+            userId: $userId,
         );
     }
 
-    public static function forMembers(string $month): self
+    public static function forMembers(string $month, ?int $userId = null): self
     {
         return new self(
             source: Mailing::SOURCE_MEMBERS,
             month: $month,
             audience: 'odabranim članovima',
+            userId: $userId,
         );
     }
 
-    public static function forInvoices(): self
+    public static function forInvoices(?int $userId = null): self
     {
-        return new self(source: Mailing::SOURCE_INVOICES);
+        return new self(source: Mailing::SOURCE_INVOICES, userId: $userId);
     }
 
     public function ensure(Invoice $invoice): Mailing
@@ -59,7 +62,7 @@ class SlipMailingBatch
                 'source' => $this->source,
                 'member_group_id' => $this->memberGroupId,
                 'month' => $month,
-                'user_id' => auth()->id(),
+                'user_id' => $this->userId,
                 'started_at' => now(),
             ]);
 

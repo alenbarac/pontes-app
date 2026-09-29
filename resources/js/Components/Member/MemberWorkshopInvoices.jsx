@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { Modal } from "@/Components/ui/modal";
 import Radio from "@/Components/form/input/Radio";
-import { router, usePage } from "@inertiajs/react";
+import { router } from "@inertiajs/react";
 import toast from "react-hot-toast";
 import Button from "@/ui/button/Button";
 import { useModal } from "@/hooks/useModal";
@@ -16,7 +16,6 @@ import SlipMailingBadge from "@/Components/Member/SlipMailingBadge";
 import { notifyMailingStarted } from "@/lib/mailingActivity";
 
 const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
-    const { props } = usePage();
     const [showInvoiceModal, setShowInvoiceModal] = useState(false);
     const [activeInvoice, setActiveInvoice] = useState(null);
     const [modalStatus, setModalStatus] = useState("");
@@ -47,16 +46,6 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
     // Send email state
     const [sendingEmail, setSendingEmail] = useState(false);
 
-    // Listen for flash messages
-    useEffect(() => {
-        if (props.flash?.success) {
-            toast.success(props.flash.success);
-        }
-        if (props.flash?.error) {
-            toast.error(props.flash.error);
-        }
-    }, [props.flash]);
-    
     // Check if this is an individual counseling workshop
     const isIndividualCounseling = workshop?.type === 'Individualno' || 
                                    (workshop?.name && workshop.name.toLowerCase().includes('individualno'));

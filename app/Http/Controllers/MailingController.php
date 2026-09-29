@@ -2,10 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\InvoiceMailing;
+use App\Http\Resources\MailingResource;
 use App\Models\Mailing;
 use App\Services\PaymentSlipEmailService;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -27,15 +26,12 @@ class MailingController extends Controller
 
         $counts = Mailing::countsFor($paginator->items());
 
+        $paginator->through(function (Mailing $mailing) use ($counts) {
+            return (new MailingResource($mailing, $counts[$mailing->id] ?? null))->resolve(request());
+        });
+
         return Inertia::render('Mailings/Index', [
-            'mailings' => [
-                'data' => collect($paginator->items())
-                    ->map(fn (Mailing $mailing) => $this->present($mailing, $counts[$mailing->id] ?? null))
-                    ->values(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'total' => $paginator->total(),
-            ],
+            'mailings' => $paginator,
         ]);
     }
 
@@ -44,10 +40,7 @@ class MailingController extends Controller
         $mailing->load('memberGroup:id,name');
 
         return Inertia::render('Mailings/Show', [
-            'mailing' => [
-                ...$this->present($mailing),
-                'recipients' => $mailing->recipientRows(),
-            ],
+            'mailing' => (new MailingResource($mailing))->withRecipients()->resolve(request()),
         ]);
     }
 
@@ -60,57 +53,5 @@ class MailingController extends Controller
             : 'Nema neuspjelih uplatnica za ponovno slanje.';
 
         return back()->with($queued > 0 ? 'success' : 'error', $message);
-    }
-
-    /**
-     * Active batches for the header, plus recently finished ones for the bell.
-     */
-    public function activity(): JsonResponse
-    {
-        $active = Mailing::query()
-            ->with('memberGroup:id,name')
-            ->whereHas('invoiceMailings', fn ($query) => $query->where('status', InvoiceMailing::STATUS_QUEUED))
-            ->latest('id')
-            ->get();
-
-        $recent = Mailing::query()
-            ->with('memberGroup:id,name')
-            ->whereNotNull('completed_at')
-            ->where('completed_at', '>=', now()->subDay())
-            ->latest('completed_at')
-            ->limit(10)
-            ->get();
-
-        $latest = Mailing::query()
-            ->with('memberGroup:id,name')
-            ->latest('id')
-            ->first();
-
-        $counts = Mailing::countsFor(
-            $active->concat($recent)->when($latest !== null, fn ($rows) => $rows->push($latest))->unique('id')
-        );
-
-        $present = fn (Mailing $mailing) => $this->present($mailing, $counts[$mailing->id] ?? null);
-
-        return response()->json([
-            'active' => $active
-                ->filter(fn (Mailing $mailing) => ($counts[$mailing->id]['queued'] ?? 0) > 0)
-                ->map($present)
-                ->values(),
-            'recent_finished' => $recent->map($present)->values(),
-            'latest' => $latest ? $present($latest) : null,
-        ]);
-    }
-
-    /**
-     * @param  array{sent: int, failed: int, queued: int, total: int}|null  $counts
-     * @return array<string, mixed>
-     */
-    private function present(Mailing $mailing, ?array $counts = null): array
-    {
-        return [
-            ...$mailing->summary($counts),
-            'url' => route('mailings.show', $mailing),
-        ];
     }
 }

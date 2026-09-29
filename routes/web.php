@@ -58,7 +58,6 @@ Route::middleware('auth')->group(function () {
     Route::post('/member-groups/{memberGroup}/bulk-send-slip-emails', [MemberGroupController::class, 'bulkSendSlipEmails'])
         ->name('member-groups.bulk-send-slip-emails');
 
-    Route::get('/mailings/activity', [MailingController::class, 'activity'])->name('mailings.activity');
     Route::get('/mailings', [MailingController::class, 'index'])->name('mailings.index');
     Route::get('/mailings/{mailing}', [MailingController::class, 'show'])->name('mailings.show');
     Route::post('/mailings/{mailing}/retry-failed', [MailingController::class, 'retryFailed'])->name('mailings.retry-failed');

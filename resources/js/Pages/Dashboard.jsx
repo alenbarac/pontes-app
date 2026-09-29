@@ -6,7 +6,7 @@ import DashboardQuickActions from "@/Components/Dashboard/DashboardQuickActions"
 import MailingStatusCard from "@/Components/Dashboard/MailingStatusCard";
 import GroupCards from "@/Components/Dashboard/GroupCards";
 
-export default function Dashboard({ revenue, groups, mailingCard }) {
+export default function Dashboard({ revenue, groups }) {
     return (
         <AuthenticatedLayout
             header={
@@ -25,7 +25,7 @@ export default function Dashboard({ revenue, groups, mailingCard }) {
                     </div>
                     <div className="space-y-6">
                         <DashboardQuickActions />
-                        <MailingStatusCard snapshot={mailingCard} />
+                        <MailingStatusCard />
                     </div>
                 </div>
 

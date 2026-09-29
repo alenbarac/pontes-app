@@ -10,6 +10,7 @@ use App\Models\MemberGroupWorkshop;
 use App\Models\User;
 use App\Models\Workshop;
 use Illuminate\Support\Facades\Queue;
+use Inertia\Support\Header;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
@@ -45,7 +46,8 @@ test('one send writes one mailing and one invoice mailing per queued slip', func
         ->and($mailing->label)->toBe('Uplatnice 09/2026')
         ->and($mailing->month)->toBe('2026-09')
         ->and($mailing->member_group_id)->toBeNull()
-        ->and($mailing->completed_at)->toBeNull();
+        ->and($mailing->completed_at)->toBeNull()
+        ->and($mailing->user_id)->toBe(auth()->id());
 
     expect(InvoiceMailing::query()->where('mailing_id', $mailing->id)->count())->toBe(2);
     Queue::assertPushed(SendInvoiceMailing::class, 2);
@@ -77,7 +79,8 @@ test('a group send stores the group on the mailing', function () {
     $mailing = Mailing::query()->first();
     expect($mailing->source)->toBe(Mailing::SOURCE_GROUP)
         ->and($mailing->member_group_id)->toBe($group->id)
-        ->and($mailing->label)->toBe('Uplatnice 09/2026');
+        ->and($mailing->label)->toBe('Uplatnice 09/2026')
+        ->and($mailing->user_id)->toBe(auth()->id());
 });
 
 test('retry failed requeues only the failed recipients on the same batch', function () {
@@ -101,7 +104,8 @@ test('retry failed requeues only the failed recipients on the same batch', funct
     ]);
 
     $this->post(route('mailings.retry-failed', $mailing))
-        ->assertRedirect();
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Neuspjele uplatnice ponovno su stavljene u red.');
 
     Queue::assertPushed(SendInvoiceMailing::class, 1);
     Queue::assertPushed(SendInvoiceMailing::class, fn (SendInvoiceMailing $job) => $job->invoiceMailingId !== $sentA->id
@@ -113,7 +117,7 @@ test('retry failed requeues only the failed recipients on the same batch', funct
         ->and($mailing->fresh()->completed_at)->toBeNull();
 });
 
-test('the activity endpoint reports queued progress and drops the batch when it finishes', function () {
+test('a partial reload reports queued progress and drops the batch when it finishes', function () {
     $mailing = Mailing::factory()->create([
         'source' => Mailing::SOURCE_INVOICES,
         'label' => 'Uplatnice 09/2026',
@@ -124,15 +128,24 @@ test('the activity endpoint reports queued progress and drops the batch when it 
         'mailing_id' => $mailing->id,
     ]);
 
-    $this->getJson(route('mailings.activity'))
+    $probe = $this->get(route('mailings.index'));
+    $page = $probe->viewData('page');
+    $version = is_array($page) ? (string) ($page['version'] ?? '') : (string) ($page->version ?? '');
+
+    $this->withHeaders([
+        Header::INERTIA => 'true',
+        Header::VERSION => $version,
+        Header::PARTIAL_COMPONENT => 'Mailings/Index',
+        Header::PARTIAL_ONLY => 'mailingActivity',
+    ])->getJson(route('mailings.index'))
         ->assertOk()
-        ->assertJsonPath('active.0.id', $mailing->id)
-        ->assertJsonPath('active.0.queued', 2)
-        ->assertJsonPath('active.0.sent', 0)
-        ->assertJsonPath('active.0.total', 2)
-        ->assertJsonPath('active.0.processed', 0)
-        ->assertJsonPath('active.0.group_name', 'Računi')
-        ->assertJsonCount(1, 'active');
+        ->assertJsonPath('props.mailingActivity.active.0.id', $mailing->id)
+        ->assertJsonPath('props.mailingActivity.active.0.queued', 2)
+        ->assertJsonPath('props.mailingActivity.active.0.sent', 0)
+        ->assertJsonPath('props.mailingActivity.active.0.total', 2)
+        ->assertJsonPath('props.mailingActivity.active.0.processed', 0)
+        ->assertJsonPath('props.mailingActivity.active.0.group_name', 'Računi')
+        ->assertJsonCount(1, 'props.mailingActivity.active');
 
     InvoiceMailing::query()->where('mailing_id', $mailing->id)->update([
         'status' => InvoiceMailing::STATUS_SENT,
@@ -140,12 +153,40 @@ test('the activity endpoint reports queued progress and drops the batch when it 
     ]);
     $mailing->refreshCompletion();
 
-    $this->getJson(route('mailings.activity'))
+    $this->withHeaders([
+        Header::INERTIA => 'true',
+        Header::VERSION => $version,
+        Header::PARTIAL_COMPONENT => 'Mailings/Index',
+        Header::PARTIAL_ONLY => 'mailingActivity',
+    ])->getJson(route('mailings.index'))
         ->assertOk()
-        ->assertJsonCount(0, 'active')
-        ->assertJsonPath('latest.id', $mailing->id)
-        ->assertJsonPath('latest.status', Mailing::STATUS_SENT)
-        ->assertJsonPath('recent_finished.0.id', $mailing->id);
+        ->assertJsonCount(0, 'props.mailingActivity.active')
+        ->assertJsonPath('props.mailingActivity.latest.id', $mailing->id)
+        ->assertJsonPath('props.mailingActivity.latest.status', Mailing::STATUS_SENT)
+        ->assertJsonPath('props.mailingActivity.recent_finished.0.id', $mailing->id);
+});
+
+test('an older queued attempt does not keep a finished batch open', function () {
+    $mailing = Mailing::factory()->create([
+        'source' => Mailing::SOURCE_INVOICES,
+        'completed_at' => null,
+    ]);
+
+    $older = InvoiceMailing::factory()->queued()->create([
+        'mailing_id' => $mailing->id,
+    ]);
+
+    InvoiceMailing::factory()->create([
+        'mailing_id' => $mailing->id,
+        'invoice_id' => $older->invoice_id,
+        'member_id' => $older->member_id,
+        'status' => InvoiceMailing::STATUS_SENT,
+        'sent_at' => now(),
+    ]);
+
+    $mailing->refreshCompletion();
+
+    expect($mailing->fresh()->completed_at)->not->toBeNull();
 });
 
 test('the mailing index lists the batch with derived counts', function () {

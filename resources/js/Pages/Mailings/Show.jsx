@@ -25,9 +25,16 @@ export default function Show({ mailing }) {
             {},
             {
                 preserveScroll: true,
-                onSuccess: () => {
-                    toast.success("Neuspjele uplatnice ponovno su stavljene u red.");
+                onSuccess: (page) => {
                     notifyMailingStarted();
+                    const flash = page.props.flash ?? {};
+                    if (flash.error) {
+                        toast.error(flash.error);
+                        return;
+                    }
+                    if (flash.success) {
+                        toast.success(flash.success);
+                    }
                 },
                 onError: () => {
                     toast.error("Ponovno slanje nije pokrenuto.");
