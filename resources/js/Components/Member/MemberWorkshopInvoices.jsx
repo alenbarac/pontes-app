@@ -8,12 +8,36 @@ import Button from "@/ui/button/Button";
 import { useModal } from "@/hooks/useModal";
 import axios from "axios";
 import Flatpickr from "react-flatpickr";
+import { monthPickerOptions } from "@/lib/flatpickrLocale";
 import Label from "@/Components/form/Label";
 import Input from "@/Components/form/input/InputField";
 import { CalendarDaysIcon, TrashIcon, Cog8ToothIcon, EnvelopeIcon } from "@heroicons/react/24/outline";
 import { Table, TableHeader, TableBody, TableRow, TableCell } from "@/Components/ui/table";
 import SlipMailingBadge from "@/Components/Member/SlipMailingBadge";
 import { notifyMailingStarted } from "@/lib/mailingActivity";
+
+function PaymentNotes({ notes, compact = false }) {
+    if (!notes?.length) {
+        return null;
+    }
+
+    return (
+        <div className={compact ? "mt-1 space-y-1" : "mt-4 space-y-3"}>
+            {notes.map((item, index) => (
+                <div key={index} className="text-xs text-gray-600 dark:text-gray-400">
+                    <div className="font-medium text-gray-700 dark:text-gray-300">
+                        Bilješka uz uplatu
+                        {item.value_date ? ` · ${item.value_date}` : ""}
+                        {item.amount != null ? ` · ${Number(item.amount).toFixed(2)} €` : ""}
+                    </div>
+                    <p className={compact ? "line-clamp-2 whitespace-pre-wrap" : "mt-0.5 whitespace-pre-wrap text-sm text-gray-800 dark:text-gray-200"}>
+                        {item.note}
+                    </p>
+                </div>
+            ))}
+        </div>
+    );
+}
 
 const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
     const [showInvoiceModal, setShowInvoiceModal] = useState(false);
@@ -463,6 +487,7 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                                 >
                                     <TableCell className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
                                         {invoice.reference_code}
+                                        <PaymentNotes notes={invoice.payment_notes} compact />
                                     </TableCell>
                                     <TableCell className="px-4 py-3">
                                         <span
@@ -709,6 +734,7 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                                         </div>
                                     </div>
                                 </div>
+                                <PaymentNotes notes={activeInvoice.payment_notes} />
 
                                 <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
                                     <div className="mb-3">
@@ -939,8 +965,7 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                             <div className="relative w-full flatpickr-wrapper mt-1">
                                 <Flatpickr
                                     options={{
-                                        dateFormat: "Y-m",
-                                        mode: "single",
+                                        ...monthPickerOptions(),
                                         defaultDate: targetMonth || null,
                                         onChange: handleTargetMonthChange,
                                     }}

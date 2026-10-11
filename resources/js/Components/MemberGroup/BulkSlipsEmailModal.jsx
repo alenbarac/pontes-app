@@ -3,6 +3,7 @@ import { Modal } from "@/Components/ui/modal";
 import Button from "@/Components/ui/button/Button";
 import toast from "react-hot-toast";
 import axios from "axios";
+import MonthPicker from "@/Components/form/MonthPicker";
 import { croatianPlural } from "@/utils/slipMailing";
 import { notifyMailingStarted } from "@/lib/mailingActivity";
 
@@ -317,13 +318,11 @@ export default function BulkSlipsEmailModal({
                         >
                             Mjesec (dospijeće računa)
                         </label>
-                        <input
-                            type="month"
+                        <MonthPicker
                             id="slip-email-month"
                             value={selectedMonth}
-                            onChange={(e) => setSelectedMonth(e.target.value)}
+                            onChange={setSelectedMonth}
                             className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-                            required
                         />
                     </div>
 

@@ -16,6 +16,7 @@ const MemberInfoWorkshops = ({
     groups,
     membershipPlans,
     invoicesByWorkshop = {},
+    paymentNotes = [],
 }) => {
     const { isOpen, openModal, closeModal } = useModal();
     const confirmModal = useModal();
@@ -68,6 +69,28 @@ const MemberInfoWorkshops = ({
 
     return (
         <div className="space-y-6">
+            {paymentNotes.length > 0 && (
+                <div className="rounded-2xl border border-gray-200 p-5 dark:border-gray-800 lg:p-6">
+                    <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90">
+                        Bilješke uz uplate
+                    </h4>
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        Uplate povezane samo s članom.
+                    </p>
+                    <ul className="mt-4 space-y-3">
+                        {paymentNotes.map((item, index) => (
+                            <li key={index} className="text-sm text-gray-700 dark:text-gray-300">
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                    {[item.value_date, item.payer, item.amount != null ? `${Number(item.amount).toFixed(2)} €` : null]
+                                        .filter(Boolean)
+                                        .join(" · ")}
+                                </div>
+                                <p className="mt-0.5 whitespace-pre-wrap">{item.note}</p>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
             {memberData.workshops.map((w) => {
                 const currentGroup = memberData.workshopGroups?.find(
                     (entry) => String(entry.workshop_id) === String(w.id),

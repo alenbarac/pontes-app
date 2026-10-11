@@ -1,5 +1,8 @@
+import "flatpickr/dist/themes/light.css";
+import "flatpickr/dist/plugins/monthSelect/style.css";
 import "../css/app.css";
 import "./bootstrap";
+import "./lib/flatpickrLocale";
 import "simplebar-react/dist/simplebar.min.css";
 
 import { createInertiaApp } from "@inertiajs/react";

@@ -6,6 +6,7 @@ use App\Http\Requests\BulkSendPaymentSlipsForMembersRequest;
 use App\Http\Requests\StoreMemberRequest;
 use App\Http\Requests\UpdateMemberRequest;
 use App\Http\Resources\MemberResource;
+use App\Models\BankStatementImportLine;
 use App\Models\InvoiceMailing;
 use App\Models\Member;
 use App\Models\MemberGroup;
@@ -17,6 +18,7 @@ use App\Services\SlipMailingBatch;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 
 class MemberController extends Controller
 {
@@ -305,9 +307,11 @@ class MemberController extends Controller
         // Fetch all membership plans grouped by workshop
         $membershipPlans = MembershipPlan::select('id', 'workshop_id', 'plan', 'total_fee')->get()->groupBy('workshop_id');
 
+        $paymentNotesByInvoice = $this->paymentNotesByInvoice($member);
+
         // Group invoices by workshop_id and convert to array format for Inertia
-        $invoicesByWorkshop = $member->invoices->groupBy('workshop_id')->map(function ($invoices, $workshopId) {
-            return $invoices->map(function ($invoice) {
+        $invoicesByWorkshop = $member->invoices->groupBy('workshop_id')->map(function ($invoices, $workshopId) use ($paymentNotesByInvoice) {
+            return $invoices->map(function ($invoice) use ($paymentNotesByInvoice) {
                 return [
                     'id' => $invoice->id,
                     'reference_code' => $invoice->reference_code,
@@ -316,6 +320,7 @@ class MemberController extends Controller
                     'due_date' => $invoice->due_date,
                     'payment_status' => $invoice->payment_status,
                     'notes' => $invoice->notes,
+                    'payment_notes' => $paymentNotesByInvoice->get($invoice->id, collect())->values()->all(),
                     'slip_description' => $invoice->slip_description,
                     'workshop_id' => $invoice->workshop_id,
                     'workshop' => $invoice->workshop ? [
@@ -360,8 +365,66 @@ class MemberController extends Controller
             'groups' => $groups,
             'membershipPlans' => $membershipPlans,
             'invoicesByWorkshop' => $invoicesByWorkshop,
+            'paymentNotes' => $this->memberPaymentNotes($member),
             'documents' => $documents,
         ]);
+    }
+
+    /**
+     * Import notes already tied to one of this member's invoices.
+     *
+     * @return Collection<int, Collection<int, array<string, mixed>>>
+     */
+    private function paymentNotesByInvoice(Member $member): Collection
+    {
+        $invoiceIds = $member->invoices->pluck('id');
+
+        if ($invoiceIds->isEmpty()) {
+            return collect();
+        }
+
+        return BankStatementImportLine::query()
+            ->whereIn('invoice_id', $invoiceIds)
+            ->whereNotNull('note')
+            ->where('note', '!=', '')
+            ->orderByDesc('value_date')
+            ->orderByDesc('id')
+            ->get()
+            ->groupBy('invoice_id')
+            ->map(fn (Collection $lines) => $lines->map(fn (BankStatementImportLine $line) => $this->paymentNotePayload($line)));
+    }
+
+    /**
+     * Import notes linked to the member, with no invoice yet.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function memberPaymentNotes(Member $member): array
+    {
+        return BankStatementImportLine::query()
+            ->where('member_id', $member->id)
+            ->whereNull('invoice_id')
+            ->whereNotNull('note')
+            ->where('note', '!=', '')
+            ->orderByDesc('value_date')
+            ->orderByDesc('id')
+            ->get()
+            ->map(fn (BankStatementImportLine $line) => $this->paymentNotePayload($line))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array{note: string, amount: float, value_date: string|null, payer: string|null}
+     */
+    private function paymentNotePayload(BankStatementImportLine $line): array
+    {
+        return [
+            'note' => $line->note,
+            'amount' => (float) $line->amount_paid,
+            'value_date' => $line->value_date?->format('d.m.Y.'),
+            'payer' => $line->payer,
+        ];
     }
 
     /**

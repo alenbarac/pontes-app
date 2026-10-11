@@ -581,6 +581,26 @@ span.flatpickr-weekday,
   fill: none important;
 }
 
+.flatpickr-calendar.flatpickr-monthSelect-theme-light {
+  width: 26rem;
+}
+
+.flatpickr-monthSelect-month {
+  color: inherit;
+  white-space: nowrap;
+}
+
+.dark .flatpickr-monthSelect-month {
+  color: rgb(156 163 175);
+}
+
+.flatpickr-monthSelect-month.selected,
+.flatpickr-monthSelect-month:hover {
+  background: rgb(70 95 255);
+  color: white;
+  border-color: transparent;
+}
+
 .flatpickr-calendar.static {
   @apply right-0;
 }

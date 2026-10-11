@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import flatpickr from "flatpickr";
 import "flatpickr/dist/flatpickr.min.css";
+import { Croatian } from "@/lib/flatpickrLocale";
 
 interface DatePickerProps {
     value?: string;
@@ -13,7 +14,7 @@ interface DatePickerProps {
 const DatePicker: React.FC<DatePickerProps> = ({
     value,
     onChange,
-    placeholder = "mm/dd/yyyy",
+    placeholder = "Odaberite datum",
     dateFormat = "Y-m-d",
     labelText = "Datum",
 }) => {
@@ -24,6 +25,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
             flatpickr(inputRef.current, {
                 mode: "single",
                 static: true,
+                locale: Croatian,
                 dateFormat,
                 defaultDate: value,
                 onChange: (selectedDates) => {

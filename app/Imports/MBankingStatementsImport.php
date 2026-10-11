@@ -3,6 +3,8 @@
 namespace App\Imports;
 
 use App\Models\Invoice;
+use App\Support\PayerNameMatcher;
+use App\Support\PaymentMonth;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -10,20 +12,34 @@ use Illuminate\Support\Str;
 class MBankingStatementsImport
 {
     private const STATUS_PAID = 'Plaćeno';
+
     private const STATUS_MISMATCH = 'Neusklađeno';
 
     private int $totalRows = 0;
+
     private int $incomingRows = 0;
+
     private int $paidCount = 0;
+
     private int $mismatchCount = 0;
+
     private int $failedCount = 0;
+
     private int $skippedCount = 0;
+
     private int $unresolvedCount = 0;
+
     private int $ambiguousCount = 0;
 
     private array $errors = [];
+
     private array $matches = [];
+
+    private array $lines = [];
+
     private array $processedInvoiceIds = [];
+
+    public function __construct(private PayerNameMatcher $names = new PayerNameMatcher) {}
 
     public function import(string $filePath): void
     {
@@ -48,6 +64,7 @@ class MBankingStatementsImport
             $amount = $this->parseAmount($row[$headerMap['uplate']] ?? null);
             if ($amount <= 0) {
                 $this->skippedCount++;
+
                 continue;
             }
 
@@ -56,11 +73,14 @@ class MBankingStatementsImport
             $payerName = trim((string) ($row[$headerMap['platitelj_primatelj']] ?? ''));
             $valueDate = $this->parseCroatianDate($row[$headerMap['datum_valute']] ?? null);
             $pnbPrimatelja = trim((string) ($row[$headerMap['pnb_primatelja']] ?? ''));
-            $paymentDescription = trim((string) ($row[$headerMap['opis_placanja_tecaj']] ?? ''));
+            $descriptionIndex = $headerMap['opis_placanja_tecaj'] ?? null;
+            $paymentDescription = $descriptionIndex === null
+                ? ''
+                : trim((string) ($row[$descriptionIndex] ?? ''));
             $reference = $this->extractReference($pnbPrimatelja);
             $targetMonth = $this->extractTargetMonthFromDescription($paymentDescription);
 
-            [$invoice, $matchError] = $this->findInvoiceMatch(
+            [$invoice, $matchError, $candidateIds] = $this->findInvoiceMatch(
                 $reference,
                 $payerName,
                 $amount,
@@ -68,42 +88,76 @@ class MBankingStatementsImport
                 $targetMonth
             );
 
-            if (!$invoice) {
+            if (! $invoice) {
                 $this->failedCount++;
-                if ($matchError === 'ambiguous') {
+                $isAmbiguous = $matchError === 'ambiguous';
+                if ($isAmbiguous) {
                     $this->ambiguousCount++;
                 } else {
                     $this->unresolvedCount++;
                 }
 
+                $message = $isAmbiguous
+                    ? 'Pronađeno je više mogućih računa za ovu uplatu.'
+                    : 'Nije pronađen odgovarajući račun.';
+
                 $this->errors[] = [
                     'row' => $rowNumber,
-                    'message' => $matchError === 'ambiguous'
-                        ? 'Pronađeno je više mogućih računa za ovu uplatu.'
-                        : 'Nije pronađen odgovarajući račun.',
+                    'message' => $message,
                     'reference' => $reference,
                     'payer' => $payerName,
                     'amount' => $amount,
                 ];
+                $this->lines[] = $this->makeLine(
+                    $rowNumber,
+                    $isAmbiguous ? 'ambiguous' : 'unresolved',
+                    $payerName,
+                    $amount,
+                    null,
+                    $reference,
+                    $valueDate,
+                    $paymentDescription,
+                    $message,
+                    null,
+                    null,
+                    $candidateIds
+                );
+
                 continue;
             }
 
             if (isset($this->processedInvoiceIds[$invoice->id])) {
                 $this->failedCount++;
+                $message = 'Račun je već obrađen u istoj datoteci.';
                 $this->errors[] = [
                     'row' => $rowNumber,
-                    'message' => 'Račun je već obrađen u istoj datoteci.',
+                    'message' => $message,
                     'reference' => $invoice->reference_code,
                     'payer' => $payerName,
                     'amount' => $amount,
                 ];
+                $this->lines[] = $this->makeLine(
+                    $rowNumber,
+                    'unresolved',
+                    $payerName,
+                    $amount,
+                    (float) $invoice->amount_due,
+                    $invoice->reference_code,
+                    $valueDate,
+                    $paymentDescription,
+                    $message,
+                    $invoice->member_id,
+                    null,
+                    []
+                );
+
                 continue;
             }
 
             $this->processedInvoiceIds[$invoice->id] = true;
             $resultStatus = $this->applyPaymentRules($invoice, $amount);
 
-            $memberName = trim(($invoice->member->first_name ?? '') . ' ' . ($invoice->member->last_name ?? ''));
+            $memberName = trim(($invoice->member->first_name ?? '').' '.($invoice->member->last_name ?? ''));
             $this->matches[] = [
                 'row' => $rowNumber,
                 'payer' => $payerName,
@@ -113,6 +167,20 @@ class MBankingStatementsImport
                 'amount_paid' => $amount,
                 'status' => $resultStatus,
             ];
+            $this->lines[] = $this->makeLine(
+                $rowNumber,
+                $resultStatus === self::STATUS_PAID ? 'paid' : 'mismatch',
+                $payerName,
+                $amount,
+                (float) $invoice->amount_due,
+                $invoice->reference_code,
+                $valueDate,
+                $paymentDescription,
+                null,
+                $invoice->member_id,
+                $invoice->id,
+                []
+            );
         }
     }
 
@@ -129,6 +197,37 @@ class MBankingStatementsImport
             'ambiguous_count' => $this->ambiguousCount,
             'errors' => $this->errors,
             'matches' => $this->matches,
+            'lines' => $this->lines,
+        ];
+    }
+
+    private function makeLine(
+        int $rowNumber,
+        string $kind,
+        string $payer,
+        float $amountPaid,
+        ?float $amountDue,
+        ?string $reference,
+        ?Carbon $valueDate,
+        string $description,
+        ?string $message,
+        ?int $memberId,
+        ?int $invoiceId,
+        array $candidateIds
+    ): array {
+        return [
+            'row_number' => $rowNumber,
+            'kind' => $kind,
+            'payer' => $payer,
+            'amount_paid' => $amountPaid,
+            'amount_due' => $amountDue,
+            'reference' => $reference,
+            'value_date' => $valueDate?->toDateString(),
+            'description' => $description !== '' ? $description : null,
+            'message' => $message,
+            'member_id' => $memberId,
+            'invoice_id' => $invoiceId,
+            'candidate_invoice_ids' => array_values($candidateIds),
         ];
     }
 
@@ -153,8 +252,8 @@ class MBankingStatementsImport
 
         $requiredHeaders = ['datum_valute', 'uplate', 'pnb_primatelja', 'platitelj_primatelj'];
         foreach ($requiredHeaders as $requiredHeader) {
-            if (!array_key_exists($requiredHeader, $headerMap)) {
-                throw new \RuntimeException('CSV ne sadrži obaveznu kolonu: ' . $requiredHeader);
+            if (! array_key_exists($requiredHeader, $headerMap)) {
+                throw new \RuntimeException('CSV ne sadrži obaveznu kolonu: '.$requiredHeader);
             }
         }
 
@@ -191,7 +290,17 @@ class MBankingStatementsImport
             return substr($content, 3);
         }
 
-        return mb_convert_encoding($content, 'UTF-8', 'UTF-8,Windows-1250,ISO-8859-2');
+        $available = array_map('strtolower', mb_list_encodings());
+        $encodings = array_values(array_filter(
+            ['UTF-8', 'Windows-1250', 'ISO-8859-2'],
+            fn (string $encoding) => in_array(strtolower($encoding), $available, true)
+        ));
+
+        if ($encodings === []) {
+            return $content;
+        }
+
+        return mb_convert_encoding($content, 'UTF-8', implode(',', $encodings));
     }
 
     private function detectDelimiter(string $line): string
@@ -235,7 +344,7 @@ class MBankingStatementsImport
         return trim($header, '_');
     }
 
-    private function parseAmount(null|string $value): float
+    private function parseAmount(?string $value): float
     {
         $amount = trim((string) $value);
         if ($amount === '') {
@@ -248,7 +357,7 @@ class MBankingStatementsImport
         return is_numeric($amount) ? (float) $amount : 0.0;
     }
 
-    private function parseCroatianDate(null|string $value): ?Carbon
+    private function parseCroatianDate(?string $value): ?Carbon
     {
         $date = trim((string) $value);
         if ($date === '') {
@@ -279,8 +388,8 @@ class MBankingStatementsImport
 
         // Common bank-export variant: reference without separators, e.g. 202602101001
         if (strlen($digitsOnly) === 12) {
-            return substr($digitsOnly, 0, 6) . '-' .
-                substr($digitsOnly, 6, 3) . '-' .
+            return substr($digitsOnly, 0, 6).'-'.
+                substr($digitsOnly, 6, 3).'-'.
                 substr($digitsOnly, 9, 3);
         }
 
@@ -307,12 +416,12 @@ class MBankingStatementsImport
                 ->first();
 
             if ($invoice) {
-                return [$invoice, null];
+                return [$invoice, null, []];
             }
         }
 
-        if (!$valueDate || trim($payerName) === '') {
-            return [null, 'unresolved'];
+        if (! $valueDate || trim($payerName) === '') {
+            return [null, 'unresolved', []];
         }
 
         $candidateQuery = Invoice::query()
@@ -333,20 +442,13 @@ class MBankingStatementsImport
         $candidates = $candidateQuery->get();
 
         if ($candidates->isEmpty()) {
-            return [null, 'unresolved'];
+            return [null, 'unresolved', []];
         }
 
-        $normalizedPayer = $this->normalizeText($payerName);
         $scored = [];
         foreach ($candidates as $candidate) {
-            $fullName = trim(($candidate->member->first_name ?? '') . ' ' . ($candidate->member->last_name ?? ''));
-            $normalizedMemberName = $this->normalizeText($fullName);
-
-            if ($normalizedMemberName === '') {
-                continue;
-            }
-
-            $score = $this->scoreNameMatch($normalizedPayer, $normalizedMemberName);
+            $fullName = trim(($candidate->member->first_name ?? '').' '.($candidate->member->last_name ?? ''));
+            $score = $this->names->score($payerName, $fullName);
 
             if ($score > 0) {
                 $scored[] = [
@@ -357,7 +459,7 @@ class MBankingStatementsImport
         }
 
         if (empty($scored)) {
-            return [null, 'unresolved'];
+            return [null, 'unresolved', []];
         }
 
         usort($scored, fn ($a, $b) => $b['score'] <=> $a['score']);
@@ -368,19 +470,14 @@ class MBankingStatementsImport
         ));
 
         if (count($bestCandidates) > 1) {
-            return [null, 'ambiguous'];
+            return [
+                null,
+                'ambiguous',
+                array_map(fn ($item) => $item['invoice']->id, $bestCandidates),
+            ];
         }
 
-        return [$bestCandidates[0]['invoice'], null];
-    }
-
-    private function normalizeText(string $value): string
-    {
-        $normalized = Str::ascii(Str::lower(trim($value)));
-        $normalized = preg_replace('/[^a-z0-9\s]/', '', $normalized);
-        $normalized = preg_replace('/\s+/', ' ', $normalized);
-
-        return trim($normalized);
+        return [$bestCandidates[0]['invoice'], null, []];
     }
 
     private function normalizeReferenceKey(string $reference): string
@@ -388,86 +485,9 @@ class MBankingStatementsImport
         return preg_replace('/[^A-Z0-9]/', '', strtoupper(trim($reference)));
     }
 
-    private function scoreNameMatch(string $payerName, string $memberName): int
-    {
-        if ($payerName === '' || $memberName === '') {
-            return 0;
-        }
-
-        if ($payerName === $memberName) {
-            return 5;
-        }
-
-        [$payerFirst, $payerLast] = $this->splitName($payerName);
-        [$memberFirst, $memberLast] = $this->splitName($memberName);
-
-        if ($payerLast !== '' && $memberLast !== '' && $payerLast === $memberLast) {
-            if ($payerFirst === $memberFirst) {
-                return 4;
-            }
-
-            // Small typo tolerance in first name (e.g. Mirjan vs Mirjana)
-            if (
-                levenshtein($payerFirst, $memberFirst) <= 1 ||
-                str_starts_with($payerFirst, $memberFirst) ||
-                str_starts_with($memberFirst, $payerFirst)
-            ) {
-                return 3;
-            }
-
-            return 2;
-        }
-
-        if (
-            str_contains($memberName, $payerName) ||
-            str_contains($payerName, $memberName)
-        ) {
-            return 1;
-        }
-
-        return 0;
-    }
-
-    private function splitName(string $fullName): array
-    {
-        $parts = array_values(array_filter(explode(' ', trim($fullName))));
-        if (empty($parts)) {
-            return ['', ''];
-        }
-
-        if (count($parts) === 1) {
-            return [$parts[0], ''];
-        }
-
-        $lastName = array_pop($parts);
-        $firstName = implode(' ', $parts);
-
-        return [$firstName, $lastName];
-    }
-
     private function extractTargetMonthFromDescription(string $description): ?Carbon
     {
-        if ($description === '') {
-            return null;
-        }
-
-        if (preg_match('/\b(0?[1-9]|1[0-2])[.\/-](\d{2,4})\b/u', $description, $matches) !== 1) {
-            return null;
-        }
-
-        $month = (int) $matches[1];
-        $yearPart = $matches[2];
-        $year = strlen($yearPart) === 2 ? (2000 + (int) $yearPart) : (int) $yearPart;
-
-        if ($year < 2000 || $year > 2100) {
-            return null;
-        }
-
-        try {
-            return Carbon::create($year, $month, 1)->startOfMonth();
-        } catch (\Throwable) {
-            return null;
-        }
+        return PaymentMonth::fromDescription($description);
     }
 
     private function applyPaymentRules(Invoice $invoice, float $amount): string
@@ -484,10 +504,12 @@ class MBankingStatementsImport
 
         if ($exactAmountMatch) {
             $this->paidCount++;
+
             return self::STATUS_PAID;
         }
 
         $this->mismatchCount++;
+
         return self::STATUS_MISMATCH;
     }
 }

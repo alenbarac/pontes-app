@@ -8,6 +8,7 @@ import {
   ExclamationTriangleIcon,
   ScaleIcon,
 } from "@heroicons/react/24/outline";
+import MonthSelect from "@/Components/Dashboard/MonthSelect";
 
 function formatCurrency(value) {
   return new Intl.NumberFormat("hr-HR", {
@@ -25,21 +26,21 @@ function formatRate(value) {
   })}%`;
 }
 
-export default function CashFlowWidget({ revenue }) {
-  const active = revenue?.open || revenue?.periods?.school_year || {};
+export default function CashFlowWidget({ months, monthKey, onMonthChange }) {
+  const active = months.find((month) => month.key === monthKey) || months[months.length - 1] || {};
 
   const cards = [
     {
       title: "Očekivano",
       amount: formatCurrency(active.expected_amount),
-      subtitle: "Svi otvoreni računi",
+      subtitle: "Svi izdani računi za mjesec",
       icon: ScaleIcon,
       iconClass: "text-brand-500",
     },
     {
       title: "Naplaćeno",
       amount: formatCurrency(active.collected_amount),
-      subtitle: "Već primljene uplate na otvorenim računima",
+      subtitle: "Već primljene uplate",
       icon: BanknotesIcon,
       iconClass: "text-success-500",
     },
@@ -65,14 +66,25 @@ export default function CashFlowWidget({ revenue }) {
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
-          Cash flow — otvoreni računi
-        </h3>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
+            Cash flow — {active.label || "mjesec"}
+          </h3>
+
+          {months.length > 0 && (
+            <MonthSelect
+              id="cashflow-month"
+              months={months}
+              value={active.key || ""}
+              onChange={onMonthChange}
+            />
+          )}
+        </div>
 
         {active.is_healthy ? (
           <div className="flex items-center gap-2 text-sm text-success-600 dark:text-success-400">
             <CheckCircleIcon className="h-5 w-5 shrink-0" />
-            <span>Naplata uredna</span>
+            <span>Naplata mjeseca uredna</span>
           </div>
         ) : (
           <div className="flex items-center gap-2 text-sm text-warning-600 dark:text-warning-400">

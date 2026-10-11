@@ -4,6 +4,8 @@ import { Modal } from "@/Components/ui/modal";
 import Button from "@/Components/ui/button/Button";
 import Label from "@/Components/form/Label";
 import Input from "@/Components/form/input/InputField";
+import Flatpickr from "react-flatpickr";
+import { CalendarDaysIcon } from "@heroicons/react/24/outline";
 import Select from "@/Components/form/Select";
 import toast from "react-hot-toast";
 import axios from "axios";
@@ -242,33 +244,47 @@ export default function TemplateSelectorModal({
                                     <Label htmlFor="activity_start_date">
                                         Početni datum
                                     </Label>
-                                    <Input
-                                        type="date"
-                                        id="activity_start_date"
-                                        value={activityData.start_date}
-                                        onChange={(e) =>
-                                            setActivityData({
-                                                ...activityData,
-                                                start_date: e.target.value,
-                                            })
-                                        }
-                                    />
+                                    <div className="relative">
+                                        <Flatpickr
+                                            id="activity_start_date"
+                                            value={activityData.start_date}
+                                            onChange={(_, dateStr) =>
+                                                setActivityData({
+                                                    ...activityData,
+                                                    start_date: dateStr,
+                                                })
+                                            }
+                                            options={{ dateFormat: "Y-m-d" }}
+                                            placeholder="Odaberite datum"
+                                            className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 pr-10 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                                        />
+                                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">
+                                            <CalendarDaysIcon className="size-5" />
+                                        </span>
+                                    </div>
                                 </div>
                                 <div>
                                     <Label htmlFor="activity_end_date">
                                         Završni datum
                                     </Label>
-                                    <Input
-                                        type="date"
-                                        id="activity_end_date"
-                                        value={activityData.end_date}
-                                        onChange={(e) =>
-                                            setActivityData({
-                                                ...activityData,
-                                                end_date: e.target.value,
-                                            })
-                                        }
-                                    />
+                                    <div className="relative">
+                                        <Flatpickr
+                                            id="activity_end_date"
+                                            value={activityData.end_date}
+                                            onChange={(_, dateStr) =>
+                                                setActivityData({
+                                                    ...activityData,
+                                                    end_date: dateStr,
+                                                })
+                                            }
+                                            options={{ dateFormat: "Y-m-d" }}
+                                            placeholder="Odaberite datum"
+                                            className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 pr-10 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                                        />
+                                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">
+                                            <CalendarDaysIcon className="size-5" />
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                             <div>

@@ -8,7 +8,7 @@ import MemberDocuments from "@/Components/Member/MemberDocuments";
 import MemberSendHistory from "@/Components/Member/MemberSendHistory";
 import { TabButton } from "@/Components/ui/tabs/TabWithUnderline";
 
-export default function Show({ member, workshops, groups, membershipPlans, invoicesByWorkshop, documents = [] }) {
+export default function Show({ member, workshops, groups, membershipPlans, invoicesByWorkshop, paymentNotes = [], documents = [] }) {
     const [activeTab, setActiveTab] = useState("radionice");
 
     const tabs = [
@@ -53,6 +53,7 @@ export default function Show({ member, workshops, groups, membershipPlans, invoi
                             groups={groups}
                             membershipPlans={membershipPlans}
                             invoicesByWorkshop={invoicesByWorkshop || {}}
+                            paymentNotes={paymentNotes}
                         />
                     )}
                     

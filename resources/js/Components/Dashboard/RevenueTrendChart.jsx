@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Chart from "react-apexcharts";
+import MonthSelect from "@/Components/Dashboard/MonthSelect";
 
 function formatCurrency(value) {
   return new Intl.NumberFormat("hr-HR", {
@@ -10,15 +11,9 @@ function formatCurrency(value) {
   }).format(Number(value || 0));
 }
 
-export default function RevenueTrendChart({ trend }) {
-  const [selectedRange, setSelectedRange] = useState("12m");
-  const [viewMode, setViewMode] = useState("cash");
+export default function RevenueTrendChart({ months, monthKey, onMonthChange }) {
   const [isDark, setIsDark] = useState(false);
-
-  const labels = trend?.labels || [];
-  const modeData = viewMode === "recurring" ? trend?.recurring : trend?.cash;
-  const expected = modeData?.expected || [];
-  const collected = modeData?.collected || [];
+  const active = months.find((month) => month.key === monthKey) || months[months.length - 1] || {};
 
   useEffect(() => {
     const root = document.documentElement;
@@ -31,71 +26,56 @@ export default function RevenueTrendChart({ trend }) {
     return () => observer.disconnect();
   }, []);
 
-  const visible = useMemo(() => {
-    if (selectedRange === "1m") {
-      return {
-        labels: labels.slice(-1),
-        expected: expected.slice(-1),
-        collected: collected.slice(-1),
-      };
-    }
-
-    if (selectedRange === "4m") {
-      return {
-        labels: labels.slice(-4),
-        expected: expected.slice(-4),
-        collected: collected.slice(-4),
-      };
-    }
-
-    return { labels, expected, collected };
-  }, [selectedRange, labels, expected, collected]);
-
   const detailTextColor = isDark ? "#CBD5E1" : "#6B7280";
   const gridColor = isDark ? "#334155" : "#E5E7EB";
+  const label = active.label || "";
 
   const options = {
     chart: {
       fontFamily: "Outfit, sans-serif",
-      type: "area",
+      type: "bar",
       toolbar: { show: false },
       zoom: { enabled: false },
       foreColor: detailTextColor,
     },
     colors: isDark ? ["#7C8CFF", "#34D399"] : ["#465FFF", "#12B76A"],
-    dataLabels: { enabled: false },
-    stroke: {
-      curve: "smooth",
-      width: 2,
+    dataLabels: {
+      enabled: true,
+      formatter: (value) => formatCurrency(value),
+      offsetY: -20,
+      style: {
+        fontSize: "12px",
+        fontWeight: 600,
+        colors: [detailTextColor],
+      },
     },
-    fill: {
-      type: "gradient",
-      gradient: {
-        opacityFrom: 0.35,
-        opacityTo: 0.04,
+    stroke: { width: 0 },
+    plotOptions: {
+      bar: {
+        borderRadius: 6,
+        columnWidth: "36%",
+        dataLabels: { position: "top" },
       },
     },
     grid: {
       borderColor: gridColor,
       xaxis: { lines: { show: false } },
       yaxis: { lines: { show: true } },
+      padding: { top: 24 },
     },
     xaxis: {
-      categories: visible.labels,
+      categories: [label],
       axisBorder: { show: false },
       axisTicks: { show: false },
       labels: {
-        style: {
-          colors: detailTextColor,
-        },
+        style: { colors: detailTextColor },
       },
     },
     yaxis: {
+      min: 0,
       labels: {
         formatter: (value) => formatCurrency(value),
-        style: {
-          colors: [detailTextColor],
-        },
+        style: { colors: [detailTextColor] },
       },
     },
     tooltip: {
@@ -108,15 +88,13 @@ export default function RevenueTrendChart({ trend }) {
       show: true,
       position: "top",
       horizontalAlign: "left",
-      labels: {
-        colors: detailTextColor,
-      },
+      labels: { colors: detailTextColor },
     },
   };
 
   const series = [
-    { name: "Očekivano", data: visible.expected },
-    { name: "Naplaćeno", data: visible.collected },
+    { name: "Očekivano", data: [Number(active.expected_amount || 0)] },
+    { name: "Naplaćeno", data: [Number(active.collected_amount || 0)] },
   ];
 
   return (
@@ -126,67 +104,18 @@ export default function RevenueTrendChart({ trend }) {
           Očekivano vs. naplaćeno
         </h3>
 
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <div className="inline-flex w-fit items-center gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-900">
-            <button
-              onClick={() => setViewMode("cash")}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                viewMode === "cash"
-                  ? "bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white"
-                  : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-              }`}
-            >
-              Cash
-            </button>
-            <button
-              onClick={() => setViewMode("recurring")}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                viewMode === "recurring"
-                  ? "bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white"
-                  : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-              }`}
-            >
-              Recurring
-            </button>
-          </div>
-
-          <div className="inline-flex w-fit items-center gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-900">
-            <button
-              onClick={() => setSelectedRange("1m")}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                selectedRange === "1m"
-                  ? "bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white"
-                  : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-              }`}
-            >
-              Trenutni mjesec
-            </button>
-            <button
-              onClick={() => setSelectedRange("4m")}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                selectedRange === "4m"
-                  ? "bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white"
-                  : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-              }`}
-            >
-              Kvartal
-            </button>
-            <button
-              onClick={() => setSelectedRange("12m")}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                selectedRange === "12m"
-                  ? "bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white"
-                  : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-              }`}
-            >
-              12 mjeseci
-            </button>
-          </div>
-        </div>
+        {months.length > 0 && (
+          <MonthSelect
+            id="trend-month"
+            months={months}
+            value={active.key || ""}
+            onChange={onMonthChange}
+          />
+        )}
       </div>
 
       <div className="custom-scrollbar max-w-full overflow-x-auto">
-        <Chart options={options} series={series} type="area" height={320} />
+        <Chart key={active.key || "month"} options={options} series={series} type="bar" height={320} />
       </div>
     </div>
   );

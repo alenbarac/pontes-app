@@ -20,6 +20,8 @@ class DashboardFinanceService
 
         return [
             'open' => $this->buildOpenInvoicesMetrics($now),
+            'current_month_key' => $now->copy()->startOfMonth()->format('Y-m'),
+            'months' => $this->buildSelectableMonths($now),
             'periods' => [
                 'current_month' => $this->buildCurrentMonthPeriod($now),
                 'school_year' => $this->buildSchoolYearPeriod($now),
@@ -75,13 +77,79 @@ class DashboardFinanceService
         ];
     }
 
+    /**
+     * Months the dashboard can show one at a time.
+     * Always includes the current month and each school-year month up to today.
+     * Also includes any other recent month that already has invoices, without
+     * filling the gaps between them.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function buildSelectableMonths(Carbon $now): array
+    {
+        $schoolYear = SchoolYearService::getSchoolYearForDate($now);
+        $current = $now->copy()->startOfMonth();
+        $schoolStart = $schoolYear['start']->copy()->startOfMonth();
+        $schoolEnd = $schoolYear['end']->copy()->startOfMonth();
+        $lookback = $current->copy()->subMonths(11);
+
+        $months = [];
+
+        if ($schoolStart->lte($current)) {
+            $cursor = $schoolStart->copy();
+            while ($cursor->lte($current) && $cursor->lte($schoolEnd)) {
+                $months[$cursor->format('Y-m')] = $cursor->copy();
+                $cursor->addMonth();
+            }
+        }
+
+        $months[$current->format('Y-m')] = $current->copy();
+
+        $activityStart = $lookback->lt($schoolStart) ? $lookback : $schoolStart;
+        $activityEnd = $schoolEnd->gt($current) ? $schoolEnd : $current;
+
+        $dueDates = Invoice::query()
+            ->whereDate('due_date', '>=', $activityStart->copy()->startOfMonth())
+            ->whereDate('due_date', '<=', $activityEnd->copy()->endOfMonth())
+            ->pluck('due_date');
+
+        foreach ($dueDates as $dueDate) {
+            $month = Carbon::parse($dueDate)->startOfMonth();
+            $months[$month->format('Y-m')] = $month;
+        }
+
+        ksort($months);
+
+        $options = [];
+
+        foreach ($months as $key => $month) {
+            $label = $this->monthLabel($month);
+            $metrics = $this->buildPeriodMetrics(
+                Invoice::query()->forMonth($month),
+                $now,
+                $label,
+                $label,
+            );
+            $metrics['key'] = $key;
+            $metrics['is_current'] = $month->isSameMonth($current);
+            $options[] = $metrics;
+        }
+
+        return $options;
+    }
+
+    private function monthLabel(Carbon $month): string
+    {
+        return ucfirst($month->copy()->locale('hr')->translatedFormat('F Y'));
+    }
+
     private function buildCurrentMonthPeriod(Carbon $now): array
     {
         $currentMonth = $now->copy()->startOfMonth();
         $monthName = ucfirst($now->locale('hr')->translatedFormat('F'));
 
         return $this->buildPeriodMetrics(
-            Invoice::membership()->forMonth($currentMonth),
+            Invoice::query()->forMonth($currentMonth),
             $now,
             $monthName,
             $monthName,
@@ -92,7 +160,7 @@ class DashboardFinanceService
     {
         $schoolYear = SchoolYearService::getSchoolYearForDate($now);
 
-        $invoices = Invoice::membership()
+        $invoices = Invoice::query()
             ->whereDate('due_date', '>=', $schoolYear['start'])
             ->whereDate('due_date', '<=', $schoolYear['end']);
 
@@ -157,6 +225,7 @@ class DashboardFinanceService
     private function buildTrend(Carbon $now): array
     {
         $labels = [];
+        $monthKeys = [];
         $cashExpected = [];
         $cashCollected = [];
         $recurringExpected = [];
@@ -172,6 +241,7 @@ class DashboardFinanceService
         while ($cursor->lte($end)) {
             $month = $cursor->copy();
             $labels[] = $month->format('M Y');
+            $monthKeys[] = $month->format('Y-m');
 
             $monthInvoices = Invoice::query()->forMonth($month);
             $cashExpected[] = (float) (clone $monthInvoices)->sum('amount_due');
@@ -183,8 +253,32 @@ class DashboardFinanceService
             $cursor->addMonth();
         }
 
+        // Future months with no invoices flatten the chart and push
+        // "current month" onto the school-year end. Keep a later month
+        // only when it already has billed or collected cash.
+        $currentKey = $now->copy()->startOfMonth()->format('Y-m');
+        while (count($labels) > 1) {
+            $last = count($labels) - 1;
+            if ($monthKeys[$last] <= $currentKey) {
+                break;
+            }
+            if ($cashExpected[$last] > 0 || $cashCollected[$last] > 0) {
+                break;
+            }
+
+            array_pop($labels);
+            array_pop($monthKeys);
+            array_pop($cashExpected);
+            array_pop($cashCollected);
+            array_pop($recurringExpected);
+            array_pop($recurringCollected);
+        }
+
+        $currentIndex = array_search($currentKey, $monthKeys, true);
+
         return [
             'labels' => $labels,
+            'current_index' => $currentIndex === false ? max(count($labels) - 1, 0) : $currentIndex,
             'cash' => [
                 'expected' => $cashExpected,
                 'collected' => $cashCollected,
@@ -228,9 +322,8 @@ class DashboardFinanceService
     private function recurringCollectedForMonth(Carbon $month): float
     {
         $invoices = Invoice::membership()
+            ->forMonth($month)
             ->where('amount_paid', '>', 0)
-            ->whereMonth('updated_at', $month->month)
-            ->whereYear('updated_at', $month->year)
             ->with('membershipPlan')
             ->get();
 

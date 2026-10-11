@@ -293,9 +293,121 @@ test('august uses the upcoming school year so september invoices appear as expec
     $metrics = app(DashboardFinanceService::class)->buildMetrics();
     $septemberIndex = array_search('Sep 2026', $metrics['trend']['labels']);
 
+    $augustIndex = array_search('Aug 2026', $metrics['trend']['labels']);
+
     expect($metrics['periods']['school_year']['school_year_label'])->toBe('2026-2027')
         ->and($metrics['periods']['school_year']['expected_amount'])->toBe(450.0)
         ->and($metrics['periods']['current_month']['expected_amount'])->toBe(0.0)
         ->and($septemberIndex)->not->toBeFalse()
-        ->and($metrics['trend']['cash']['expected'][$septemberIndex])->toBe(450.0);
+        ->and($metrics['trend']['cash']['expected'][$septemberIndex])->toBe(450.0)
+        ->and($metrics['trend']['current_index'])->toBe($augustIndex)
+        ->and($metrics['trend']['labels'][array_key_last($metrics['trend']['labels'])])->toBe('Sep 2026');
+});
+
+test('trend stops at the current month when later months have no invoices', function () {
+    $metrics = app(DashboardFinanceService::class)->buildMetrics();
+    $labels = $metrics['trend']['labels'];
+
+    expect($labels[array_key_last($labels)])->toBe('Oct 2026')
+        ->and($metrics['trend']['current_index'])->toBe(array_key_last($labels))
+        ->and($labels)->not->toContain('Jun 2027');
+});
+
+test('recurring collected follows the invoice due month rather than when it was marked paid', function () {
+    $workshop = Workshop::factory()->create();
+    $member = Member::factory()->create(['is_active' => true]);
+
+    $annualPlan = MembershipPlan::forceCreate([
+        'workshop_id' => $workshop->id,
+        'plan' => 'Godišnja članarina',
+        'fee' => 430,
+        'total_fee' => 430,
+        'billing_frequency' => 'Godišnje',
+    ]);
+
+    $invoice = Invoice::factory()->create([
+        'member_id' => $member->id,
+        'workshop_id' => $workshop->id,
+        'membership_plan_id' => $annualPlan->id,
+        'amount_due' => 430,
+        'amount_paid' => 430,
+        'due_date' => '2026-09-15',
+        'payment_status' => 'Plaćeno',
+        'invoice_type' => 'membership',
+    ]);
+
+    DB::table('invoices')
+        ->where('id', $invoice->id)
+        ->update(['updated_at' => '2026-10-10 10:00:00']);
+
+    $metrics = app(DashboardFinanceService::class)->buildMetrics();
+    $septemberIndex = array_search('Sep 2026', $metrics['trend']['labels']);
+    $octoberIndex = array_search('Oct 2026', $metrics['trend']['labels']);
+
+    expect($septemberIndex)->not->toBeFalse()
+        ->and($octoberIndex)->not->toBeFalse()
+        ->and($metrics['trend']['recurring']['collected'][$septemberIndex])->toBe(35.83)
+        ->and($metrics['trend']['recurring']['collected'][$octoberIndex])->toBe(0.0)
+        ->and($metrics['trend']['cash']['collected'][$septemberIndex])->toBe(430.0)
+        ->and($metrics['periods']['school_year']['collected_amount'])->toBe(430.0);
+});
+
+test('month list defaults to the current month and includes earlier months with invoices', function () {
+    $workshop = Workshop::factory()->create();
+    $member = Member::factory()->create();
+
+    Invoice::factory()->create([
+        'member_id' => $member->id,
+        'workshop_id' => $workshop->id,
+        'amount_due' => 100,
+        'amount_paid' => 100,
+        'due_date' => '2026-08-24',
+        'payment_status' => 'Plaćeno',
+        'invoice_type' => 'session',
+    ]);
+
+    Invoice::factory()->create([
+        'member_id' => $member->id,
+        'workshop_id' => $workshop->id,
+        'amount_due' => 450,
+        'amount_paid' => 200,
+        'due_date' => '2026-09-15',
+        'payment_status' => 'Otvoreno',
+        'invoice_type' => 'membership',
+    ]);
+
+    $metrics = app(DashboardFinanceService::class)->buildMetrics();
+    $keys = array_column($metrics['months'], 'key');
+    $september = collect($metrics['months'])->firstWhere('key', '2026-09');
+    $october = collect($metrics['months'])->firstWhere('key', '2026-10');
+
+    expect($metrics['current_month_key'])->toBe('2026-10')
+        ->and($keys)->toBe(['2026-08', '2026-09', '2026-10'])
+        ->and($september['label'])->toBe('Rujan 2026')
+        ->and($september['expected_amount'])->toBe(450.0)
+        ->and($september['collected_amount'])->toBe(200.0)
+        ->and($september['overdue'])->toBe(250.0)
+        ->and($october['is_current'])->toBeTrue()
+        ->and($october['label'])->toBe('Listopad 2026')
+        ->and($october['expected_amount'])->toBe(0.0);
+});
+
+test('school year cash totals include session invoices due in that year', function () {
+    $workshop = Workshop::factory()->create();
+    $member = Member::factory()->create();
+
+    Invoice::factory()->create([
+        'member_id' => $member->id,
+        'workshop_id' => $workshop->id,
+        'amount_due' => 80,
+        'amount_paid' => 80,
+        'due_date' => '2026-10-20',
+        'payment_status' => 'Plaćeno',
+        'invoice_type' => 'session',
+    ]);
+
+    $currentMonth = app(DashboardFinanceService::class)->buildMetrics()['periods']['current_month'];
+
+    expect($currentMonth['expected_amount'])->toBe(80.0)
+        ->and($currentMonth['collected_amount'])->toBe(80.0);
 });

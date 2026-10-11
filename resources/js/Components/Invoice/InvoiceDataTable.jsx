@@ -19,6 +19,7 @@ import Label from "@/Components/form/Label";
 import { TrashIcon, CalendarDaysIcon, EnvelopeIcon, ArrowDownTrayIcon } from "@heroicons/react/24/outline";
 import { useModal } from "@/hooks/useModal";
 import Flatpickr from "react-flatpickr";
+import { monthPickerOptions } from "@/lib/flatpickrLocale";
 import "flatpickr/dist/themes/light.css";
 import { notifyMailingStarted } from "@/lib/mailingActivity";
 
@@ -769,8 +770,7 @@ const InvoicesDataTable = ({
                                     value={monthFilter}
                                     onChange={handleMonthChange}
                                     options={{
-                                        dateFormat: "Y-m",
-                                        mode: "single",
+                                        ...monthPickerOptions(),
                                         defaultDate: monthFilter || null,
                                     }}
                                     placeholder="Mjesec (YYYY-MM)"

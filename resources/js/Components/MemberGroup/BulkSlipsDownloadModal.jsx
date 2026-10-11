@@ -3,6 +3,7 @@ import { Modal } from "@/Components/ui/modal";
 import Button from "@/Components/ui/button/Button";
 import toast from "react-hot-toast";
 import axios from "axios";
+import MonthPicker from "@/Components/form/MonthPicker";
 
 export default function BulkSlipsDownloadModal({
     isOpen,
@@ -244,13 +245,11 @@ export default function BulkSlipsDownloadModal({
                         >
                             Mjesec
                         </label>
-                        <input
-                            type="month"
+                        <MonthPicker
                             id="month"
                             value={selectedMonth}
-                            onChange={(e) => setSelectedMonth(e.target.value)}
+                            onChange={setSelectedMonth}
                             className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-                            required
                         />
                         <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                             Odaberite mjesec za koji želite preuzeti uplatnice.

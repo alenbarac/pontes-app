@@ -92,6 +92,22 @@ Route::middleware('auth')->group(function () {
         ->name('invoices.importMbanking.index');
     Route::post('/invoices/import-mbanking', [InvoiceImportController::class, 'store'])
         ->name('invoices.importMbanking.store');
+    Route::get('/invoices/import-mbanking/{bankStatementImport}', [InvoiceImportController::class, 'show'])
+        ->name('invoices.importMbanking.show');
+    Route::post('/invoices/import-mbanking/{bankStatementImport}/lines/{bankStatementImportLine}/align', [InvoiceImportController::class, 'align'])
+        ->name('invoices.importMbanking.lines.align');
+    Route::post('/invoices/import-mbanking/{bankStatementImport}/lines/{bankStatementImportLine}/apply-plan', [InvoiceImportController::class, 'applyPlan'])
+        ->name('invoices.importMbanking.lines.applyPlan');
+    Route::post('/invoices/import-mbanking/{bankStatementImport}/lines/{bankStatementImportLine}/attach', [InvoiceImportController::class, 'attach'])
+        ->name('invoices.importMbanking.lines.attach');
+    Route::post('/invoices/import-mbanking/{bankStatementImport}/lines/{bankStatementImportLine}/dismiss', [InvoiceImportController::class, 'dismiss'])
+        ->name('invoices.importMbanking.lines.dismiss');
+    Route::post('/invoices/import-mbanking/{bankStatementImport}/lines/{bankStatementImportLine}/note', [InvoiceImportController::class, 'updateNote'])
+        ->name('invoices.importMbanking.lines.note');
+    Route::post('/invoices/import-mbanking/{bankStatementImport}/lines/{bankStatementImportLine}/link-member', [InvoiceImportController::class, 'linkMember'])
+        ->name('invoices.importMbanking.lines.linkMember');
+    Route::post('/invoices/import-mbanking/{bankStatementImport}/lines/{bankStatementImportLine}/generate-invoice', [InvoiceImportController::class, 'generateInvoice'])
+        ->name('invoices.importMbanking.lines.generateInvoice');
 
     // Member-specific invoice routes (for session invoices)
     Route::post('/members/{member}/invoices/session', [MemberInvoiceController::class, 'generateSessionInvoice'])
