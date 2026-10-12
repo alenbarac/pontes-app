@@ -948,6 +948,9 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                                 Odaberite mjesec za koji želite generirati račun
                             </p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                                Za polugodišnje i godišnje planove možete odabrati bilo koji mjesec unutar članstva. Nakon generiranja na računu promijenite iznos i opis plaćanja.
+                            </p>
                         </div>
                         <button
                             onClick={closeMembershipInvoiceModal}

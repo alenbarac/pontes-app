@@ -219,8 +219,9 @@ class MemberInvoiceController extends Controller
                 ], 422);
             }
 
-            // Check if should generate (respects membership period and billing cycle)
-            if (!$this->invoiceService->shouldGenerateInvoice($memberWorkshop, $targetMonth)) {
+            // Membership period still applies. Billing cycle is skipped so staff
+            // can generate an off-cycle slip and adjust amount and description.
+            if (!$this->invoiceService->shouldGenerateInvoice($memberWorkshop, $targetMonth, ignoreBillingCycle: true)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Invoice cannot be generated for this month (outside membership period or billing cycle).',

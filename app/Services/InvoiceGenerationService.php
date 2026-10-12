@@ -131,8 +131,12 @@ class InvoiceGenerationService
 
     /**
      * Check if an invoice should be generated for a member-workshop and target date.
+     *
+     * Manual generation from the member page passes $ignoreBillingCycle so staff
+     * can create an off-cycle slip (for example a 6-month correction) and then
+     * edit the amount and description. Bulk generation keeps the billing cycle.
      */
-    public function shouldGenerateInvoice(MemberWorkshop $memberWorkshop, Carbon $targetDate): bool
+    public function shouldGenerateInvoice(MemberWorkshop $memberWorkshop, Carbon $targetDate, bool $ignoreBillingCycle = false): bool
     {
         // Check if member is active
         if (! $memberWorkshop->member || ! $memberWorkshop->member->is_active) {
@@ -162,6 +166,10 @@ class InvoiceGenerationService
         // Check if invoice already exists for this month
         if ($memberWorkshop->hasInvoiceForMonth($targetDate)) {
             return false;
+        }
+
+        if ($ignoreBillingCycle) {
+            return true;
         }
 
         // Check if billing frequency matches
