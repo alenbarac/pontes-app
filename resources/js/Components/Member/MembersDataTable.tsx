@@ -358,7 +358,7 @@ const MembersDataTable: React.FC<MembersDataTableProps> = ({
                                 setGlobalFilter("");
                                 setWorkshopId("");
                                 setGroupId("");
-                                setMembershipPlanId("");
+                                setBillingFrequency("");
                             }}
                             className="inline-flex items-center gap-1 px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-dark dark:hover:bg-gray-800 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100 transition"
                             title="Poništi filtere"
@@ -433,7 +433,7 @@ const MembersDataTable: React.FC<MembersDataTableProps> = ({
                                             onClick={() => {
                                                 setWorkshopId("");
                                                 setGroupId("");
-                                                setMembershipPlanId("");
+                                                setBillingFrequency("");
                                                 setIsWorkshopDropdownOpen(
                                                     false,
                                                 );
@@ -462,7 +462,7 @@ const MembersDataTable: React.FC<MembersDataTableProps> = ({
                                                     );
                                                     // Reset dependent filters when workshop changes
                                                     setGroupId("");
-                                                    setMembershipPlanId("");
+                                                    setBillingFrequency("");
                                                     setIsWorkshopDropdownOpen(
                                                         false,
                                                     );
