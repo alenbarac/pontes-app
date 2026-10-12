@@ -14,6 +14,7 @@ use App\Http\Controllers\MembershipController;
 use App\Http\Controllers\MemberWorkshopController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\WorkshopController;
+use App\Http\Controllers\WorkshopDiscountController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -47,6 +48,12 @@ Route::middleware('auth')->group(function () {
         ->name('members.bulkSendSlipEmails');
 
     Route::resource('members', MemberController::class);
+
+    Route::get('/workshop-discounts', [WorkshopDiscountController::class, 'index'])->name('workshop-discounts.index');
+    Route::post('/workshop-discounts', [WorkshopDiscountController::class, 'store'])->name('workshop-discounts.store');
+    Route::patch('/workshop-discounts/{membershipPlan}', [WorkshopDiscountController::class, 'update'])->name('workshop-discounts.update');
+    Route::delete('/workshop-discounts/{membershipPlan}', [WorkshopDiscountController::class, 'destroy'])->name('workshop-discounts.destroy');
+
     Route::resource('workshops', WorkshopController::class);
     Route::resource('member-groups', MemberGroupController::class);
     Route::post('/member-groups/{memberGroup}/bulk-reassign', [MemberGroupController::class, 'bulkReassign'])

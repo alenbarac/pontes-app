@@ -13,6 +13,7 @@ use App\Models\MemberGroup;
 use App\Models\MemberGroupWorkshop;
 use App\Models\MembershipPlan;
 use App\Models\Workshop;
+use App\Services\MembershipPlanDiscount;
 use App\Services\PaymentSlipEmailService;
 use App\Services\SlipMailingBatch;
 use Illuminate\Http\JsonResponse;
@@ -229,7 +230,7 @@ class MemberController extends Controller
             ->get()
             ->groupBy('workshop_id');
 
-        $membershipPlans = MembershipPlan::select('id', 'workshop_id', 'plan', 'total_fee')->get()->groupBy('workshop_id');
+        $membershipPlans = $this->membershipPlansForForms();
 
         return inertia('Members/Create', [
             'workshops' => $workshops,
@@ -304,8 +305,7 @@ class MemberController extends Controller
             ->get()
             ->groupBy('workshop_id');
 
-        // Fetch all membership plans grouped by workshop
-        $membershipPlans = MembershipPlan::select('id', 'workshop_id', 'plan', 'total_fee')->get()->groupBy('workshop_id');
+        $membershipPlans = $this->membershipPlansForForms();
 
         $paymentNotesByInvoice = $this->paymentNotesByInvoice($member);
 
@@ -455,5 +455,17 @@ class MemberController extends Controller
         $member->delete();
 
         return redirect()->route('members.index')->with('success', 'Član i svi povezani podaci su obrisani.');
+    }
+
+    /**
+     * Plans for enroll and edit dropdowns: each base plan, then its % OFF variants.
+     */
+    private function membershipPlansForForms(): Collection
+    {
+        $plans = MembershipPlan::query()
+            ->select('id', 'workshop_id', 'plan', 'total_fee', 'discount_type')
+            ->get();
+
+        return (new MembershipPlanDiscount)->groupForDropdown($plans);
     }
 }

@@ -41,6 +41,7 @@ const navItems: NavItem[] = [
         subItems: [
             { name: "Popis radionica", path: "/workshops" },
             { name: "Nova radionica", path: "/workshops/create" },
+            { name: "Popusti", path: "/workshop-discounts" },
         ],
     },
     {

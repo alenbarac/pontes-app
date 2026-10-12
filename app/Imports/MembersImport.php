@@ -7,6 +7,7 @@ use App\Models\MemberGroup;
 use App\Models\MemberGroupWorkshop;
 use App\Models\MembershipPlan;
 use App\Models\Workshop;
+use App\Services\MembershipPlanDiscount;
 use App\Services\SchoolYearService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -355,22 +356,7 @@ class MembersImport implements ToCollection, WithColumnLimit, WithHeadingRow, Wi
      */
     private function planWithDiscount(MembershipPlan $basePlan, int $percent): MembershipPlan
     {
-        $discountedName = sprintf('%s (%d%% OFF)', $basePlan->plan, $percent);
-        $baseAmount = (float) ($basePlan->total_fee ?? $basePlan->fee);
-        $totalFee = round($baseAmount * (1 - $percent / 100), 2);
-
-        return MembershipPlan::firstOrCreate(
-            [
-                'workshop_id' => $basePlan->workshop_id,
-                'plan' => $discountedName,
-            ],
-            [
-                'fee' => $basePlan->fee,
-                'billing_frequency' => $basePlan->billing_frequency,
-                'discount_type' => $percent.'% OFF',
-                'total_fee' => $totalFee,
-            ]
-        );
+        return app(MembershipPlanDiscount::class)->findOrCreate($basePlan, $percent);
     }
 
     /**
