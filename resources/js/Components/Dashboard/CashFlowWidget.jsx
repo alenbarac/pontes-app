@@ -43,6 +43,10 @@ export default function CashFlowWidget({ months, monthKey, onMonthChange }) {
       subtitle: "Već primljene uplate",
       icon: BanknotesIcon,
       iconClass: "text-success-500",
+      href: route("invoices.index", {
+        month: active.key || undefined,
+        payment_status: "Plaćeno",
+      }),
     },
     {
       title: "Stopa naplate",
@@ -101,7 +105,7 @@ export default function CashFlowWidget({ months, monthKey, onMonthChange }) {
           return (
             <Link
               key={card.title}
-              href="/invoices"
+              href={card.href || "/invoices"}
               className="rounded-xl border border-gray-200 p-4 transition-colors hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-900/50"
             >
               <div className="mb-2 flex items-center justify-between">

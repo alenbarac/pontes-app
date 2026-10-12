@@ -33,12 +33,10 @@ interface Group {
     name: string;
 }
 
-interface MembershipPlan {
-    id: number;
-    workshop_id: number;
-    plan: string;
-    total_fee?: number | string | null;
-    workshop_name?: string;
+interface PlanFrequency {
+    key: string;
+    label: string;
+    count?: number;
 }
 
 interface Pagination {
@@ -55,10 +53,10 @@ interface MembersDataTableProps {
     pageSizeOptions?: number[];
     workshops?: Workshop[];
     groups?: Group[];
-    membershipPlans?: MembershipPlan[];
+    planFrequencies?: PlanFrequency[];
     initialWorkshopId?: string;
     initialGroupId?: string;
-    initialMembershipPlanId?: string;
+    initialBillingFrequency?: string;
     initialFilter?: string;
 }
 
@@ -69,16 +67,16 @@ const MembersDataTable: React.FC<MembersDataTableProps> = ({
     pageSizeOptions = [5, 10, 20, 50],
     workshops = [],
     groups = [],
-    membershipPlans = [],
+    planFrequencies = [],
     initialWorkshopId = "",
     initialGroupId = "",
-    initialMembershipPlanId = "",
+    initialBillingFrequency = "",
     initialFilter = "",
 }) => {
     const [globalFilter, setGlobalFilter] = useState(initialFilter);
     const [workshopId, setWorkshopId] = useState(initialWorkshopId);
     const [groupId, setGroupId] = useState(initialGroupId);
-    const [membershipPlanId, setMembershipPlanId] = useState(initialMembershipPlanId);
+    const [billingFrequency, setBillingFrequency] = useState(initialBillingFrequency);
     const [isWorkshopDropdownOpen, setIsWorkshopDropdownOpen] = useState(false);
     const [isGroupDropdownOpen, setIsGroupDropdownOpen] = useState(false);
     const [isPlanDropdownOpen, setIsPlanDropdownOpen] = useState(false);
@@ -233,13 +231,13 @@ const MembersDataTable: React.FC<MembersDataTableProps> = ({
                     filter: globalFilter,
                     workshop_id: workshopId,
                     group_id: groupId,
-                    membership_plan_id: membershipPlanId,
+                    billing_frequency: billingFrequency,
                 },
                 { preserveState: true },
             );
         }, 500);
         return () => clearTimeout(timeout);
-    }, [globalFilter, workshopId, groupId, membershipPlanId, pagination.current_page, pagination.per_page]);
+    }, [globalFilter, workshopId, groupId, billingFrequency, pagination.current_page, pagination.per_page]);
 
     const table = useReactTable({
         data,
@@ -257,7 +255,7 @@ const MembersDataTable: React.FC<MembersDataTableProps> = ({
             filter: globalFilter,
             workshop_id: workshopId,
             group_id: groupId,
-            membership_plan_id: membershipPlanId,
+            billing_frequency: billingFrequency,
         });
 
     const handlePageSizeChange = (size: number) =>
@@ -267,23 +265,12 @@ const MembersDataTable: React.FC<MembersDataTableProps> = ({
             filter: globalFilter,
             workshop_id: workshopId,
             group_id: groupId,
-            membership_plan_id: membershipPlanId,
+            billing_frequency: billingFrequency,
         });
 
-    const selectedPlan = membershipPlans.find(
-        (p) => p.id.toString() === membershipPlanId,
+    const selectedFrequency = planFrequencies.find(
+        (frequency) => frequency.key === billingFrequency,
     );
-
-    const formatPlanLabel = (plan: MembershipPlan, includeWorkshop = false) => {
-        const fee =
-            plan.total_fee != null
-                ? ` (${parseFloat(String(plan.total_fee)).toFixed(2)} EUR)`
-                : "";
-        if (includeWorkshop && plan.workshop_name) {
-            return `${plan.workshop_name} — ${plan.plan}${fee}`;
-        }
-        return `${plan.plan}${fee}`;
-    };
 
     return (
         <>
@@ -594,12 +581,7 @@ const MembersDataTable: React.FC<MembersDataTableProps> = ({
                                 className="inline-flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 rounded-lg dropdown-toggle border border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-dark dark:hover:bg-gray-800 min-w-[180px]"
                             >
                                 <span className="truncate">
-                                    {selectedPlan
-                                        ? formatPlanLabel(
-                                              selectedPlan,
-                                              !workshopId,
-                                          )
-                                        : "Sve članarine"}
+                                    {selectedFrequency?.label || "Sve članarine"}
                                 </span>
                                 <svg
                                     className={`duration-200 ease-in-out stroke-current ${
@@ -630,11 +612,11 @@ const MembersDataTable: React.FC<MembersDataTableProps> = ({
                                     <li>
                                         <DropdownItem
                                             onClick={() => {
-                                                setMembershipPlanId("");
+                                                setBillingFrequency("");
                                                 setIsPlanDropdownOpen(false);
                                             }}
                                             className={`flex rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5 ${
-                                                !membershipPlanId
+                                                !billingFrequency
                                                     ? "bg-gray-100 text-gray-900 dark:bg-white/10 dark:text-white"
                                                     : "text-gray-700 dark:text-gray-300"
                                             }`}
@@ -643,34 +625,31 @@ const MembersDataTable: React.FC<MembersDataTableProps> = ({
                                             Sve članarine
                                         </DropdownItem>
                                     </li>
-                                    {membershipPlans.length > 0 && (
+                                    {planFrequencies.length > 0 && (
                                         <li>
                                             <span className="my-1.5 block h-px w-full bg-gray-200 dark:bg-[#353C49]"></span>
                                         </li>
                                     )}
-                                    {membershipPlans.map((plan) => (
-                                        <li key={plan.id}>
+                                    {planFrequencies.map((frequency) => (
+                                        <li key={frequency.key}>
                                             <DropdownItem
                                                 onClick={() => {
-                                                    setMembershipPlanId(
-                                                        plan.id.toString(),
+                                                    setBillingFrequency(
+                                                        frequency.key,
                                                     );
                                                     setIsPlanDropdownOpen(
                                                         false,
                                                     );
                                                 }}
                                                 className={`flex rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5 ${
-                                                    membershipPlanId ===
-                                                    plan.id.toString()
+                                                    billingFrequency ===
+                                                    frequency.key
                                                         ? "bg-gray-100 text-gray-900 dark:bg-white/10 dark:text-white"
                                                         : "text-gray-700 dark:text-gray-300"
                                                 }`}
                                                 baseClassName=""
                                             >
-                                                {formatPlanLabel(
-                                                    plan,
-                                                    !workshopId,
-                                                )}
+                                                {frequency.label}
                                             </DropdownItem>
                                         </li>
                                     ))}

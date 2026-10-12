@@ -16,6 +16,7 @@ use App\Models\Workshop;
 use App\Services\MembershipPlanDiscount;
 use App\Services\PaymentSlipEmailService;
 use App\Services\SlipMailingBatch;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -34,15 +35,17 @@ class MemberController extends Controller
     {
         $perPage = $request->input('per_page', 10);
         $page = $request->input('page', 1);
-        $filter = $request->input('filter', '');
-        $workshopId = $request->input('workshop_id', '');
-        $groupId = $request->input('group_id', '');
-        $membershipPlanId = $request->input('membership_plan_id', '');
+        $filter = (string) $request->input('filter', '');
+        $workshopId = (string) $request->input('workshop_id', '');
+        $groupId = (string) $request->input('group_id', '');
+        $billingFrequency = (string) $request->input('billing_frequency', '');
 
-        $query = Member::with([
-            'workshops.memberships',
-            'workshopGroups.group',
-        ])->orderBy('created_at', 'desc');
+        $query = $this->membersInContext($workshopId, $groupId)
+            ->with([
+                'workshops.memberships',
+                'workshopGroups.group',
+            ])
+            ->orderBy('created_at', 'desc');
 
         if (! empty($filter)) {
             $query->where(function ($q) use ($filter) {
@@ -67,27 +70,14 @@ class MemberController extends Controller
             });
         }
 
-        // Filter by workshop
-        if (! empty($workshopId)) {
-            $query->whereHas('workshops', function ($q) use ($workshopId) {
-                $q->where('workshops.id', $workshopId);
-            });
-        }
-
-        // Filter by group (optionally scoped by workshop)
-        if (! empty($groupId)) {
-            $query->whereHas('workshopGroups', function ($q) use ($groupId, $workshopId) {
-                $q->where('member_group_id', $groupId);
-                if ($workshopId) {
-                    $q->where('workshop_id', $workshopId);
+        // Filter by plan length. Discount variants share the base plan's billing frequency.
+        if ($billingFrequency !== '' && isset($this->planFrequencyLabels()[$billingFrequency])) {
+            $planIds = $this->planIdsForFrequency($billingFrequency, $workshopId);
+            $query->whereHas('workshops', function ($q) use ($planIds, $workshopId) {
+                $q->whereIn('member_workshop.membership_plan_id', $planIds);
+                if ($workshopId !== '') {
+                    $q->where('workshops.id', $workshopId);
                 }
-            });
-        }
-
-        // Filter by membership plan (assigned on the member_workshop pivot)
-        if (! empty($membershipPlanId)) {
-            $query->whereHas('workshops', function ($q) use ($membershipPlanId) {
-                $q->where('member_workshop.membership_plan_id', $membershipPlanId);
             });
         }
 
@@ -107,23 +97,6 @@ class MemberController extends Controller
             ->orderBy('member_groups.name')
             ->get();
 
-        // Plans for filter (optionally scoped by workshop)
-        $membershipPlans = MembershipPlan::query()
-            ->select('id', 'workshop_id', 'plan', 'total_fee')
-            ->with('workshop:id,name')
-            ->when($workshopId, function ($q) use ($workshopId) {
-                $q->where('workshop_id', $workshopId);
-            })
-            ->orderBy('plan')
-            ->get()
-            ->map(fn (MembershipPlan $plan) => [
-                'id' => $plan->id,
-                'workshop_id' => $plan->workshop_id,
-                'plan' => $plan->plan,
-                'total_fee' => $plan->total_fee,
-                'workshop_name' => $plan->workshop?->name,
-            ]);
-
         return inertia('Members/Index', [
             'members' => [
                 'data' => MemberResource::collection($members->items()),
@@ -137,10 +110,10 @@ class MemberController extends Controller
             'filter' => $filter,
             'workshopId' => $workshopId,
             'groupId' => $groupId,
-            'membershipPlanId' => $membershipPlanId,
+            'billingFrequency' => $billingFrequency,
             'workshops' => $workshops,
             'groups' => $groups,
-            'membershipPlans' => $membershipPlans,
+            'planStats' => $this->planFrequencyStats($workshopId, $groupId),
         ]);
 
     }
@@ -455,6 +428,139 @@ class MemberController extends Controller
         $member->delete();
 
         return redirect()->route('members.index')->with('success', 'Član i svi povezani podaci su obrisani.');
+    }
+
+    /**
+     * Members matching the workshop and group filters, ignoring search and plan length.
+     *
+     * @return Builder<Member>
+     */
+    private function membersInContext(string $workshopId, string $groupId): Builder
+    {
+        $query = Member::query();
+
+        if ($workshopId !== '') {
+            $query->whereHas('workshops', function ($q) use ($workshopId) {
+                $q->where('workshops.id', $workshopId);
+            });
+        }
+
+        if ($groupId !== '') {
+            $query->whereHas('workshopGroups', function ($q) use ($groupId, $workshopId) {
+                $q->where('member_group_id', $groupId);
+                if ($workshopId !== '') {
+                    $q->where('workshop_id', $workshopId);
+                }
+            });
+        }
+
+        return $query;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function planFrequencyLabels(): array
+    {
+        return [
+            'monthly' => 'Mjesečno',
+            'semiannual' => '6 mjeseci',
+            'yearly' => 'Godišnje',
+            'session' => 'Po sastanku',
+        ];
+    }
+
+    /**
+     * Collapse discount rows into the base plan length (monthly, 6 months, yearly).
+     */
+    private function planFrequencyKey(?string $billingFrequency): ?string
+    {
+        $folded = mb_strtolower(trim((string) $billingFrequency));
+        if ($folded === '') {
+            return null;
+        }
+
+        $folded = strtr($folded, [
+            'č' => 'c',
+            'ć' => 'c',
+            'š' => 's',
+            'ž' => 'z',
+            'đ' => 'd',
+        ]);
+
+        if (str_contains($folded, 'sastank') || str_contains($folded, 'session')) {
+            return 'session';
+        }
+
+        if (str_contains($folded, 'polugod') || str_contains($folded, '6 mjes') || $folded === 'semiannual') {
+            return 'semiannual';
+        }
+
+        if (str_contains($folded, 'godis') || in_array($folded, ['yearly', 'annual', 'year'], true)) {
+            return 'yearly';
+        }
+
+        if (str_contains($folded, 'mjesec') || $folded === 'monthly') {
+            return 'monthly';
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function planIdsForFrequency(string $key, string $workshopId): array
+    {
+        return MembershipPlan::query()
+            ->when($workshopId !== '', fn ($q) => $q->where('workshop_id', $workshopId))
+            ->get(['id', 'billing_frequency'])
+            ->filter(fn (MembershipPlan $plan) => $this->planFrequencyKey($plan->billing_frequency) === $key)
+            ->pluck('id')
+            ->all();
+    }
+
+    /**
+     * Distinct member counts for the plans that exist in the current workshop scope.
+     *
+     * @return array{total: int, frequencies: array<int, array{key: string, label: string, count: int}>}
+     */
+    private function planFrequencyStats(string $workshopId, string $groupId): array
+    {
+        $present = MembershipPlan::query()
+            ->when($workshopId !== '', fn ($q) => $q->where('workshop_id', $workshopId))
+            ->pluck('billing_frequency')
+            ->map(fn ($frequency) => $this->planFrequencyKey($frequency))
+            ->filter()
+            ->unique()
+            ->flip();
+
+        $frequencies = [];
+
+        foreach ($this->planFrequencyLabels() as $key => $label) {
+            if (! $present->has($key)) {
+                continue;
+            }
+
+            $planIds = $this->planIdsForFrequency($key, $workshopId);
+            $frequencies[] = [
+                'key' => $key,
+                'label' => $label,
+                'count' => $this->membersInContext($workshopId, $groupId)
+                    ->whereHas('workshops', function ($q) use ($planIds, $workshopId) {
+                        $q->whereIn('member_workshop.membership_plan_id', $planIds);
+                        if ($workshopId !== '') {
+                            $q->where('workshops.id', $workshopId);
+                        }
+                    })
+                    ->count(),
+            ];
+        }
+
+        return [
+            'total' => $this->membersInContext($workshopId, $groupId)->count(),
+            'frequencies' => $frequencies,
+        ];
     }
 
     /**

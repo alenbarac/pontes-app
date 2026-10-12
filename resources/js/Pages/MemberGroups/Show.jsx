@@ -348,10 +348,7 @@ export default function Show({
                                                 </TableCell>
                                                 <TableCell className="px-5 py-4 text-start text-theme-sm dark:text-white/90">
                                                     <Link
-                                                        href={route(
-                                                            "members.show",
-                                                            member.id
-                                                        )}
+                                                        href={`${route("members.show", member.id)}?group=${group.id}`}
                                                         className="hover:text-brand-500"
                                                     >
                                                         {member.first_name}{" "}
@@ -380,10 +377,7 @@ export default function Show({
                                                 <TableCell className="px-5 py-4 text-start">
                                                     <div className="flex gap-2">
                                                         <Link
-                                                            href={route(
-                                                                "members.show",
-                                                                member.id
-                                                            )}
+                                                            href={`${route("members.show", member.id)}?group=${group.id}`}
                                                             className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 hover:text-brand-600 dark:hover:text-brand-400"
                                                             title="Pregled profila"
                                                         >

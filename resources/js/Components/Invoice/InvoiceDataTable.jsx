@@ -663,7 +663,7 @@ const InvoicesDataTable = ({
     };
 
     return (
-        <div className="overflow-hidden rounded-xl bg-white dark:bg-white/[0.03]">
+        <div className="w-full min-w-0 max-w-full overflow-hidden rounded-xl bg-white dark:bg-white/[0.03]">
             {/* Bulk Actions Bar */}
             {selectedRows.length > 0 && (
                 <div className="flex flex-wrap items-center justify-between gap-3 bg-brand-50 border-b border-brand-100 px-4 py-3 dark:bg-brand-900/20 dark:border-brand-800">
@@ -739,8 +739,8 @@ const InvoicesDataTable = ({
             )}
 
             {/* Table header */}
-            <div className="flex flex-col gap-4 px-4 py-4 border border-b-0 border-gray-100 dark:border-white/[0.05] rounded-t-xl">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex min-w-0 max-w-full flex-col gap-3 px-4 py-4 border border-b-0 border-gray-100 dark:border-white/[0.05] rounded-t-xl">
+                <div className="flex min-w-0 flex-wrap items-center gap-3">
                     <div className="flex items-center gap-3">
                         <span className="text-gray-500 dark:text-gray-400">
                             Prikaz
@@ -762,7 +762,6 @@ const InvoicesDataTable = ({
                             računa
                         </span>
                     </div>
-                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                         {/* Month Filter */}
                         <div className="relative inline-block">
                             <div className="relative">
@@ -813,6 +812,15 @@ const InvoicesDataTable = ({
                             </svg>
                             Reset
                         </button>
+                        <input
+                            type="text"
+                            value={globalFilter}
+                            onChange={(e) => setGlobalFilter(e.target.value)}
+                            placeholder="Pretraga..."
+                            className="h-11 w-[300px] max-w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-800 dark:text-white/90 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                        />
+                </div>
+                <div className="flex min-w-0 flex-wrap items-center gap-3">
                         {/* Workshop Filter Dropdown */}
                         <div className="relative inline-block">
                             <button
@@ -1232,15 +1240,6 @@ const InvoicesDataTable = ({
                                 </ul>
                             </Dropdown>
                         </div>
-
-                        <input
-                            type="text"
-                            value={globalFilter}
-                            onChange={(e) => setGlobalFilter(e.target.value)}
-                            placeholder="Pretraga..."
-                            className="h-11 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-800 dark:text-white/90 placeholder:text-gray-400 dark:placeholder:text-gray-500 w-full sm:w-[300px]"
-                        />
-                    </div>
                 </div>
             </div>
 
