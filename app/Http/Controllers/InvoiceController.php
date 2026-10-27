@@ -10,6 +10,7 @@ use App\Models\MembershipPlan;
 use App\Models\Workshop;
 use App\Services\PaymentSlipEmailService;
 use App\Services\PaymentSlipPdfService;
+use App\Support\MailRecipientAllowlist;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -410,6 +411,7 @@ class InvoiceController extends Controller
             $errorMessage = match ($reason) {
                 'no_email' => 'Član nema unesenu e-mail adresu za račune. Molimo unesite polje „Email za račune” (invoice_email) u podacima člana.',
                 'already_sent' => 'Uplatnica je već poslana. Potvrdite ponovno slanje ako je želite poslati još jednom.',
+                'recipient_not_allowed' => MailRecipientAllowlist::REFUSAL_MESSAGE,
                 default => 'Došlo je do greške pri slanju e-maila. Molimo pokušajte ponovno.',
             };
 
@@ -458,6 +460,10 @@ class InvoiceController extends Controller
 
         if ($summary['exceeds_cap']) {
             return response()->json($this->paymentSlipEmailService->capExceededPayload(), 422);
+        }
+
+        if (! empty($summary['recipient_not_allowed'])) {
+            return response()->json($this->paymentSlipEmailService->recipientNotAllowedPayload(), 422);
         }
 
         return response()->json([

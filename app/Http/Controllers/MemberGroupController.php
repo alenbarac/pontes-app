@@ -294,6 +294,10 @@ class MemberGroupController extends Controller
             return response()->json($this->paymentSlipEmailService->capExceededPayload(), 422);
         }
 
+        if (! empty($result['recipient_not_allowed'])) {
+            return response()->json($this->paymentSlipEmailService->recipientNotAllowedPayload(), 422);
+        }
+
         if (($result['invoice_count'] ?? 0) === 0) {
             return response()->json([
                 'message' => 'Nema računa za odabrane članove u tom mjesecu.',

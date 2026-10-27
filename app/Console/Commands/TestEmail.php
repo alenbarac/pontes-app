@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Mail\PaymentSlipMailable;
 use App\Models\Invoice;
+use App\Support\MailRecipientAllowlist;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
 
@@ -59,6 +60,10 @@ class TestEmail extends Command
                 return 1;
             }
 
+            if ($this->recipientIsBlocked($email)) {
+                return 1;
+            }
+
             $this->info("Sending payment slip email to: {$email}");
 
             try {
@@ -82,6 +87,10 @@ class TestEmail extends Command
                 return 1;
             }
 
+            if ($this->recipientIsBlocked($recipientEmail)) {
+                return 1;
+            }
+
             $this->info("Sending test email to: {$recipientEmail}");
 
             try {
@@ -100,5 +109,16 @@ class TestEmail extends Command
                 return 1;
             }
         }
+    }
+
+    private function recipientIsBlocked(string $email): bool
+    {
+        if (MailRecipientAllowlist::allows($email)) {
+            return false;
+        }
+
+        $this->error(MailRecipientAllowlist::BLOCKED_MESSAGE);
+
+        return true;
     }
 }

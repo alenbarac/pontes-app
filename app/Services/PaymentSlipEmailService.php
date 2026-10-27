@@ -7,6 +7,7 @@ use App\Models\Invoice;
 use App\Models\InvoiceMailing;
 use App\Models\Mailing;
 use App\Models\Member;
+use App\Support\MailRecipientAllowlist;
 use App\Support\MonthString;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -30,6 +31,19 @@ class PaymentSlipEmailService
         return [
             'message' => $message,
             'errors' => ['invoices' => [$message]],
+        ];
+    }
+
+    /**
+     * @return array{message: string, errors: array{recipient: list<string>}}
+     */
+    public function recipientNotAllowedPayload(): array
+    {
+        $message = MailRecipientAllowlist::REFUSAL_MESSAGE;
+
+        return [
+            'message' => $message,
+            'errors' => ['recipient' => [$message]],
         ];
     }
 
@@ -60,6 +74,16 @@ class PaymentSlipEmailService
     {
         $invoice->loadMissing(['member', 'workshop', 'membershipPlan']);
 
+        if ($this->blockedByAllowlist([$invoice], $resend)) {
+            return [
+                'ok' => false,
+                'reason' => 'recipient_not_allowed',
+                'message' => MailRecipientAllowlist::REFUSAL_MESSAGE,
+                'invoice_id' => $invoice->id,
+                'reference_code' => $invoice->reference_code,
+            ];
+        }
+
         $batch = SlipMailingBatch::forInvoices($userId);
         $result = $this->queueSlip($invoice, $resend, $batch);
         if ($result['ok'] ?? false) {
@@ -78,7 +102,7 @@ class PaymentSlipEmailService
      * is refused without queueing any of them.
      *
      * @param  array<int>  $invoiceIds
-     * @return array{queued: int, skipped_no_email: list<array<string, mixed>>, skipped_already_sent: list<array<string, mixed>>, failed: list<array<string, mixed>>, exceeds_cap: bool, mailing_id: int|null, message?: string}
+     * @return array{queued: int, skipped_no_email: list<array<string, mixed>>, skipped_already_sent: list<array<string, mixed>>, failed: list<array<string, mixed>>, exceeds_cap: bool, mailing_id: int|null, recipient_not_allowed?: bool, message?: string}
      */
     public function sendForInvoiceIds(array $invoiceIds, bool $resend = false, ?SlipMailingBatch $batch = null, ?int $userId = null): array
     {
@@ -99,6 +123,16 @@ class PaymentSlipEmailService
             ->orderBy('id')
             ->get()
             ->keyBy('id');
+
+        // One address outside the list refuses the whole send. No mailing
+        // row is written, so a parent does not get a failed attempt.
+        if ($this->blockedByAllowlist($invoices, $resend)) {
+            return [
+                ...$this->emptyDispatchSummary(false),
+                'recipient_not_allowed' => true,
+                'message' => MailRecipientAllowlist::REFUSAL_MESSAGE,
+            ];
+        }
 
         foreach ($invoiceIds as $id) {
             $invoice = $invoices->get($id);
@@ -347,8 +381,11 @@ class PaymentSlipEmailService
 
     /**
      * Re-queue only the latest failed recipient on this batch. Sent rows stay.
+     * One stored address outside the allowlist refuses the whole retry.
+     *
+     * @return array{queued: int, recipient_not_allowed: bool, message?: string}
      */
-    public function retryFailed(Mailing $mailing): int
+    public function retryFailed(Mailing $mailing): array
     {
         $latest = InvoiceMailing::query()
             ->selectRaw('MAX(id) as id')
@@ -360,6 +397,14 @@ class PaymentSlipEmailService
             ->joinSub($latest, 'latest', 'latest.id', '=', 'invoice_mailings.id')
             ->where('invoice_mailings.status', InvoiceMailing::STATUS_FAILED)
             ->get();
+
+        if ($this->recipientsBlocked($failed->pluck('recipient'))) {
+            return [
+                'queued' => 0,
+                'recipient_not_allowed' => true,
+                'message' => MailRecipientAllowlist::REFUSAL_MESSAGE,
+            ];
+        }
 
         $queued = 0;
 
@@ -399,7 +444,10 @@ class PaymentSlipEmailService
             $mailing->refreshCompletion();
         }
 
-        return $queued;
+        return [
+            'queued' => $queued,
+            'recipient_not_allowed' => false,
+        ];
     }
 
     /**
@@ -460,6 +508,70 @@ class PaymentSlipEmailService
             ->latest('sent_at')
             ->latest('id')
             ->first();
+    }
+
+    /**
+     * True when the allowlist is set and any address this send would queue is outside it.
+     * Already-sent slips are not recipients unless `$resend` is true. Missing
+     * invoice emails are skipped by the normal send, not by this check.
+     *
+     * @param  iterable<Invoice>  $invoices
+     */
+    private function blockedByAllowlist(iterable $invoices, bool $resend): bool
+    {
+        if (! MailRecipientAllowlist::restricts()) {
+            return false;
+        }
+
+        return $this->recipientsBlocked($this->prospectiveRecipients($invoices, $resend));
+    }
+
+    /**
+     * @param  iterable<Invoice>  $invoices
+     * @return list<string>
+     */
+    private function prospectiveRecipients(iterable $invoices, bool $resend): array
+    {
+        $invoices = collect($invoices);
+        $alreadySentIds = $resend
+            ? []
+            : $this->successfulSlipInvoiceIds($invoices->pluck('id')->filter()->map(fn ($id) => (int) $id)->all());
+
+        $emails = [];
+
+        foreach ($invoices as $invoice) {
+            if (isset($alreadySentIds[(int) $invoice->id])) {
+                continue;
+            }
+
+            $email = $invoice->member?->invoice_email;
+
+            if (! is_string($email) || trim($email) === '') {
+                continue;
+            }
+
+            $emails[] = $email;
+        }
+
+        return $emails;
+    }
+
+    /**
+     * @param  iterable<mixed>  $emails
+     */
+    private function recipientsBlocked(iterable $emails): bool
+    {
+        if (! MailRecipientAllowlist::restricts()) {
+            return false;
+        }
+
+        foreach ($emails as $email) {
+            if (! MailRecipientAllowlist::allows((string) $email)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

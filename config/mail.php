@@ -132,4 +132,20 @@ return [
 
     'bulk_throttle_seconds' => (float) env('MAIL_BULK_THROTTLE_SECONDS', 0),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Recipient allowlist
+    |--------------------------------------------------------------------------
+    |
+    | Comma-separated addresses. Empty means every recipient may be queued
+    | and sent. When set, a slip send is refused before any row is queued
+    | if any recipient is outside the list, the queue worker does not open
+    | SMTP for that address, and `mail:test` refuses it too.
+    | Leave this empty in production and on the Mailtrap sandbox. Set it
+    | for a live SMTP test so parent addresses cannot be emailed.
+    |
+    */
+
+    'recipient_allowlist' => env('MAIL_RECIPIENT_ALLOWLIST', ''),
+
 ];

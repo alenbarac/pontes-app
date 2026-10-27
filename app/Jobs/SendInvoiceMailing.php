@@ -6,6 +6,7 @@ use App\Mail\PaymentSlipMailable;
 use App\Models\Invoice;
 use App\Models\InvoiceMailing;
 use App\Models\Mailing;
+use App\Support\MailRecipientAllowlist;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueueAfterCommit;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -92,6 +93,17 @@ class SendInvoiceMailing implements ShouldQueueAfterCommit
             ->find($this->invoiceMailingId);
 
         if ($mailing === null || $mailing->status !== InvoiceMailing::STATUS_QUEUED) {
+            return;
+        }
+
+        if (! MailRecipientAllowlist::allows((string) $mailing->recipient)) {
+            Log::warning('Payment slip email blocked by the recipient allowlist', [
+                'invoice_id' => $mailing->invoice_id,
+                'invoice_mailing_id' => $mailing->id,
+                'recipient_email' => $mailing->recipient,
+            ]);
+            $this->markBlocked($mailing);
+
             return;
         }
 
@@ -225,6 +237,21 @@ class SendInvoiceMailing implements ShouldQueueAfterCommit
         }
 
         return false;
+    }
+
+    private function markBlocked(InvoiceMailing $mailing): void
+    {
+        if ($mailing->status === InvoiceMailing::STATUS_SENT || $mailing->status === InvoiceMailing::STATUS_CANCELLED) {
+            return;
+        }
+
+        $mailing->update([
+            'status' => InvoiceMailing::STATUS_FAILED,
+            'error' => MailRecipientAllowlist::BLOCKED_MESSAGE,
+            'sent_at' => null,
+        ]);
+
+        $this->syncParent($mailing);
     }
 
     private function markFailed(InvoiceMailing $mailing): void

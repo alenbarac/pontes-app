@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Resources\MailingResource;
 use App\Models\Mailing;
 use App\Services\PaymentSlipEmailService;
+use App\Support\MailRecipientAllowlist;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -46,7 +47,13 @@ class MailingController extends Controller
 
     public function retryFailed(Mailing $mailing): RedirectResponse
     {
-        $queued = $this->paymentSlipEmailService->retryFailed($mailing);
+        $result = $this->paymentSlipEmailService->retryFailed($mailing);
+
+        if ($result['recipient_not_allowed']) {
+            return back()->with('error', $result['message'] ?? MailRecipientAllowlist::REFUSAL_MESSAGE);
+        }
+
+        $queued = $result['queued'];
 
         $message = $queued > 0
             ? 'Neuspjele uplatnice ponovno su stavljene u red.'
