@@ -3,7 +3,7 @@
 namespace App\Mail;
 
 use App\Models\Invoice;
-use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Attachment;
@@ -29,7 +29,7 @@ class PaymentSlipMailable extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Uplatnica - '.$this->invoice->reference_code,
+            subject: $this->subjectLine(),
         );
     }
 
@@ -38,24 +38,10 @@ class PaymentSlipMailable extends Mailable
      */
     public function content(): Content
     {
-        $invoice = $this->invoice;
-        $invoice->load(['member', 'workshop', 'membershipPlan']);
-
-        $memberFullName = trim(($invoice->member->first_name ?? '').' '.($invoice->member->last_name ?? ''));
-        $slipPayerOverride = trim((string) ($invoice->member->slip_payer_name ?? ''));
-        $payerDisplayName = $slipPayerOverride !== '' ? $slipPayerOverride : $memberFullName;
-        $amount = number_format((float) $invoice->amount_due, 2, ',', '.');
-        $dueDate = \Carbon\Carbon::parse($invoice->due_date)->format('d.m.Y.');
-
         return new Content(
             view: 'emails.payment-slip',
-            with: [
-                'memberName' => $payerDisplayName,
-                'referenceCode' => $invoice->reference_code,
-                'amount' => $amount,
-                'dueDate' => $dueDate,
-                'workshopName' => $invoice->workshop->name ?? '',
-            ],
+            text: 'emails.payment-slip-text',
+            with: $this->bodyData(),
         );
     }
 
@@ -113,5 +99,99 @@ class PaymentSlipMailable extends Mailable
         ];
 
         return strtr($text, $transliteration);
+    }
+
+    private function subjectLine(): string
+    {
+        $subject = 'Uplatnica za '.$this->dueMonthLabel();
+        $memberName = $this->memberFullName();
+
+        if ($memberName !== '') {
+            $subject .= ' — '.$memberName;
+        }
+
+        return $subject;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function bodyData(): array
+    {
+        $this->invoice->loadMissing(['member', 'workshop']);
+
+        $facts = [
+            ['label' => 'Član', 'value' => $this->memberFullName()],
+        ];
+
+        $workshopName = trim((string) ($this->invoice->workshop->name ?? ''));
+        if ($workshopName !== '') {
+            $facts[] = ['label' => 'Radionica', 'value' => $workshopName];
+        }
+
+        $currency = trim((string) config('pontes.currency', 'EUR'));
+        $facts[] = [
+            'label' => 'Iznos',
+            'value' => number_format((float) $this->invoice->amount_due, 2, ',', '.').($currency !== '' ? ' '.$currency : ''),
+        ];
+        $facts[] = [
+            'label' => 'Rok plaćanja',
+            'value' => Carbon::parse($this->invoice->due_date)->format('d.m.Y.'),
+        ];
+        $facts[] = [
+            'label' => 'Poziv na broj',
+            'value' => (string) $this->invoice->reference_code,
+        ];
+
+        return [
+            'title' => 'Uplatnica za članarinu — '.$this->dueMonthLabel(),
+            'greeting' => 'Poštovani,',
+            'intro' => 'U privitku Vam šaljemo uplatnicu za članarinu.',
+            'facts' => $facts,
+            'instruction' => 'Uplatnica je već ispunjena. Molimo Vas da je platite skeniranjem barkoda u mobilnom bankarstvu ili IBAN-om i pozivom na broj navedenim na PDF-u.',
+            'signOff' => 'Lijep pozdrav,',
+            'studioName' => trim((string) config('pontes.recipient_name')),
+            'contacts' => $this->contactLinks(),
+        ];
+    }
+
+    private function memberFullName(): string
+    {
+        $this->invoice->loadMissing('member');
+
+        return trim(($this->invoice->member->first_name ?? '').' '.($this->invoice->member->last_name ?? ''));
+    }
+
+    private function dueMonthLabel(): string
+    {
+        return Carbon::parse($this->invoice->due_date)->locale('hr')->translatedFormat('F Y').'.';
+    }
+
+    /**
+     * @return array<int, array{href: string, label: string}>
+     */
+    private function contactLinks(): array
+    {
+        $links = [];
+
+        $email = trim((string) config('pontes.email'));
+        if ($email !== '') {
+            $links[] = ['href' => 'mailto:'.$email, 'label' => $email];
+        }
+
+        $phone = trim((string) config('pontes.phone'));
+        if ($phone !== '') {
+            $links[] = [
+                'href' => 'tel:'.preg_replace('/[^\d+]/', '', $phone),
+                'label' => $phone,
+            ];
+        }
+
+        $webUrl = trim((string) config('pontes.web_url'));
+        if ($webUrl !== '') {
+            $links[] = ['href' => $webUrl, 'label' => $webUrl];
+        }
+
+        return $links;
     }
 }
