@@ -338,11 +338,12 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                         "Greška pri slanju e-maila. Molimo pokušajte ponovno.";
                     toast.error(errorMessage);
                 },
-            onFinish: () => {
-                setSendingEmail(false);
+                onFinish: () => {
+                    setSendingEmail(false);
+                },
             }
-        }
-    );
+        );
+    };
 
     const handleSendReminder = () => {
         if (!activeInvoice || sendingReminder) return;
@@ -373,7 +374,6 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                 },
             }
         );
-    };
     };
 
     const handleDiscountInputChange = (value) => {
