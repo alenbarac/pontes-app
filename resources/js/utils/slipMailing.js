@@ -91,6 +91,8 @@ export function reminderMailingPresentation(mailing) {
     if (mailing.status === "queued") {
         return {
             label: "Opomena u redu",
+            badge: "U redu",
+            color: "info",
             recipient: mailing.recipient || null,
             error: null,
         };
@@ -99,6 +101,8 @@ export function reminderMailingPresentation(mailing) {
     if (mailing.status === "failed") {
         return {
             label: "Opomena — greška",
+            badge: "Greška",
+            color: "error",
             recipient: mailing.recipient || null,
             error: mailing.error || null,
         };
@@ -108,6 +112,8 @@ export function reminderMailingPresentation(mailing) {
 
     return {
         label: sentOn ? `Opomena poslana ${sentOn}` : "Opomena poslana",
+        badge: sentOn ? `Poslan ${sentOn}` : "Poslan",
+        color: "success",
         recipient: mailing.recipient || null,
         error: null,
     };

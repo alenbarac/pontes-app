@@ -4,7 +4,7 @@ import {
     getCoreRowModel,
     flexRender,
 } from "@tanstack/react-table";
-import { router } from "@inertiajs/react";
+import { Link, router } from "@inertiajs/react";
 import axios from "axios";
 import InvoiceActionsDropdown from "./InvoiceActionColumn";
 import SlipMailingBadge from "@/Components/Member/SlipMailingBadge";
@@ -285,7 +285,16 @@ const InvoicesDataTable = ({
                 header: "Član",
                 cell: ({ row }) => {
                     const m = row.original.member;
-                    return `${m.first_name} ${m.last_name}`;
+                    if (!m) return "—";
+
+                    return (
+                        <Link
+                            href={route("members.show", m.id)}
+                            className="font-medium text-gray-800 hover:text-brand-600 dark:text-white/90"
+                        >
+                            {m.first_name} {m.last_name}
+                        </Link>
+                    );
                 },
             },
             {
@@ -1465,8 +1474,7 @@ const InvoicesDataTable = ({
                         Pošalji podsjetnike
                     </h3>
                     <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                        Podsjetnik ide samo na nepodmirene račune kojima je uplatnica već poslana.
-                        Plaćeni računi i računi bez poslane uplatnice bit će preskočeni.
+                        Podsjetnik ide na nepodmirene račune. Plaćeni računi bit će preskočeni.
                     </p>
                     {alreadyRemindedCount > 0 && (
                         <label className="mt-4 flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">

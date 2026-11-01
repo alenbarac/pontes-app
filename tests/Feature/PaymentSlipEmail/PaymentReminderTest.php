@@ -55,7 +55,7 @@ afterEach(function () {
     Carbon::setTestNow();
 });
 
-test('the suggested list keeps paid, recent, and never-emailed invoices off the page', function () {
+test('the suggested list includes every unpaid invoice past the grace period', function () {
     $overdue = invoiceReadyForReminder();
     $mismatch = invoiceReadyForReminder([
         'payment_status' => 'Neusklađeno',
@@ -96,13 +96,17 @@ test('the suggested list keeps paid, recent, and never-emailed invoices off the 
 
                 $remindedRow = $rows->firstWhere('id', $reminded->id);
 
+                $neverSentRow = $rows->firstWhere('id', $neverSent->id);
+
                 return $ids->contains($overdue->id)
                     && $ids->contains($mismatch->id)
                     && $ids->contains($reminded->id)
+                    && $ids->contains($neverSent->id)
                     && ! $ids->contains($recent->id)
                     && ! $ids->contains($paid->id)
-                    && ! $ids->contains($neverSent->id)
                     && $rows->firstWhere('id', $overdue->id)['selected'] === true
+                    && $neverSentRow['selected'] === true
+                    && $neverSentRow['slip_mailing'] === null
                     && $remindedRow['selected'] === false
                     && $remindedRow['selectable'] === true;
             }));
@@ -228,11 +232,31 @@ test('a member without an invoice email is listed and is not queued', function (
                     && $row['selected'] === false;
             }));
 
+    $overdueWithoutSlip = Invoice::factory()->create([
+        'member_id' => Member::factory()->create(['invoice_email' => 'noslip@example.test'])->id,
+        'due_date' => '2026-09-01',
+        'payment_status' => 'Otvoreno',
+    ]);
+
+    $this->postJson(route('invoices.sendReminder', $overdueWithoutSlip))
+        ->assertOk()
+        ->assertJsonPath('recipient', 'noslip@example.test');
+
+    $this->assertDatabaseHas('invoice_mailings', [
+        'invoice_id' => $overdueWithoutSlip->id,
+        'type' => InvoiceMailing::TYPE_REMINDER,
+        'status' => InvoiceMailing::STATUS_QUEUED,
+    ]);
+
     $this->postJson(route('invoices.sendReminder', $invoice))
         ->assertStatus(422)
         ->assertJsonPath('reason', 'no_email');
 
-    Queue::assertNothingPushed();
+    Queue::assertPushed(SendInvoiceMailing::class, 1);
+    $this->assertDatabaseMissing('invoice_mailings', [
+        'invoice_id' => $invoice->id,
+        'type' => InvoiceMailing::TYPE_REMINDER,
+    ]);
 });
 
 test('the reminder email uses the reminder subject and intro with the same slip facts', function () {

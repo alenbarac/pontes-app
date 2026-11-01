@@ -195,18 +195,14 @@ class PaymentSlipEmailService
     }
 
     /**
-     * Unpaid invoices that already received a slip and are past the grace period.
-     * This query feeds the suggestion. Sending a reminder does not use it.
+     * Unpaid invoices past the grace period. A prior slip email is not required:
+     * older invoices were never sent through this log, and the reminder attaches the slip.
      */
     public function suggestedReminderQuery(): Builder
     {
         return Invoice::query()
             ->where('payment_status', '!=', 'Plaćeno')
-            ->whereDate('due_date', '<=', now()->startOfDay()->subDays($this->reminderGraceDays()))
-            ->whereHas('mailings', function ($query) {
-                $query->where('type', InvoiceMailing::TYPE_SLIP)
-                    ->where('status', InvoiceMailing::STATUS_SENT);
-            });
+            ->whereDate('due_date', '<=', now()->startOfDay()->subDays($this->reminderGraceDays()));
     }
 
     /**
@@ -302,7 +298,7 @@ class PaymentSlipEmailService
                     ...$this->reminderSkipRow($invoice),
                     'sent_at' => $result['sent_at'] ?? null,
                 ];
-            } elseif (in_array($result['reason'] ?? '', ['paid', 'no_slip'], true)) {
+            } elseif (($result['reason'] ?? '') === 'paid') {
                 $skippedNotEligible[] = [
                     ...$this->reminderSkipRow($invoice),
                     'message' => $result['message'] ?? null,
@@ -782,9 +778,9 @@ class PaymentSlipEmailService
         if ($ineligibleCount > 0) {
             $parts[] = $ineligibleCount.' '.$this->croatianCountForm(
                 $ineligibleCount,
-                'račun je plaćen ili nema poslanu uplatnicu i zato je preskočen',
-                'računa su plaćena ili nemaju poslanu uplatnicu i zato su preskočena',
-                'računa je plaćeno ili nema poslanu uplatnicu i zato su preskočena',
+                'račun je već plaćen i zato je preskočen',
+                'računa su već plaćena i zato su preskočena',
+                'računa je već plaćeno i zato su preskočena',
             ).'.';
         }
 
@@ -835,7 +831,6 @@ class PaymentSlipEmailService
                 'reason' => $reason,
                 'message' => match ($reason) {
                     'paid' => 'Račun je već podmiren.',
-                    'no_slip' => 'Uplatnica još nije poslana.',
                     'no_email' => 'Član nema unesenu e-mail adresu za račune (invoice_email).',
                     default => 'Podsjetnik je već poslan.',
                 },
@@ -896,10 +891,6 @@ class PaymentSlipEmailService
     {
         if ($invoice->payment_status === 'Plaćeno') {
             return 'paid';
-        }
-
-        if ($this->latestSuccessfulSlip($invoice) === null) {
-            return 'no_slip';
         }
 
         if (! $resend) {

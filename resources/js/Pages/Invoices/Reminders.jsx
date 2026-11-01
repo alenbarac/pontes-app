@@ -7,7 +7,9 @@ import Breadcrumb from "@/Components/Breadcrumb";
 import ComponentCard from "@/Components/common/ComponentCard";
 import { Table, TableHeader, TableBody, TableRow, TableCell } from "@/Components/ui/table";
 import { Modal } from "@/Components/ui/modal";
-import { croatianPlural, reminderMailingPresentation, slipMailingPresentation } from "@/utils/slipMailing";
+import { croatianPlural, reminderMailingPresentation } from "@/utils/slipMailing";
+import SlipMailingBadge from "@/Components/Member/SlipMailingBadge";
+import Badge from "@/ui/badge/Badge";
 import { notifyMailingStarted } from "@/lib/mailingActivity";
 
 const headerClass = "px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400";
@@ -114,7 +116,7 @@ export default function Reminders({ invoices = [], graceDays = 10 }) {
             <Breadcrumb pageName="Podsjetnici" />
             <ComponentCard
                 title="Podsjetnici"
-                desc={`Nepodmireni računi kojima je uplatnica već poslana, a rok je prošao prije više od ${graceDays} dana. Podsjetnik odlazi samo za označene redove.`}
+                desc={`Svi nepodmireni računi kojima je rok prošao prije najmanje ${graceDays} dana, i oni kojima uplatnica još nije poslana. Podsjetnik odlazi samo za označene redove.`}
             >
                 {invoices.length === 0 ? (
                     <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -147,7 +149,7 @@ export default function Reminders({ invoices = [], graceDays = 10 }) {
                                                 aria-label="Odaberi sve spremne"
                                             />
                                         </TableCell>
-                                        {["Član", "Grupa", "Mjesec", "Iznos", "Rok", "E-mail", "Uplatnica", "Podsjetnik", ""].map((heading) => (
+                                        {["Član", "Grupa", "Mjesec", "Iznos", "Rok", "E-mail", "Uplatnica", "Podsjetnik", "Plaćeno"].map((heading) => (
                                             <TableCell key={heading || "actions"} isHeader className={headerClass}>
                                                 {heading}
                                             </TableCell>
@@ -156,7 +158,6 @@ export default function Reminders({ invoices = [], graceDays = 10 }) {
                                 </TableHeader>
                                 <TableBody>
                                     {invoices.map((invoice) => {
-                                        const slip = slipMailingPresentation(invoice.slip_mailing);
                                         const reminder = reminderMailingPresentation(invoice.reminder_mailing);
                                         const canCheck = invoice.selectable;
 
@@ -183,11 +184,17 @@ export default function Reminders({ invoices = [], graceDays = 10 }) {
                                                 <TableCell className={cellClass}>
                                                     {invoice.invoice_email || <span className="text-gray-400">Nema adrese</span>}
                                                 </TableCell>
-                                                <TableCell className={cellClass}>{slip.label}</TableCell>
                                                 <TableCell className={cellClass}>
-                                                    {reminder?.label || "Nije poslan"}
+                                                    <SlipMailingBadge mailing={invoice.slip_mailing} />
+                                                </TableCell>
+                                                <TableCell className={cellClass}>
+                                                    <span title={reminder?.error || reminder?.recipient || undefined}>
+                                                        <Badge variant="light" color={reminder?.color || "light"} size="sm" className="whitespace-nowrap">
+                                                            {reminder?.badge || "Nije poslan"}
+                                                        </Badge>
+                                                    </span>
                                                     {invoice.send_block && (
-                                                        <div className="text-xs text-gray-500 dark:text-gray-400">{invoice.send_block}</div>
+                                                        <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">{invoice.send_block}</div>
                                                     )}
                                                 </TableCell>
                                                 <TableCell className={cellClass}>
@@ -195,9 +202,9 @@ export default function Reminders({ invoices = [], graceDays = 10 }) {
                                                         type="button"
                                                         disabled={markingId === invoice.id}
                                                         onClick={() => markPaid(invoice)}
-                                                        className="text-sm font-medium text-green-700 hover:text-green-800 disabled:opacity-50 dark:text-green-400"
+                                                        className="inline-flex items-center whitespace-nowrap rounded-lg border border-green-200 bg-green-50 px-2.5 py-1.5 text-xs font-medium text-green-800 hover:bg-green-100 disabled:opacity-50 dark:border-green-800 dark:bg-green-500/10 dark:text-green-300"
                                                     >
-                                                        {markingId === invoice.id ? "Spremanje..." : "Plaćeno"}
+                                                        {markingId === invoice.id ? "Spremanje..." : "Označi kao Plaćeno"}
                                                     </button>
                                                 </TableCell>
                                             </TableRow>

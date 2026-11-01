@@ -17,7 +17,7 @@ function reminderNoticeText(count, days) {
     );
     const unpaid = croatianPlural(count, "nije podmiren", "nisu podmirena", "nije podmireno");
 
-    return `${count} ${noun} prije više od ${days} dana i još ${unpaid}. Provjerite izvod, pa odaberite kome šaljemo podsjetnik.`;
+    return `${count} ${noun} prije najmanje ${days} dana i još ${unpaid}. Provjerite izvod, pa odaberite kome šaljemo podsjetnik.`;
 }
 
 export default function Dashboard({ revenue, groups, reminderNotice }) {
