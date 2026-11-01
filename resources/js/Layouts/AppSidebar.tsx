@@ -60,6 +60,7 @@ const navItems: NavItem[] = [
             { name: "Popis računa", path: "/invoices" },
             { name: "Generiranje računa", path: "/invoices/generate" },
             { name: "Uvoz - mBanking", path: "/invoices/import-mbanking" },
+            { name: "Podsjetnici", path: "/invoices/reminders" },
         ],
     },
 

@@ -13,6 +13,8 @@ class Mailing extends Model
 
     public const TYPE_SLIP = 'slip';
 
+    public const TYPE_REMINDER = 'reminder';
+
     public const SOURCE_GROUP = 'group';
 
     public const SOURCE_MEMBERS = 'members';
@@ -55,6 +57,18 @@ class Mailing extends Model
         [$year, $mon] = $parsed;
 
         return sprintf('Uplatnice %02d/%d', $mon, $year);
+    }
+
+    public static function reminderLabelFor(?string $month): string
+    {
+        $parsed = $month !== null ? MonthString::parse($month) : null;
+        if ($parsed === null) {
+            return 'Podsjetnici';
+        }
+
+        [$year, $mon] = $parsed;
+
+        return sprintf('Podsjetnici %02d/%d', $mon, $year);
     }
 
     public function invoiceMailings()

@@ -65,6 +65,23 @@ function filenameFromContentDisposition(header, fallback) {
     return filename || fallback;
 }
 
+function canOfferReminder(invoice) {
+    return Boolean(invoice)
+        && invoice.payment_status !== "Plaćeno"
+        && invoice.latest_successful_slip_mailing?.status === "sent";
+}
+
+function reminderWasSent(invoice) {
+    return invoice?.latest_reminder_mailing?.status === "sent";
+}
+
+function reminderRecipient(invoice) {
+    return invoice?.member?.invoice_email
+        || invoice?.latest_reminder_mailing?.recipient
+        || invoice?.latest_successful_slip_mailing?.recipient
+        || "";
+}
+
 function triggerBlobDownload(blob, filename) {
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -115,7 +132,12 @@ const InvoicesDataTable = ({
     const [pendingAction, setPendingAction] = useState(null); // 'Plaćeno' or 'Otvoreno'
 
     const [showBulkEmailConfirm, setShowBulkEmailConfirm] = useState(false);
+    const [showBulkReminderConfirm, setShowBulkReminderConfirm] = useState(false);
+    const [includeAlreadyReminded, setIncludeAlreadyReminded] = useState(false);
     const [bulkEmailProcessing, setBulkEmailProcessing] = useState(false);
+    const [bulkReminderProcessing, setBulkReminderProcessing] = useState(false);
+    const [showReminderConfirm, setShowReminderConfirm] = useState(false);
+    const [reminderProcessing, setReminderProcessing] = useState(false);
     const [bulkDownloadProcessing, setBulkDownloadProcessing] = useState(false);
     const [singleEmailProcessing, setSingleEmailProcessing] = useState(false);
 
@@ -510,6 +532,74 @@ const InvoicesDataTable = ({
         }
     };
 
+    const handleSendReminder = async () => {
+        if (!activeInvoice || reminderProcessing) return;
+        setReminderProcessing(true);
+        try {
+            const { data: payload } = await axios.post(
+                route("invoices.sendReminder", activeInvoice.id),
+                { resend: reminderWasSent(activeInvoice) },
+                { headers: { Accept: "application/json" } },
+            );
+            toast.success(payload.message || "Slanje je pokrenuto.");
+            if (payload?.mailing_id) {
+                notifyMailingStarted();
+            }
+            setShowReminderConfirm(false);
+            router.reload({ preserveScroll: true });
+        } catch (error) {
+            const res = error.response;
+            let msg = "Greška pri slanju podsjetnika.";
+            if (res?.data?.message) {
+                msg = res.data.message;
+            }
+            toast.error(msg);
+        } finally {
+            setReminderProcessing(false);
+        }
+    };
+
+    const handleBulkSendReminders = async () => {
+        if (bulkReminderProcessing || selectedRows.length === 0) return;
+        setBulkReminderProcessing(true);
+        try {
+            const { data: payload } = await axios.post(
+                route("invoices.bulkSendReminderEmails"),
+                {
+                    invoice_ids: selectedRows,
+                    resend: includeAlreadyReminded,
+                },
+                { headers: { Accept: "application/json" } },
+            );
+            toast.success(payload.message || "Slanje je pokrenuto.");
+            if (payload?.mailing_id) {
+                notifyMailingStarted();
+            }
+            setSelectedRows([]);
+            setShowBulkReminderConfirm(false);
+            setIncludeAlreadyReminded(false);
+            router.reload({ preserveScroll: true });
+        } catch (error) {
+            const res = error.response;
+            let msg = "Greška pri slanju podsjetnika.";
+            if (res?.data?.message) {
+                msg = res.data.message;
+            }
+            if (res?.data?.errors) {
+                const flat = Object.values(res.data.errors).flat();
+                if (flat.length) {
+                    msg = flat.join(" ");
+                }
+            }
+            toast.error(msg);
+        } finally {
+            setBulkReminderProcessing(false);
+        }
+    };
+
+    const selectedInvoices = data.filter((row) => selectedRows.includes(row.id));
+    const alreadyRemindedCount = selectedInvoices.filter(reminderWasSent).length;
+
     // Compose new columns array with checkbox as the first column
     const columnsWithCheckbox = useMemo(
         () => [
@@ -727,6 +817,18 @@ const InvoicesDataTable = ({
                         >
                             <EnvelopeIcon className="w-4 h-4" />
                             {bulkEmailProcessing ? "Pokretanje..." : "Pošalji uplatnice"}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setIncludeAlreadyReminded(false);
+                                setShowBulkReminderConfirm(true);
+                            }}
+                            disabled={bulkReminderProcessing || bulkEmailProcessing || bulkDownloadProcessing}
+                            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <EnvelopeIcon className="w-4 h-4" />
+                            {bulkReminderProcessing ? "Pokretanje..." : "Pošalji podsjetnike"}
                         </button>
                         <button
                             onClick={() => setSelectedRows([])}
@@ -1318,6 +1420,89 @@ const InvoicesDataTable = ({
                 </button>
             </div>
 
+            <Modal
+                isOpen={showReminderConfirm}
+                onClose={() => !reminderProcessing && setShowReminderConfirm(false)}
+                className="max-w-md w-full mx-4 p-6"
+            >
+                <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                        Pošalji podsjetnik
+                    </h3>
+                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                        {reminderWasSent(activeInvoice)
+                            ? `Podsjetnik je već poslan na ${reminderRecipient(activeInvoice)}. Poslati ponovno?`
+                            : `Podsjetnik s uplatnicom bit će poslan na ${reminderRecipient(activeInvoice) || "e-adresu za račune"}.`}
+                    </p>
+                    <div className="mt-6 flex items-center justify-end gap-3">
+                        <button
+                            type="button"
+                            onClick={() => setShowReminderConfirm(false)}
+                            disabled={reminderProcessing}
+                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700 disabled:opacity-50"
+                        >
+                            Odustani
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleSendReminder}
+                            disabled={reminderProcessing}
+                            className="px-4 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-lg disabled:opacity-50"
+                        >
+                            {reminderProcessing ? "Pokretanje..." : "Pošalji"}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            <Modal
+                isOpen={showBulkReminderConfirm}
+                onClose={() => !bulkReminderProcessing && setShowBulkReminderConfirm(false)}
+                className="max-w-md w-full mx-4 p-6"
+            >
+                <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                        Pošalji podsjetnike
+                    </h3>
+                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                        Podsjetnik ide samo na nepodmirene račune kojima je uplatnica već poslana.
+                        Plaćeni računi i računi bez poslane uplatnice bit će preskočeni.
+                    </p>
+                    {alreadyRemindedCount > 0 && (
+                        <label className="mt-4 flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+                            <input
+                                type="checkbox"
+                                className="mt-1"
+                                checked={includeAlreadyReminded}
+                                onChange={(event) => setIncludeAlreadyReminded(event.target.checked)}
+                            />
+                            <span>
+                                Pošalji ponovno i za {alreadyRemindedCount}{" "}
+                                {croatianPlural(alreadyRemindedCount, "račun", "računa", "računa")} kojima je podsjetnik već poslan.
+                            </span>
+                        </label>
+                    )}
+                    <div className="mt-6 flex items-center justify-end gap-3">
+                        <button
+                            type="button"
+                            onClick={() => setShowBulkReminderConfirm(false)}
+                            disabled={bulkReminderProcessing}
+                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700 disabled:opacity-50"
+                        >
+                            Odustani
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleBulkSendReminders}
+                            disabled={bulkReminderProcessing}
+                            className="px-4 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-lg disabled:opacity-50"
+                        >
+                            {bulkReminderProcessing ? "Pokretanje..." : "Pošalji"}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
             {/* Bulk send slip emails confirmation */}
             <Modal
                 isOpen={showBulkEmailConfirm}
@@ -1679,6 +1864,16 @@ const InvoicesDataTable = ({
                                         ? "Pokretanje..."
                                         : "Pošalji uplatnicu"}
                                 </button>
+                                {canOfferReminder(activeInvoice) && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowReminderConfirm(true)}
+                                        disabled={reminderProcessing}
+                                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-amber-300 px-3 py-2 text-sm font-medium text-amber-900 hover:bg-amber-50 disabled:opacity-50 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900/20"
+                                    >
+                                        {reminderProcessing ? "Pokretanje..." : "Pošalji podsjetnik"}
+                                    </button>
+                                )}
                                 <button
                                     onClick={handleDeleteInvoice}
                                     className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20"

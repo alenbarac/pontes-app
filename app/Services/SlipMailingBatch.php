@@ -21,7 +21,17 @@ class SlipMailingBatch
         public readonly ?string $month = null,
         public readonly string $audience = '',
         public readonly ?int $userId = null,
+        public readonly string $type = Mailing::TYPE_SLIP,
     ) {}
+
+    public static function forReminders(?int $userId = null): self
+    {
+        return new self(
+            source: Mailing::SOURCE_INVOICES,
+            userId: $userId,
+            type: Mailing::TYPE_REMINDER,
+        );
+    }
 
     public static function forGroup(int $memberGroupId, string $groupName, string $month, ?int $userId = null): self
     {
@@ -57,8 +67,8 @@ class SlipMailingBatch
             $month = $this->month ?? $invoiceMonth;
 
             $this->mailing = Mailing::query()->create([
-                'type' => Mailing::TYPE_SLIP,
-                'label' => Mailing::labelFor($month),
+                'type' => $this->type,
+                'label' => $this->labelForMonth($month),
                 'source' => $this->source,
                 'member_group_id' => $this->memberGroupId,
                 'month' => $month,
@@ -77,7 +87,7 @@ class SlipMailingBatch
         ) {
             $this->mailing->update([
                 'month' => null,
-                'label' => Mailing::labelFor(null),
+                'label' => $this->labelForMonth(null),
             ]);
         }
 
@@ -93,5 +103,12 @@ class SlipMailingBatch
         $month = Carbon::parse($invoice->due_date)->format('Y-m');
 
         return MonthString::isValid($month) ? $month : null;
+    }
+
+    private function labelForMonth(?string $month): string
+    {
+        return $this->type === Mailing::TYPE_REMINDER
+            ? Mailing::reminderLabelFor($month)
+            : Mailing::labelFor($month);
     }
 }

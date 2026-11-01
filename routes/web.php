@@ -87,6 +87,8 @@ Route::middleware('auth')->group(function () {
         ->name('members.workshops.destroyAll');
 
     // Invoice Generation Routes (must be before resource route to avoid conflict)
+    Route::get('/invoices/reminders', [InvoiceController::class, 'reminders'])
+        ->name('invoices.reminders');
     Route::get('/invoices/generate', [InvoiceGenerationController::class, 'index'])
         ->name('invoices.generate.index');
     Route::post('/invoices/generate/preview', [InvoiceGenerationController::class, 'preview'])
@@ -139,6 +141,10 @@ Route::middleware('auth')->group(function () {
         ->name('invoices.slip');
     Route::post('/invoices/{invoice}/send-email', [InvoiceController::class, 'sendEmail'])
         ->name('invoices.sendEmail');
+    Route::post('/invoices/bulk-send-reminder-emails', [InvoiceController::class, 'bulkSendReminderEmails'])
+        ->name('invoices.bulkSendReminderEmails');
+    Route::post('/invoices/{invoice}/send-reminder', [InvoiceController::class, 'sendReminder'])
+        ->name('invoices.sendReminder');
 
     // Document Templates Routes
     Route::prefix('document-templates')->group(function () {

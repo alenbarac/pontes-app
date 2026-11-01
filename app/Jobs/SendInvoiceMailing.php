@@ -122,7 +122,11 @@ class SendInvoiceMailing implements ShouldQueueAfterCommit
         }
 
         try {
-            Mail::to($mailing->recipient)->send(new PaymentSlipMailable($invoice, $mailing->recipient));
+            Mail::to($mailing->recipient)->send(new PaymentSlipMailable(
+                $invoice,
+                $mailing->recipient,
+                $mailing->type === InvoiceMailing::TYPE_REMINDER,
+            ));
         } catch (Throwable $e) {
             if ($this->isTemporaryProviderLimit($e)) {
                 $this->postponeForProviderLimit($mailing, $invoice);
@@ -262,7 +266,9 @@ class SendInvoiceMailing implements ShouldQueueAfterCommit
 
         $mailing->update([
             'status' => InvoiceMailing::STATUS_FAILED,
-            'error' => InvoiceMailing::FAILURE_MESSAGE,
+            'error' => $mailing->type === InvoiceMailing::TYPE_REMINDER
+                ? InvoiceMailing::REMINDER_FAILURE_MESSAGE
+                : InvoiceMailing::FAILURE_MESSAGE,
             'sent_at' => null,
         ]);
 

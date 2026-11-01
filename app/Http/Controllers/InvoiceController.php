@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\BulkDownloadInvoiceSlipsRequest;
 use App\Http\Requests\BulkSendInvoiceEmailsRequest;
+use App\Http\Requests\BulkSendReminderEmailsRequest;
 use App\Models\Invoice;
 use App\Models\MemberGroup;
 use App\Models\MembershipPlan;
@@ -40,6 +41,7 @@ class InvoiceController extends Controller
             'membershipPlan',
             'latestSuccessfulSlipMailing',
             'latestSlipMailing',
+            'latestReminderMailing',
         ])
             ->when($filter, function ($query, $filter) {
                 $query->where(function ($q) use ($filter) {
@@ -397,6 +399,14 @@ class InvoiceController extends Controller
         ])->deleteFileAfterSend(true);
     }
 
+    public function reminders()
+    {
+        return Inertia::render('Invoices/Reminders', [
+            'invoices' => $this->paymentSlipEmailService->suggestedReminderRows(),
+            'graceDays' => $this->paymentSlipEmailService->reminderGraceDays(),
+        ]);
+    }
+
     /**
      * Send payment slip via email to the member.
      */
@@ -473,6 +483,97 @@ class InvoiceController extends Controller
             'failed' => $summary['failed'],
             'mailing_id' => $summary['mailing_id'] ?? null,
             'message' => $summary['message'] ?? $this->paymentSlipEmailService->humanSummary($summary),
+        ]);
+    }
+
+    /**
+     * Send one payment reminder. The 10-day suggestion is not required.
+     */
+    public function sendReminder(Request $request, Invoice $invoice)
+    {
+        $invoice->load(['member', 'workshop', 'membershipPlan']);
+
+        $result = $this->paymentSlipEmailService->sendReminderForInvoice(
+            $invoice,
+            $request->boolean('resend'),
+            $request->user()?->id,
+        );
+
+        if (! $result['ok']) {
+            $reason = $result['reason'] ?? '';
+            $errorMessage = match ($reason) {
+                'no_email' => 'Član nema unesenu e-mail adresu za račune. Molimo unesite polje „Email za račune” (invoice_email) u podacima člana.',
+                'already_sent' => 'Podsjetnik je već poslan. Potvrdite ponovno slanje ako ga želite poslati još jednom.',
+                'paid' => 'Račun je već podmiren.',
+                'no_slip' => 'Uplatnica još nije poslana.',
+                'recipient_not_allowed' => MailRecipientAllowlist::REFUSAL_MESSAGE,
+                default => 'Došlo je do greške pri slanju e-maila. Molimo pokušajte ponovno.',
+            };
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => $errorMessage,
+                    'reason' => $reason !== '' ? $reason : 'mail_error',
+                    'sent_at' => $result['sent_at'] ?? null,
+                ], 422);
+            }
+
+            if ($request->header('X-Inertia') || $request->has('stay_on_page')) {
+                return back()->with('error', $errorMessage);
+            }
+
+            return redirect()->route('invoices.reminders')->with('error', $errorMessage);
+        }
+
+        $successMessage = $this->paymentSlipEmailService->reminderStartedMessage(1);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => $successMessage,
+                'recipient' => $result['recipient'],
+                'mailing_id' => $result['mailing_id'] ?? null,
+            ]);
+        }
+
+        if ($request->header('X-Inertia') || $request->has('stay_on_page')) {
+            return back()->with('success', $successMessage);
+        }
+
+        return redirect()->route('invoices.reminders')->with('success', $successMessage);
+    }
+
+    /**
+     * Queue reminder e-mails for many invoices (JSON).
+     */
+    public function bulkSendReminderEmails(BulkSendReminderEmailsRequest $request): JsonResponse
+    {
+        $summary = $this->paymentSlipEmailService->sendRemindersForInvoiceIds(
+            $request->validated('invoice_ids'),
+            $request->boolean('resend'),
+            $request->user()?->id,
+        );
+
+        if ($summary['exceeds_cap']) {
+            $message = 'Možete poslati najviše '.PaymentSlipEmailService::MAX_INVOICES_PER_SEND.' podsjetnika odjednom.';
+
+            return response()->json([
+                'message' => $message,
+                'errors' => ['invoices' => [$message]],
+            ], 422);
+        }
+
+        if (! empty($summary['recipient_not_allowed'])) {
+            return response()->json($this->paymentSlipEmailService->recipientNotAllowedPayload(), 422);
+        }
+
+        return response()->json([
+            'queued' => $summary['queued'],
+            'skipped_no_email' => $summary['skipped_no_email'],
+            'skipped_already_sent' => $summary['skipped_already_sent'],
+            'skipped_not_eligible' => $summary['skipped_not_eligible'],
+            'failed' => $summary['failed'],
+            'mailing_id' => $summary['mailing_id'] ?? null,
+            'message' => $summary['message'] ?? '',
         ]);
     }
 

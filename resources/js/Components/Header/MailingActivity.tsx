@@ -6,6 +6,7 @@ import { dismissMailingNotice, readDismissedMailingIds } from "@/lib/mailingActi
 
 type MailingItem = {
     id: number;
+    type?: string;
     group_name: string;
     month_label: string | null;
     sent: number;
@@ -46,7 +47,22 @@ function MailingPoll({ component }: { component: string }) {
     return null;
 }
 
+function isReminder(item: MailingItem): boolean {
+    return item.type === "reminder";
+}
+
 function finishedCopy(item: MailingItem): string {
+    if (isReminder(item)) {
+        if (item.failed === 0) {
+            const noun = croatianPlural(item.sent, "podsjetnik", "podsjetnika", "podsjetnika");
+            const verb = croatianPlural(item.sent, "poslan", "poslana", "poslano");
+            return `${item.sent} ${noun} uspješno ${verb}`;
+        }
+
+        const failedLabel = croatianPlural(item.failed, "nije uspio", "nisu uspjela", "nije uspjelo");
+        return `${item.sent} poslano, ${item.failed} ${failedLabel}`;
+    }
+
     if (item.failed === 0) {
         const noun = croatianPlural(item.sent, "uplatnica", "uplatnice", "uplatnica");
         const verb = croatianPlural(item.sent, "poslana", "poslane", "poslano");
@@ -181,7 +197,7 @@ function ActivityControls({
                                             onClick={() => setProgressOpen(false)}
                                         >
                                             <p className="text-sm font-medium text-gray-800 dark:text-white">
-                                                Uplatnice · {item.group_name}
+                                                {isReminder(item) ? "Podsjetnici" : "Uplatnice"} · {item.group_name}
                                             </p>
                                             {item.month_label && (
                                                 <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -228,7 +244,7 @@ function ActivityControls({
                                         <div className="flex items-start justify-between gap-3">
                                             <div>
                                                 <p className="text-sm font-medium text-gray-800 dark:text-white">
-                                                    Slanje uplatnica završeno
+                                                    {isReminder(item) ? "Slanje podsjetnika završeno" : "Slanje uplatnica završeno"}
                                                 </p>
                                                 <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
                                                     {contextLine(item)}

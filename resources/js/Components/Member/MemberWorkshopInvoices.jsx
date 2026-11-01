@@ -69,6 +69,8 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
     
     // Send email state
     const [sendingEmail, setSendingEmail] = useState(false);
+    const [sendingReminder, setSendingReminder] = useState(false);
+    const [showReminderConfirm, setShowReminderConfirm] = useState(false);
 
     // Check if this is an individual counseling workshop
     const isIndividualCounseling = workshop?.type === 'Individualno' || 
@@ -336,11 +338,42 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                         "Greška pri slanju e-maila. Molimo pokušajte ponovno.";
                     toast.error(errorMessage);
                 },
+            onFinish: () => {
+                setSendingEmail(false);
+            }
+        }
+    );
+
+    const handleSendReminder = () => {
+        if (!activeInvoice || sendingReminder) return;
+
+        setSendingReminder(true);
+        router.post(
+            route("invoices.sendReminder", activeInvoice.id),
+            { resend: activeInvoice.reminder_mailing?.status === "sent" },
+            {
+                preserveScroll: true,
+                preserveState: false,
+                onSuccess: (page) => {
+                    const flash = page?.props?.flash ?? {};
+                    setShowReminderConfirm(false);
+                    closeInvoiceDetails();
+                    if (flash.error) {
+                        toast.error(flash.error);
+                        return;
+                    }
+                    notifyMailingStarted();
+                    toast.success(flash.success || "Slanje je pokrenuto.");
+                },
+                onError: () => {
+                    toast.error("Greška pri slanju podsjetnika.");
+                },
                 onFinish: () => {
-                    setSendingEmail(false);
-                }
+                    setSendingReminder(false);
+                },
             }
         );
+    };
     };
 
     const handleDiscountInputChange = (value) => {
@@ -899,6 +932,20 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                                         </>
                                     )}
                                 </button>
+                                {activeInvoice.payment_status !== "Plaćeno" && activeInvoice.slip_mailing?.status === "sent" && (
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setShowReminderConfirm(true);
+                                        }}
+                                        disabled={sendingReminder}
+                                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-amber-300 px-3 py-2 text-sm font-medium text-amber-900 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900/20"
+                                    >
+                                        <EnvelopeIcon className="h-4 w-4" />
+                                        Pošalji podsjetnik
+                                    </button>
+                                )}
                                 <button
                                     onClick={() => {
                                         setInvoiceToDelete(activeInvoice);
@@ -1081,6 +1128,39 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                             Da, obriši
                         </Button>
                     </div>
+                </div>
+            </Modal>
+
+            <Modal
+                isOpen={showReminderConfirm}
+                onClose={() => !sendingReminder && setShowReminderConfirm(false)}
+                className="max-w-md w-full mx-4 p-6"
+            >
+                <h4 className="mb-2 text-xl font-semibold text-gray-800 dark:text-white/90">
+                    Pošalji podsjetnik
+                </h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {activeInvoice?.reminder_mailing?.status === "sent"
+                        ? `Podsjetnik je već poslan na ${activeInvoice?.slip_mailing?.recipient || activeInvoice?.reminder_mailing?.recipient}. Poslati ponovno?`
+                        : `Podsjetnik s uplatnicom bit će poslan na ${activeInvoice?.slip_mailing?.recipient || "e-adresu za račune"}.`}
+                </p>
+                <div className="mt-6 flex items-center justify-end gap-3">
+                    <button
+                        type="button"
+                        disabled={sendingReminder}
+                        onClick={() => setShowReminderConfirm(false)}
+                        className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300"
+                    >
+                        Odustani
+                    </button>
+                    <button
+                        type="button"
+                        disabled={sendingReminder}
+                        onClick={handleSendReminder}
+                        className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+                    >
+                        {sendingReminder ? "Pokretanje..." : "Pošalji"}
+                    </button>
                 </div>
             </Modal>
         </div>

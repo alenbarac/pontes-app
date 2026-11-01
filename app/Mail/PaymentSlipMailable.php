@@ -20,7 +20,8 @@ class PaymentSlipMailable extends Mailable
      */
     public function __construct(
         public Invoice $invoice,
-        public string $recipientEmail
+        public string $recipientEmail,
+        public bool $reminder = false,
     ) {}
 
     /**
@@ -103,7 +104,9 @@ class PaymentSlipMailable extends Mailable
 
     private function subjectLine(): string
     {
-        return 'Uplatnica - '.$this->invoice->slipPaymentNotes();
+        $prefix = $this->reminder ? 'Podsjetnik za uplatu' : 'Uplatnica';
+
+        return $prefix.' - '.$this->invoice->slipPaymentNotes();
     }
 
     /**
@@ -133,9 +136,13 @@ class PaymentSlipMailable extends Mailable
         $studioName = trim((string) config('pontes.recipient_name'));
 
         return [
-            'title' => $studioName !== '' ? 'Uplatnica - '.$studioName : 'Uplatnica',
+            'title' => $this->reminder
+                ? 'Podsjetnik za uplatu'
+                : ($studioName !== '' ? 'Uplatnica - '.$studioName : 'Uplatnica'),
             'greeting' => ($name = $this->greetingName()) !== '' ? 'Poštovani/na '.$name.',' : 'Poštovani,',
-            'intro' => 'U prilogu Vam šaljemo uplatnicu',
+            'intro' => $this->reminder
+                ? 'Unutar naše evidencije ustanovili smo da nije podmiren račun. U prilogu ponovno šaljemo uplatnicu.'
+                : 'U prilogu Vam šaljemo uplatnicu',
             'membershipLine' => $this->invoice->slipPaymentNotes(),
             'facts' => $facts,
             'signOff' => 'Lijep pozdrav,',

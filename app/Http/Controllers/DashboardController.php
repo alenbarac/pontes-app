@@ -6,6 +6,7 @@ use App\Http\Resources\MemberGroupResource;
 use App\Models\MemberGroup;
 use App\Services\DashboardFinanceService;
 use App\Services\MailingActivitySnapshot;
+use App\Services\PaymentSlipEmailService;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -13,6 +14,7 @@ class DashboardController extends Controller
 {
     public function __construct(
         private readonly DashboardFinanceService $dashboardFinanceService,
+        private readonly PaymentSlipEmailService $paymentSlipEmailService,
     ) {}
 
     /**
@@ -33,6 +35,10 @@ class DashboardController extends Controller
             // Eager on this page so the card paints with the first response.
             // The shared prop stays deferred on every other page.
             'mailingActivity' => app(MailingActivitySnapshot::class)->toArray(),
+            'reminderNotice' => [
+                'count' => $this->paymentSlipEmailService->suggestedReminderCount(),
+                'graceDays' => $this->paymentSlipEmailService->reminderGraceDays(),
+            ],
         ]);
     }
 }

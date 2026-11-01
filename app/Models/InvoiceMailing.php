@@ -25,6 +25,8 @@ class InvoiceMailing extends Model
 
     public const FAILURE_MESSAGE = 'Slanje uplatnice nije uspjelo.';
 
+    public const REMINDER_FAILURE_MESSAGE = 'Slanje podsjetnika nije uspjelo.';
+
     protected $fillable = [
         'mailing_id',
         'invoice_id',
