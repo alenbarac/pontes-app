@@ -23,6 +23,9 @@
                                 <tr>
                                     <td style="padding:16px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.6;color:#333333;">
                                         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+                                            <tr>
+                                                <td colspan="2" style="padding:0 0 8px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;font-weight:600;color:#333333;">{{ $membershipLine }}</td>
+                                            </tr>
                                             @foreach($facts as $fact)
                                             <tr>
                                                 <td valign="top" style="padding:0 16px {{ $loop->last ? '0' : '8px' }} 0;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;font-weight:600;color:#333333;white-space:nowrap;">{{ $fact['label'] }}:</td>
@@ -33,7 +36,6 @@
                                     </td>
                                 </tr>
                             </table>
-                            <p style="margin:0 0 24px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.6;color:#333333;">{{ $instruction }}</p>
                             <p style="margin:0;padding-top:16px;border-top:1px solid #dee2e6;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#495057;">
                                 {{ $signOff }}@if($studioName !== '')<br>{{ $studioName }}@endif
                                 @foreach($contacts as $contact)

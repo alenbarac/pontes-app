@@ -4,11 +4,11 @@
 
 {{ $intro }}
 
+{{ $membershipLine }}
+
 @foreach($facts as $fact)
 {{ $fact['label'] }}: {{ $fact['value'] }}
 @endforeach
-
-{{ $instruction }}
 
 {{ $signOff }}
 @if($studioName !== '')

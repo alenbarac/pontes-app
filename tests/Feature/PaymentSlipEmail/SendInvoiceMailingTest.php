@@ -235,7 +235,7 @@ test('the slip rate limit follows sends per second and a legacy throttle interva
     expect(SendInvoiceMailing::sendsPerSecond())->toBe(10);
 });
 
-test('the slip email names the due month and the member', function () {
+test('the slip email uses the slip description instead of the reference code', function () {
     config([
         'pontes.recipient_name' => 'Dramski studio Pontes',
         'pontes.email' => 'info@pontes.hr',
@@ -265,27 +265,22 @@ test('the slip email names the due month and the member', function () {
         'amount_due' => 45,
         'due_date' => '2026-10-15',
         'reference_code' => '202610-001-001',
+        'notes' => 'Članarina za 10/2026',
     ]);
 
     $mail = new PaymentSlipMailable($invoice, 'parent@example.test');
 
-    $mail->assertHasSubject('Uplatnica za listopad 2026. — Ana Anić');
+    $mail->assertHasSubject('Uplatnica - Članarina za 10/2026');
 
     $phrases = [
-        'Uplatnica za članarinu — listopad 2026.',
-        'Poštovani,',
-        'U privitku Vam šaljemo uplatnicu za članarinu.',
-        'Član',
-        'Ana Anić',
+        'Uplatnica - Dramski studio Pontes',
+        'Poštovani/na Ivana Anić,',
+        'U prilogu Vam šaljemo uplatnicu',
+        'Članarina za 10/2026',
         'Radionica',
         'Dramska radionica',
         '45,00 EUR',
         '15.10.2026.',
-        'Poziv na broj',
-        '202610-001-001',
-        'Uplatnica je već ispunjena.',
-        'skeniranjem barkoda',
-        'IBAN-om i pozivom na broj',
         'Lijep pozdrav,',
         'Dramski studio Pontes',
         'info@pontes.hr',
@@ -298,17 +293,17 @@ test('the slip email names the due month and the member', function () {
         $mail->assertSeeInText($phrase);
     }
 
-    $mail->assertDontSeeInHtml('Ivana Anić');
-    $mail->assertDontSeeInHtml('Poštovani/na');
     $mail->assertDontSeeInHtml('Broj računa');
+    $mail->assertDontSeeInHtml('202610-001-001');
     $mail->assertDontSeeInHtml('ispunite uplatnicu');
+    $mail->assertDontSeeInHtml('priložena kao PDF');
     $mail->assertDontSeeInHtml('Pontes App');
     $mail->assertDontSeeInHtml('<style', false);
     $mail->assertSeeInHtml('style=', false);
 
-    $mail->assertDontSeeInText('Ivana Anić');
-    $mail->assertDontSeeInText('Poštovani/na');
     $mail->assertDontSeeInText('Broj računa');
+    $mail->assertDontSeeInText('202610-001-001');
     $mail->assertDontSeeInText('ispunite uplatnicu');
+    $mail->assertDontSeeInText('priložena kao PDF');
     $mail->assertDontSeeInText('Pontes App');
 });

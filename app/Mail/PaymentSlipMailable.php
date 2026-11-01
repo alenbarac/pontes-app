@@ -103,14 +103,7 @@ class PaymentSlipMailable extends Mailable
 
     private function subjectLine(): string
     {
-        $subject = 'Uplatnica za '.$this->dueMonthLabel();
-        $memberName = $this->memberFullName();
-
-        if ($memberName !== '') {
-            $subject .= ' — '.$memberName;
-        }
-
-        return $subject;
+        return 'Uplatnica - '.$this->invoice->slipPaymentNotes();
     }
 
     /**
@@ -120,9 +113,7 @@ class PaymentSlipMailable extends Mailable
     {
         $this->invoice->loadMissing(['member', 'workshop']);
 
-        $facts = [
-            ['label' => 'Član', 'value' => $this->memberFullName()],
-        ];
+        $facts = [];
 
         $workshopName = trim((string) ($this->invoice->workshop->name ?? ''));
         if ($workshopName !== '') {
@@ -138,33 +129,31 @@ class PaymentSlipMailable extends Mailable
             'label' => 'Rok plaćanja',
             'value' => Carbon::parse($this->invoice->due_date)->format('d.m.Y.'),
         ];
-        $facts[] = [
-            'label' => 'Poziv na broj',
-            'value' => (string) $this->invoice->reference_code,
-        ];
+
+        $studioName = trim((string) config('pontes.recipient_name'));
 
         return [
-            'title' => 'Uplatnica za članarinu — '.$this->dueMonthLabel(),
-            'greeting' => 'Poštovani,',
-            'intro' => 'U privitku Vam šaljemo uplatnicu za članarinu.',
+            'title' => $studioName !== '' ? 'Uplatnica - '.$studioName : 'Uplatnica',
+            'greeting' => ($name = $this->greetingName()) !== '' ? 'Poštovani/na '.$name.',' : 'Poštovani,',
+            'intro' => 'U prilogu Vam šaljemo uplatnicu',
+            'membershipLine' => $this->invoice->slipPaymentNotes(),
             'facts' => $facts,
-            'instruction' => 'Uplatnica je već ispunjena. Molimo Vas da je platite skeniranjem barkoda u mobilnom bankarstvu ili IBAN-om i pozivom na broj navedenim na PDF-u.',
             'signOff' => 'Lijep pozdrav,',
-            'studioName' => trim((string) config('pontes.recipient_name')),
+            'studioName' => $studioName,
             'contacts' => $this->contactLinks(),
         ];
     }
 
-    private function memberFullName(): string
+    private function greetingName(): string
     {
         $this->invoice->loadMissing('member');
 
-        return trim(($this->invoice->member->first_name ?? '').' '.($this->invoice->member->last_name ?? ''));
-    }
+        $payer = trim((string) ($this->invoice->member->slip_payer_name ?? ''));
+        if ($payer !== '') {
+            return $payer;
+        }
 
-    private function dueMonthLabel(): string
-    {
-        return Carbon::parse($this->invoice->due_date)->locale('hr')->translatedFormat('F Y').'.';
+        return trim(($this->invoice->member->first_name ?? '').' '.($this->invoice->member->last_name ?? ''));
     }
 
     /**
