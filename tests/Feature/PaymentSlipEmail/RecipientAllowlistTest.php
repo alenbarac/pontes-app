@@ -5,6 +5,7 @@ use App\Mail\PaymentSlipMailable;
 use App\Models\Invoice;
 use App\Models\InvoiceMailing;
 use App\Models\Mailing;
+use App\Models\MailSetting;
 use App\Models\Member;
 use App\Models\MemberGroup;
 use App\Models\MemberGroupWorkshop;
@@ -20,6 +21,7 @@ use Illuminate\Support\Facades\RateLimiter;
 
 beforeEach(function () {
     config(['mail.recipient_allowlist' => '']);
+    MailSetting::current()->update(['test_sending' => true]);
     Mail::fake();
     Queue::fake();
     $this->actingAs(User::factory()->create());
@@ -297,7 +299,8 @@ test('mail test refuses an address outside the allowlist and sends one on the li
     Mail::assertSent(PaymentSlipMailable::class, fn ($mail) => $mail->hasTo('staff@example.test'));
 });
 
-test('mail test with an empty allowlist still sends', function () {
+test('mail test with an empty allowlist still sends when test mode is off', function () {
+    MailSetting::current()->update(['test_sending' => false]);
     Mail::swap(Mail::getFacadeRoot()->manager);
 
     Event::fake([MessageSent::class]);

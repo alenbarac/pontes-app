@@ -171,7 +171,7 @@ class MemberController extends Controller
         }
 
         if (! empty($result['recipient_not_allowed'])) {
-            return response()->json($this->paymentSlipEmailService->recipientNotAllowedPayload(), 422);
+            return response()->json($this->paymentSlipEmailService->recipientNotAllowedPayload($result['message'] ?? null), 422);
         }
 
         if (($result['invoice_count'] ?? 0) === 0) {

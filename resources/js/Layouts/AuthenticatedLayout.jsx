@@ -4,6 +4,7 @@ import { SidebarProvider, useSidebar } from "@/context/SidebarContext"; // Adjus
 import Sidebar from "@/Layouts/AppSidebar";
 import Header from "@/Layouts/AppHeader";
 import Backdrop from "@/Layouts/Backdrop";
+import MailSendingNotice from "@/Components/Mail/MailSendingNotice";
 
 const LayoutContent = ({ children }) => {
     const { isExpanded, isHovered, isMobileOpen } = useSidebar();
@@ -35,6 +36,7 @@ const LayoutContent = ({ children }) => {
             >
                 <Header />
                 <div className="p-4 md:p-6 2xl:p-10 dark:bg-gray-900">
+                    <MailSendingNotice className="mb-4" />
                     {children}
                 </div>
             </div>

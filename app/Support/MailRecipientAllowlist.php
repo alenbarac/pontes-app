@@ -13,6 +13,8 @@ final class MailRecipientAllowlist
 
     public const BLOCKED_MESSAGE = 'Primatelj nije na popisu dopuštenih adresa (MAIL_RECIPIENT_ALLOWLIST), pa e-pošta nije poslana.';
 
+    public const EMPTY_LIST_MESSAGE = 'Testno slanje je uključeno, ali popis dopuštenih adresa je prazan. Nijedna poruka nije poslana.';
+
     /**
      * @return list<string> lowercased addresses; empty means unrestricted
      */

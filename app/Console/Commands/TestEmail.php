@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Mail\PaymentSlipMailable;
 use App\Models\Invoice;
+use App\Models\MailSetting;
 use App\Support\MailRecipientAllowlist;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
@@ -113,11 +114,15 @@ class TestEmail extends Command
 
     private function recipientIsBlocked(string $email): bool
     {
-        if (MailRecipientAllowlist::allows($email)) {
+        if (MailSetting::permits($email)) {
             return false;
         }
 
-        $this->error(MailRecipientAllowlist::BLOCKED_MESSAGE);
+        $this->error(
+            MailRecipientAllowlist::restricts()
+                ? MailRecipientAllowlist::BLOCKED_MESSAGE
+                : MailRecipientAllowlist::EMPTY_LIST_MESSAGE,
+        );
 
         return true;
     }

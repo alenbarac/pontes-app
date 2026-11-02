@@ -6,6 +6,7 @@ use App\Mail\PaymentSlipMailable;
 use App\Models\Invoice;
 use App\Models\InvoiceMailing;
 use App\Models\Mailing;
+use App\Models\MailSetting;
 use App\Support\MailRecipientAllowlist;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueueAfterCommit;
@@ -96,7 +97,7 @@ class SendInvoiceMailing implements ShouldQueueAfterCommit
             return;
         }
 
-        if (! MailRecipientAllowlist::allows((string) $mailing->recipient)) {
+        if (! MailSetting::permits((string) $mailing->recipient)) {
             Log::warning('Payment slip email blocked by the recipient allowlist', [
                 'invoice_id' => $mailing->invoice_id,
                 'invoice_mailing_id' => $mailing->id,
@@ -251,7 +252,9 @@ class SendInvoiceMailing implements ShouldQueueAfterCommit
 
         $mailing->update([
             'status' => InvoiceMailing::STATUS_FAILED,
-            'error' => MailRecipientAllowlist::BLOCKED_MESSAGE,
+            'error' => MailRecipientAllowlist::restricts()
+                ? MailRecipientAllowlist::BLOCKED_MESSAGE
+                : MailRecipientAllowlist::EMPTY_LIST_MESSAGE,
             'sent_at' => null,
         ]);
 

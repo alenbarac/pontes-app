@@ -6,6 +6,7 @@ use App\Jobs\SendInvoiceMailing;
 use App\Models\Invoice;
 use App\Models\InvoiceMailing;
 use App\Models\Mailing;
+use App\Models\MailSetting;
 use App\Models\Member;
 use App\Support\MailRecipientAllowlist;
 use App\Support\MonthString;
@@ -39,9 +40,9 @@ class PaymentSlipEmailService
     /**
      * @return array{message: string, errors: array{recipient: list<string>}}
      */
-    public function recipientNotAllowedPayload(): array
+    public function recipientNotAllowedPayload(?string $message = null): array
     {
-        $message = MailRecipientAllowlist::REFUSAL_MESSAGE;
+        $message = $message ?: MailRecipientAllowlist::REFUSAL_MESSAGE;
 
         return [
             'message' => $message,
@@ -76,11 +77,11 @@ class PaymentSlipEmailService
     {
         $invoice->loadMissing(['member', 'workshop', 'membershipPlan']);
 
-        if ($this->blockedByAllowlist([$invoice], $resend)) {
+        if ($message = $this->blockedByAllowlist([$invoice], $resend)) {
             return [
                 'ok' => false,
                 'reason' => 'recipient_not_allowed',
-                'message' => MailRecipientAllowlist::REFUSAL_MESSAGE,
+                'message' => $message,
                 'invoice_id' => $invoice->id,
                 'reference_code' => $invoice->reference_code,
             ];
@@ -128,11 +129,11 @@ class PaymentSlipEmailService
 
         // One address outside the list refuses the whole send. No mailing
         // row is written, so a parent does not get a failed attempt.
-        if ($this->blockedByAllowlist($invoices, $resend)) {
+        if ($message = $this->blockedByAllowlist($invoices, $resend)) {
             return [
                 ...$this->emptyDispatchSummary(false),
                 'recipient_not_allowed' => true,
-                'message' => MailRecipientAllowlist::REFUSAL_MESSAGE,
+                'message' => $message,
             ];
         }
 
@@ -261,11 +262,11 @@ class PaymentSlipEmailService
             ->get()
             ->keyBy('id');
 
-        if ($this->reminderBlockedByAllowlist($invoices, $resend)) {
+        if ($message = $this->reminderBlockedByAllowlist($invoices, $resend)) {
             return [
                 ...$this->emptyReminderSummary(false),
                 'recipient_not_allowed' => true,
-                'message' => MailRecipientAllowlist::REFUSAL_MESSAGE,
+                'message' => $message,
             ];
         }
 
@@ -334,11 +335,11 @@ class PaymentSlipEmailService
     {
         $invoice->loadMissing(['member', 'workshop', 'membershipPlan']);
 
-        if ($this->reminderBlockedByAllowlist([$invoice], $resend)) {
+        if ($message = $this->reminderBlockedByAllowlist([$invoice], $resend)) {
             return [
                 'ok' => false,
                 'reason' => 'recipient_not_allowed',
-                'message' => MailRecipientAllowlist::REFUSAL_MESSAGE,
+                'message' => $message,
                 'invoice_id' => $invoice->id,
                 'reference_code' => $invoice->reference_code,
             ];
@@ -572,11 +573,11 @@ class PaymentSlipEmailService
             ->where('invoice_mailings.status', InvoiceMailing::STATUS_FAILED)
             ->get();
 
-        if ($this->recipientsBlocked($failed->pluck('recipient'))) {
+        if ($message = MailSetting::blockMessageFor($failed->pluck('recipient'))) {
             return [
                 'queued' => 0,
                 'recipient_not_allowed' => true,
-                'message' => MailRecipientAllowlist::REFUSAL_MESSAGE,
+                'message' => $message,
             ];
         }
 
@@ -918,13 +919,9 @@ class PaymentSlipEmailService
     /**
      * @param  iterable<Invoice>  $invoices
      */
-    private function reminderBlockedByAllowlist(iterable $invoices, bool $resend): bool
+    private function reminderBlockedByAllowlist(iterable $invoices, bool $resend): ?string
     {
-        if (! MailRecipientAllowlist::restricts()) {
-            return false;
-        }
-
-        return $this->recipientsBlocked($this->reminderProspectiveRecipients($invoices, $resend));
+        return MailSetting::blockMessageFor($this->reminderProspectiveRecipients($invoices, $resend));
     }
 
     /**
@@ -968,13 +965,9 @@ class PaymentSlipEmailService
      *
      * @param  iterable<Invoice>  $invoices
      */
-    private function blockedByAllowlist(iterable $invoices, bool $resend): bool
+    private function blockedByAllowlist(iterable $invoices, bool $resend): ?string
     {
-        if (! MailRecipientAllowlist::restricts()) {
-            return false;
-        }
-
-        return $this->recipientsBlocked($this->prospectiveRecipients($invoices, $resend));
+        return MailSetting::blockMessageFor($this->prospectiveRecipients($invoices, $resend));
     }
 
     /**
@@ -1005,24 +998,6 @@ class PaymentSlipEmailService
         }
 
         return $emails;
-    }
-
-    /**
-     * @param  iterable<mixed>  $emails
-     */
-    private function recipientsBlocked(iterable $emails): bool
-    {
-        if (! MailRecipientAllowlist::restricts()) {
-            return false;
-        }
-
-        foreach ($emails as $email) {
-            if (! MailRecipientAllowlist::allows((string) $email)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /**

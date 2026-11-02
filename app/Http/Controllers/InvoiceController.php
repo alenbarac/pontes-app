@@ -421,7 +421,7 @@ class InvoiceController extends Controller
             $errorMessage = match ($reason) {
                 'no_email' => 'Član nema unesenu e-mail adresu za račune. Molimo unesite polje „Email za račune” (invoice_email) u podacima člana.',
                 'already_sent' => 'Uplatnica je već poslana. Potvrdite ponovno slanje ako je želite poslati još jednom.',
-                'recipient_not_allowed' => MailRecipientAllowlist::REFUSAL_MESSAGE,
+                'recipient_not_allowed' => $result['message'] ?? MailRecipientAllowlist::REFUSAL_MESSAGE,
                 default => 'Došlo je do greške pri slanju e-maila. Molimo pokušajte ponovno.',
             };
 
@@ -473,7 +473,7 @@ class InvoiceController extends Controller
         }
 
         if (! empty($summary['recipient_not_allowed'])) {
-            return response()->json($this->paymentSlipEmailService->recipientNotAllowedPayload(), 422);
+            return response()->json($this->paymentSlipEmailService->recipientNotAllowedPayload($summary['message'] ?? null), 422);
         }
 
         return response()->json([
@@ -506,7 +506,7 @@ class InvoiceController extends Controller
                 'already_sent' => 'Podsjetnik je već poslan. Potvrdite ponovno slanje ako ga želite poslati još jednom.',
                 'paid' => 'Račun je već podmiren.',
                 'no_slip' => 'Uplatnica još nije poslana.',
-                'recipient_not_allowed' => MailRecipientAllowlist::REFUSAL_MESSAGE,
+                'recipient_not_allowed' => $result['message'] ?? MailRecipientAllowlist::REFUSAL_MESSAGE,
                 default => 'Došlo je do greške pri slanju e-maila. Molimo pokušajte ponovno.',
             };
 
@@ -563,7 +563,7 @@ class InvoiceController extends Controller
         }
 
         if (! empty($summary['recipient_not_allowed'])) {
-            return response()->json($this->paymentSlipEmailService->recipientNotAllowedPayload(), 422);
+            return response()->json($this->paymentSlipEmailService->recipientNotAllowedPayload($summary['message'] ?? null), 422);
         }
 
         return response()->json([

@@ -287,7 +287,9 @@ test('the reminder email uses the reminder subject and intro without the due dat
     $mail->assertSeeInHtml('Podsjetnik za uplatu');
     $mail->assertSeeInHtml('Unutar naše evidencije ustanovili smo da nije podmiren račun. U prilogu ponovno šaljemo uplatnicu.');
     $mail->assertSeeInHtml('Poštovani/na Ivana Anić,');
+    $mail->assertSeeInHtml('Program');
     $mail->assertSeeInHtml('Dramska radionica');
+    $mail->assertDontSeeInHtml('Radionica');
     $mail->assertSeeInHtml('45,00 EUR');
     $mail->assertDontSeeInHtml('Rok plaćanja');
     $mail->assertDontSeeInHtml('15.10.2026.');

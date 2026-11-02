@@ -11,6 +11,7 @@ import { croatianPlural, reminderMailingPresentation } from "@/utils/slipMailing
 import SlipMailingBadge from "@/Components/Member/SlipMailingBadge";
 import Badge from "@/ui/badge/Badge";
 import { notifyMailingStarted } from "@/lib/mailingActivity";
+import MailSendingNotice from "@/Components/Mail/MailSendingNotice";
 
 const headerClass = "px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400";
 const cellClass = "px-4 py-3 align-middle text-sm text-gray-700 dark:text-gray-300";
@@ -225,6 +226,7 @@ export default function Reminders({ invoices = [], graceDays = 10 }) {
                     s priloženom uplatnicom, na e-adresu za račune.
                     {resend && " Uključeni su i računi kojima je podsjetnik već poslan."}
                 </p>
+                <MailSendingNotice always className="mt-3" />
                 <div className="mt-6 flex items-center justify-end gap-3">
                     <button
                         type="button"

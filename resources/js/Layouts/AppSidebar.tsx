@@ -68,6 +68,7 @@ const navItems: NavItem[] = [
         icon: <EnvelopeIcon className="w-5 h-5" />,
         name: "Email postavke",
         subItems: [
+            { name: "Slanje", path: "/email-settings" },
             { name: "Evidencija slanja", path: "/mailings" },
             { name: "Email predlošci", path: "/email-templates" },
         ],

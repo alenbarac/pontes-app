@@ -277,7 +277,7 @@ test('the slip email uses the slip description instead of the reference code', f
         'Poštovani/na Ivana Anić,',
         'U prilogu Vam šaljemo uplatnicu',
         'Članarina za 10/2026',
-        'Radionica',
+        'Program',
         'Dramska radionica',
         '45,00 EUR',
         '15.10.2026.',

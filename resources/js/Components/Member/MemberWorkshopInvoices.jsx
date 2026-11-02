@@ -15,6 +15,7 @@ import { CalendarDaysIcon, TrashIcon, Cog8ToothIcon, EnvelopeIcon } from "@heroi
 import { Table, TableHeader, TableBody, TableRow, TableCell } from "@/Components/ui/table";
 import SlipMailingBadge from "@/Components/Member/SlipMailingBadge";
 import { notifyMailingStarted } from "@/lib/mailingActivity";
+import MailSendingNotice from "@/Components/Mail/MailSendingNotice";
 
 function PaymentNotes({ notes, compact = false }) {
     if (!notes?.length) {
@@ -1144,6 +1145,7 @@ const MemberWorkshopInvoices = ({ invoices, member, workshop }) => {
                         ? `Podsjetnik je već poslan na ${activeInvoice?.slip_mailing?.recipient || activeInvoice?.reminder_mailing?.recipient}. Poslati ponovno?`
                         : `Podsjetnik s uplatnicom bit će poslan na ${activeInvoice?.slip_mailing?.recipient || "e-adresu za račune"}.`}
                 </p>
+                <MailSendingNotice always className="mt-3" />
                 <div className="mt-6 flex items-center justify-end gap-3">
                     <button
                         type="button"

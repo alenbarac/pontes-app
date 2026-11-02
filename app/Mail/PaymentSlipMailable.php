@@ -122,7 +122,7 @@ class PaymentSlipMailable extends Mailable
 
         $workshopName = trim((string) ($this->invoice->workshop->name ?? ''));
         if ($workshopName !== '') {
-            $facts[] = ['label' => 'Radionica', 'value' => $workshopName];
+            $facts[] = ['label' => 'Program', 'value' => $workshopName];
         }
 
         $currency = trim((string) config('pontes.currency', 'EUR'));

@@ -35,7 +35,7 @@ class EmailTemplateController extends Controller
                 'opis' => 'Članarina za 10/2026',
                 'studio' => trim((string) config('pontes.recipient_name')),
                 'facts' => array_values(array_filter([
-                    ['label' => 'Radionica', 'value' => 'Dramska radionica'],
+                    ['label' => 'Program', 'value' => 'Dramska radionica'],
                     ['label' => 'Iznos', 'value' => '45,00 '.trim((string) config('pontes.currency', 'EUR'))],
                     $key === EmailTemplate::REMINDER
                         ? null

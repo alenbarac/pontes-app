@@ -6,6 +6,7 @@ import axios from "axios";
 import MonthPicker from "@/Components/form/MonthPicker";
 import { croatianPlural } from "@/utils/slipMailing";
 import { notifyMailingStarted } from "@/lib/mailingActivity";
+import MailSendingNotice from "@/Components/Mail/MailSendingNotice";
 
 const MAX_INVOICES_PER_SEND = 100;
 const MAX_INVOICES_MESSAGE = "Možete poslati najviše 100 uplatnica odjednom.";
@@ -274,7 +275,8 @@ export default function BulkSlipsEmailModal({
         <Modal isOpen={isOpen} onClose={onClose} className="max-w-[560px] m-4">
             <div className="no-scrollbar relative w-full max-w-[560px] overflow-y-auto rounded-3xl bg-white p-4 dark:bg-gray-900 lg:p-11">
                 <h5 className="text-xl font-semibold text-gray-800 dark:text-white/90">Pošalji uplatnice</h5>
-                <p className="mt-1 mb-6 text-sm text-gray-500 dark:text-gray-400">{subtitle}</p>
+                <p className="mt-1 mb-4 text-sm text-gray-500 dark:text-gray-400">{subtitle}</p>
+                <MailSendingNotice always className="mb-6" />
 
                 {mode === "group" && (
                     <div className="mb-6 space-y-3">

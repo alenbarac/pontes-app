@@ -22,6 +22,7 @@ import Flatpickr from "react-flatpickr";
 import { monthPickerOptions } from "@/lib/flatpickrLocale";
 import "flatpickr/dist/themes/light.css";
 import { notifyMailingStarted } from "@/lib/mailingActivity";
+import MailSendingNotice from "@/Components/Mail/MailSendingNotice";
 
 const SLIP_DOWNLOAD_MAX_BATCH = 50;
 
@@ -1443,6 +1444,7 @@ const InvoicesDataTable = ({
                             ? `Podsjetnik je već poslan na ${reminderRecipient(activeInvoice)}. Poslati ponovno?`
                             : `Podsjetnik s uplatnicom bit će poslan na ${reminderRecipient(activeInvoice) || "e-adresu za račune"}.`}
                     </p>
+                    <MailSendingNotice always className="mt-3" />
                     <div className="mt-6 flex items-center justify-end gap-3">
                         <button
                             type="button"
@@ -1476,6 +1478,7 @@ const InvoicesDataTable = ({
                     <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                         Podsjetnik ide na nepodmirene račune. Plaćeni računi bit će preskočeni.
                     </p>
+                    <MailSendingNotice always className="mt-3" />
                     {alreadyRemindedCount > 0 && (
                         <label className="mt-4 flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
                             <input
@@ -1530,6 +1533,7 @@ const InvoicesDataTable = ({
                         e-adrese „Email za račune” (invoice_email) iz podataka
                         članova. Članovi bez tog polja bit će preskočeni.
                     </p>
+                    <MailSendingNotice always className="mt-3" />
                     <div className="mt-6 flex items-center justify-end gap-3">
                         <button
                             type="button"
