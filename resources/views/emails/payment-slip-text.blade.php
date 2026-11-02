@@ -11,6 +11,7 @@
 @endforeach
 
 {{ $signOff }}
+
 @if($studioName !== '')
 {{ $studioName }}
 @endif

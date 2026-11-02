@@ -195,19 +195,18 @@ export default function Edit({ template, placeholders = [], sample }) {
                             </div>
                             <p className="mt-4 whitespace-pre-line border-t border-gray-200 pt-4 text-gray-600 dark:border-gray-700 dark:text-gray-300">
                                 {preview.signOff}
-                                {sample?.studio ? (
-                                    <>
-                                        <br />
-                                        {sample.studio}
-                                    </>
-                                ) : null}
-                                {(sample?.contacts || []).map((contact) => (
-                                    <span key={contact}>
-                                        <br />
-                                        {contact}
-                                    </span>
-                                ))}
                             </p>
+                            {(sample?.studio || (sample?.contacts || []).length > 0) && (
+                                <p className="mt-4 text-gray-600 dark:text-gray-300">
+                                    {sample?.studio || null}
+                                    {(sample?.contacts || []).map((contact, index) => (
+                                        <span key={contact}>
+                                            {sample?.studio || index > 0 ? <br /> : null}
+                                            {contact}
+                                        </span>
+                                    ))}
+                                </p>
+                            )}
                         </div>
                     </div>
                 </ComponentCard>

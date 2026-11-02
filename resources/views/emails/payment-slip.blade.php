@@ -36,12 +36,17 @@
                                     </td>
                                 </tr>
                             </table>
-                            <p style="margin:0;padding-top:16px;border-top:1px solid #dee2e6;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#495057;">
-                                {!! nl2br(e($signOff)) !!}@if($studioName !== '')<br>{{ $studioName }}@endif
+                            <p style="margin:0 0 16px;padding-top:16px;border-top:1px solid #dee2e6;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#495057;">
+                                {!! nl2br(e($signOff)) !!}
+                            </p>
+                            @if($studioName !== '' || $contacts !== [])
+                            <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#495057;">
+                                @if($studioName !== ''){{ $studioName }}@endif
                                 @foreach($contacts as $contact)
-                                <br><a href="{{ $contact['href'] }}" style="color:#0b5ed7;text-decoration:underline;">{{ $contact['label'] }}</a>
+                                @if($studioName !== '' || ! $loop->first)<br>@endif<a href="{{ $contact['href'] }}" style="color:#0b5ed7;text-decoration:underline;">{{ $contact['label'] }}</a>
                                 @endforeach
                             </p>
+                            @endif
                         </td>
                     </tr>
                 </table>
