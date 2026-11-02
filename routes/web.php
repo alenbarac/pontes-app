@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentTemplateController;
+use App\Http\Controllers\EmailTemplateController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\InvoiceGenerationController;
 use App\Http\Controllers\InvoiceImportController;
@@ -64,6 +65,11 @@ Route::middleware('auth')->group(function () {
         ->name('member-groups.bulk-send-slip-emails.preview');
     Route::post('/member-groups/{memberGroup}/bulk-send-slip-emails', [MemberGroupController::class, 'bulkSendSlipEmails'])
         ->name('member-groups.bulk-send-slip-emails');
+
+    Route::get('/email-templates', [EmailTemplateController::class, 'index'])->name('email-templates.index');
+    Route::get('/email-templates/{key}', [EmailTemplateController::class, 'edit'])->name('email-templates.edit');
+    Route::patch('/email-templates/{key}', [EmailTemplateController::class, 'update'])->name('email-templates.update');
+    Route::post('/email-templates/{key}/reset', [EmailTemplateController::class, 'reset'])->name('email-templates.reset');
 
     Route::get('/mailings', [MailingController::class, 'index'])->name('mailings.index');
     Route::get('/mailings/{mailing}', [MailingController::class, 'show'])->name('mailings.show');

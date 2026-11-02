@@ -66,8 +66,11 @@ const navItems: NavItem[] = [
 
     {
         icon: <EnvelopeIcon className="w-5 h-5" />,
-        name: "Evidencija slanja",
-        path: "/mailings",
+        name: "Email postavke",
+        subItems: [
+            { name: "Evidencija slanja", path: "/mailings" },
+            { name: "Email predlošci", path: "/email-templates" },
+        ],
     },
 
     {
@@ -94,10 +97,10 @@ const AppSidebar: React.FC = () => {
 
     // A simple active check using window.location.pathname.
     const isActive = useCallback((path: string) => {
-        if (path === "/mailings") {
+        if (path === "/mailings" || path === "/email-templates") {
             return (
-                window.location.pathname === "/mailings" ||
-                window.location.pathname.startsWith("/mailings/")
+                window.location.pathname === path ||
+                window.location.pathname.startsWith(`${path}/`)
             );
         }
 

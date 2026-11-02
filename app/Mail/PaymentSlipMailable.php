@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Models\EmailTemplate;
 use App\Models\Invoice;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
@@ -23,6 +24,9 @@ class PaymentSlipMailable extends Mailable
         public string $recipientEmail,
         public bool $reminder = false,
     ) {}
+
+    /** @var array<string, string>|null */
+    private ?array $copy = null;
 
     /**
      * Get the message envelope.
@@ -104,9 +108,7 @@ class PaymentSlipMailable extends Mailable
 
     private function subjectLine(): string
     {
-        $prefix = $this->reminder ? 'Podsjetnik za uplatu' : 'Uplatnica';
-
-        return $prefix.' - '.$this->invoice->slipPaymentNotes();
+        return $this->lineFromTemplate('subject');
     }
 
     /**
@@ -128,26 +130,67 @@ class PaymentSlipMailable extends Mailable
             'label' => 'Iznos',
             'value' => number_format((float) $this->invoice->amount_due, 2, ',', '.').($currency !== '' ? ' '.$currency : ''),
         ];
-        $facts[] = [
-            'label' => 'Rok plaćanja',
-            'value' => Carbon::parse($this->invoice->due_date)->format('d.m.Y.'),
-        ];
+        if (! $this->reminder) {
+            $facts[] = [
+                'label' => 'Rok plaćanja',
+                'value' => Carbon::parse($this->invoice->due_date)->format('d.m.Y.'),
+            ];
+        }
 
         $studioName = trim((string) config('pontes.recipient_name'));
+        $values = $this->placeholderValues($studioName);
 
         return [
-            'title' => $this->reminder
-                ? 'Podsjetnik za uplatu'
-                : ($studioName !== '' ? 'Uplatnica - '.$studioName : 'Uplatnica'),
-            'greeting' => ($name = $this->greetingName()) !== '' ? 'Poštovani/na '.$name.',' : 'Poštovani,',
-            'intro' => $this->reminder
-                ? 'Unutar naše evidencije ustanovili smo da nije podmiren račun. U prilogu ponovno šaljemo uplatnicu.'
-                : 'U prilogu Vam šaljemo uplatnicu',
-            'membershipLine' => $this->invoice->slipPaymentNotes(),
+            'title' => $this->lineFromTemplate('heading', $values),
+            'greeting' => $this->lineFromTemplate('greeting', $values),
+            'intro' => $this->lineFromTemplate('intro', $values),
+            'membershipLine' => $values['opis'],
             'facts' => $facts,
-            'signOff' => 'Lijep pozdrav,',
+            'signOff' => $this->lineFromTemplate('sign_off', $values),
             'studioName' => $studioName,
             'contacts' => $this->contactLinks(),
+        ];
+    }
+
+    /**
+     * @return array{ime: string, opis: string, studio: string}
+     */
+    private function placeholderValues(string $studioName): array
+    {
+        return [
+            'ime' => $this->greetingName(),
+            'opis' => $this->invoice->slipPaymentNotes(),
+            'studio' => $studioName,
+        ];
+    }
+
+    /**
+     * @param  array{ime?: string, opis?: string, studio?: string}|null  $values
+     */
+    private function lineFromTemplate(string $field, ?array $values = null): string
+    {
+        $values ??= $this->placeholderValues(trim((string) config('pontes.recipient_name')));
+
+        return EmailTemplate::interpolate($this->copy()[$field], $values);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function copy(): array
+    {
+        if ($this->copy !== null) {
+            return $this->copy;
+        }
+
+        $template = EmailTemplate::forKey($this->reminder ? EmailTemplate::REMINDER : EmailTemplate::SLIP);
+
+        return $this->copy = [
+            'subject' => $template->subject,
+            'heading' => $template->heading,
+            'greeting' => $template->greeting,
+            'intro' => $template->intro,
+            'sign_off' => $template->sign_off,
         ];
     }
 

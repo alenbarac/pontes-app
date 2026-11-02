@@ -12,13 +12,13 @@
                 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;max-width:600px;background-color:#ffffff;border-radius:8px;">
                     <tr>
                         <td style="padding:28px 32px 8px;font-family:Arial,Helvetica,sans-serif;font-size:22px;line-height:1.3;font-weight:700;color:#212529;">
-                            {{ $title }}
+                            {!! nl2br(e($title)) !!}
                         </td>
                     </tr>
                     <tr>
                         <td style="padding:8px 32px 28px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.6;color:#333333;">
-                            <p style="margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.6;color:#333333;">{{ $greeting }}</p>
-                            <p style="margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.6;color:#333333;">{{ $intro }}</p>
+                            <p style="margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.6;color:#333333;">{!! nl2br(e($greeting)) !!}</p>
+                            <p style="margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.6;color:#333333;">{!! nl2br(e($intro)) !!}</p>
                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 16px;background-color:#f8f9fa;border-left:4px solid #007bff;">
                                 <tr>
                                     <td style="padding:16px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.6;color:#333333;">
@@ -37,7 +37,7 @@
                                 </tr>
                             </table>
                             <p style="margin:0;padding-top:16px;border-top:1px solid #dee2e6;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#495057;">
-                                {{ $signOff }}@if($studioName !== '')<br>{{ $studioName }}@endif
+                                {!! nl2br(e($signOff)) !!}@if($studioName !== '')<br>{{ $studioName }}@endif
                                 @foreach($contacts as $contact)
                                 <br><a href="{{ $contact['href'] }}" style="color:#0b5ed7;text-decoration:underline;">{{ $contact['label'] }}</a>
                                 @endforeach

@@ -259,7 +259,7 @@ test('a member without an invoice email is listed and is not queued', function (
     ]);
 });
 
-test('the reminder email uses the reminder subject and intro with the same slip facts', function () {
+test('the reminder email uses the reminder subject and intro without the due date', function () {
     config([
         'pontes.recipient_name' => 'Dramski studio Pontes',
         'pontes.email' => 'info@pontes.hr',
@@ -289,7 +289,9 @@ test('the reminder email uses the reminder subject and intro with the same slip 
     $mail->assertSeeInHtml('Poštovani/na Ivana Anić,');
     $mail->assertSeeInHtml('Dramska radionica');
     $mail->assertSeeInHtml('45,00 EUR');
-    $mail->assertSeeInHtml('15.10.2026.');
+    $mail->assertDontSeeInHtml('Rok plaćanja');
+    $mail->assertDontSeeInHtml('15.10.2026.');
+    $mail->assertDontSeeInText('Rok plaćanja');
     $mail->assertDontSeeInHtml('U prilogu Vam šaljemo uplatnicu');
 });
 
