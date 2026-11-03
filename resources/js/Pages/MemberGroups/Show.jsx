@@ -20,6 +20,7 @@ import {
     EnvelopeIcon,
 } from "@heroicons/react/24/outline";
 import Button from "@/Components/ui/button/Button";
+import Badge from "@/Components/ui/badge/Badge";
 import { useModal } from "@/hooks/useModal";
 import { Modal } from "@/Components/ui/modal";
 import BulkReassignModal from "@/Components/MemberGroup/BulkReassignModal";
@@ -167,6 +168,11 @@ export default function Show({
                             </p>
                             <p className="text-sm font-medium text-gray-800 dark:text-white/90">
                                 {group.name}
+                                {group.is_test && (
+                                    <Badge variant="light" color="warning" size="sm" className="ml-2">
+                                        Test
+                                    </Badge>
+                                )}
                             </p>
                         </div>
                         <div>
@@ -354,6 +360,11 @@ export default function Show({
                                                         {member.first_name}{" "}
                                                         {member.last_name}
                                                     </Link>
+                                                    {member.is_test && (
+                                                        <Badge variant="light" color="warning" size="sm" className="ml-2">
+                                                            Test
+                                                        </Badge>
+                                                    )}
                                                 </TableCell>
                                                 <TableCell className="px-5 py-4 text-start text-theme-sm text-gray-500 dark:text-gray-400">
                                                     {member.email || "—"}

@@ -202,6 +202,7 @@ class PaymentSlipEmailService
     public function suggestedReminderQuery(): Builder
     {
         return Invoice::query()
+            ->exceptTest()
             ->where('payment_status', '!=', 'Plaćeno')
             ->whereDate('due_date', '<=', now()->startOfDay()->subDays($this->reminderGraceDays()));
     }

@@ -37,7 +37,7 @@ class DashboardFinanceService
      */
     private function outstandingInvoices(): Builder
     {
-        return Invoice::query()->whereRaw('amount_due - amount_paid > 0');
+        return Invoice::query()->exceptTest()->whereRaw('amount_due - amount_paid > 0');
     }
 
     private function buildOpenInvoicesMetrics(Carbon $now): array
@@ -109,6 +109,7 @@ class DashboardFinanceService
         $activityEnd = $schoolEnd->gt($current) ? $schoolEnd : $current;
 
         $dueDates = Invoice::query()
+            ->exceptTest()
             ->whereDate('due_date', '>=', $activityStart->copy()->startOfMonth())
             ->whereDate('due_date', '<=', $activityEnd->copy()->endOfMonth())
             ->pluck('due_date');
@@ -125,7 +126,7 @@ class DashboardFinanceService
         foreach ($months as $key => $month) {
             $label = $this->monthLabel($month);
             $metrics = $this->buildPeriodMetrics(
-                Invoice::query()->forMonth($month),
+                Invoice::query()->exceptTest()->forMonth($month),
                 $now,
                 $label,
                 $label,
@@ -149,7 +150,7 @@ class DashboardFinanceService
         $monthName = ucfirst($now->locale('hr')->translatedFormat('F'));
 
         return $this->buildPeriodMetrics(
-            Invoice::query()->forMonth($currentMonth),
+            Invoice::query()->exceptTest()->forMonth($currentMonth),
             $now,
             $monthName,
             $monthName,
@@ -161,6 +162,7 @@ class DashboardFinanceService
         $schoolYear = SchoolYearService::getSchoolYearForDate($now);
 
         $invoices = Invoice::query()
+            ->exceptTest()
             ->whereDate('due_date', '>=', $schoolYear['start'])
             ->whereDate('due_date', '<=', $schoolYear['end']);
 
@@ -243,7 +245,7 @@ class DashboardFinanceService
             $labels[] = $month->format('M Y');
             $monthKeys[] = $month->format('Y-m');
 
-            $monthInvoices = Invoice::query()->forMonth($month);
+            $monthInvoices = Invoice::query()->exceptTest()->forMonth($month);
             $cashExpected[] = (float) (clone $monthInvoices)->sum('amount_due');
             $cashCollected[] = (float) (clone $monthInvoices)->sum('amount_paid');
 
@@ -296,6 +298,7 @@ class DashboardFinanceService
         $monthEnd = $month->copy()->endOfMonth();
 
         $enrollments = MemberWorkshop::with('membershipPlan', 'member')
+            ->exceptTest()
             ->whereHas('member', fn ($query) => $query->where('is_active', true))
             ->whereNotNull('membership_plan_id')
             ->whereDate('membership_start_date', '<=', $monthEnd)
@@ -322,6 +325,7 @@ class DashboardFinanceService
     private function recurringCollectedForMonth(Carbon $month): float
     {
         $invoices = Invoice::membership()
+            ->exceptTest()
             ->forMonth($month)
             ->where('amount_paid', '>', 0)
             ->with('membershipPlan')

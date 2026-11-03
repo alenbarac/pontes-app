@@ -12,7 +12,12 @@ class MemberGroup extends Model
     protected $fillable = [
         'name',
         'description',
-        'workshop_id'
+        'workshop_id',
+        'is_test',
+    ];
+
+    protected $casts = [
+        'is_test' => 'boolean',
     ];
 
     /**
@@ -44,14 +49,14 @@ class MemberGroup extends Model
     }
 
     public function assignedWorkshop()
-{
-    return $this->hasOneThrough(
-        Workshop::class,
-        WorkshopGroup::class,
-        'member_group_id', // FK on workshop_groups
-        'id',              // PK on workshops
-        'id',              // PK on member_groups
-        'workshop_id'      // FK on workshop_groups
-    );
-}
+    {
+        return $this->hasOneThrough(
+            Workshop::class,
+            WorkshopGroup::class,
+            'member_group_id', // FK on workshop_groups
+            'id',              // PK on workshops
+            'id',              // PK on member_groups
+            'workshop_id'      // FK on workshop_groups
+        );
+    }
 }

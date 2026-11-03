@@ -23,6 +23,7 @@ class DashboardController extends Controller
     public function index(): Response
     {
         $groups = MemberGroup::with('assignedWorkshop')
+            ->where('is_test', false)
             ->withCount('members')
             ->get()
             ->map(function ($group) {

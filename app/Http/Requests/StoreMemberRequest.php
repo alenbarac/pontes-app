@@ -28,6 +28,7 @@ class StoreMemberRequest extends FormRequest
             'phone_number' => 'required|string|max:20',
             'email' => 'required|email|unique:members,email',
             'is_active' => 'boolean',
+            'is_test' => 'sometimes|boolean',
             'parent_contact' => 'nullable|string|max:20',
             'parent_email' => 'nullable|email|max:255',
             'invoice_email' => 'nullable|email|max:255',

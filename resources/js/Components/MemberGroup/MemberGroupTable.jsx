@@ -11,6 +11,7 @@ import { useModal } from "@/hooks/useModal";
 import { Link, router } from "@inertiajs/react";
 import { Modal } from "../ui/modal";
 import Button from "@/ui/button/Button";
+import Badge from "@/Components/ui/badge/Badge";
 import MemberGroupEditForm from "./MemberGroupEditForm";
 import toast from "react-hot-toast";
 
@@ -114,6 +115,11 @@ export default function MemberGroupTable({ groups, workshops }) {
                                     >
                                         {group.name}
                                     </Link>
+                                    {group.is_test && (
+                                        <Badge variant="light" color="warning" size="sm" className="ml-2">
+                                            Test
+                                        </Badge>
+                                    )}
                                 </TableCell>
                                 <TableCell className="px-5 py-4 text-start text-theme-sm text-gray-500 dark:text-gray-400">
                                     {group.description}

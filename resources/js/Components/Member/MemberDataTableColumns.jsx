@@ -132,9 +132,16 @@ export const columns = [
         cell: (info) => {
             const isActive = info.getValue();
             return (
-                <Badge variant="light" color={isActive ? "success" : "error"} size="sm">
-                    {isActive ? "Aktivan" : "Neaktivan"}
-                </Badge>
+                <div className="flex flex-wrap gap-1">
+                    <Badge variant="light" color={isActive ? "success" : "error"} size="sm">
+                        {isActive ? "Aktivan" : "Neaktivan"}
+                    </Badge>
+                    {info.row.original.is_test && (
+                        <Badge variant="light" color="warning" size="sm">
+                            Test
+                        </Badge>
+                    )}
+                </div>
             );
         },
     },

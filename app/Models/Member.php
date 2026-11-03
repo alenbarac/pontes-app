@@ -9,6 +9,10 @@ class Member extends Model
 {
     use HasFactory;
 
+    protected $casts = [
+        'is_test' => 'boolean',
+    ];
+
     protected $fillable = [
         'first_name',
         'last_name',
@@ -16,6 +20,7 @@ class Member extends Model
         'phone_number',
         'email',
         'is_active',
+        'is_test',
         'parent_contact',
         'parent_email',
         'invoice_email',
@@ -65,7 +70,6 @@ class Member extends Model
 
     /**
      * Roll out a member from a specific workshop.
-     *
      */
     public function rollOutFromWorkshop(Workshop $workshop): bool
     {

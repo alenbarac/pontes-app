@@ -148,6 +148,7 @@ const MemberInfoCard = ({memberData}) => {
                           <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">
                               Status člana
                           </p>
+                          <div className="flex flex-wrap gap-2">
                           <Badge
                               variant="light"
                               color={
@@ -156,6 +157,12 @@ const MemberInfoCard = ({memberData}) => {
                           >
                               {memberData?.is_active ? "Aktivan" : "Neaktivan"}
                           </Badge>
+                          {memberData?.is_test && (
+                              <Badge variant="light" color="warning">
+                                  Test
+                              </Badge>
+                          )}
+                          </div>
                       </div>
                       </div>
                   </div>

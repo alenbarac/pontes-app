@@ -32,6 +32,7 @@ class UpdateMemberRequest extends FormRequest
             'invoice_email' => 'nullable|email|max:255',
             'slip_payer_name' => 'nullable|string|max:255',
             'is_active' => 'required|boolean',
+            'is_test' => 'sometimes|boolean',
         ];
     }
 }

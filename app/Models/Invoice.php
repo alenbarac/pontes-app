@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Services\SchoolYearService;
+use App\Support\TestRecords;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -396,6 +397,18 @@ class Invoice extends Model
      * @param  \Illuminate\Database\Eloquent\Builder  $query
      * @return \Illuminate\Database\Eloquent\Builder
      */
+    /**
+     * Leave out invoices that belong to a test member or a test group.
+     * A test member's invoice still counts when that workshop is a real group.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeExceptTest($query)
+    {
+        return TestRecords::except($query);
+    }
+
     public function scopeMembership($query)
     {
         return $query->where('invoice_type', 'membership');

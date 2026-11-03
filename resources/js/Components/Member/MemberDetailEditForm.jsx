@@ -13,6 +13,7 @@ import Switch from "../form/switch/Switch";
 export default function MemberDetailEditForm({ member, closeModal }) {
     const { data, setData, put, processing, errors } = useForm({
         is_active: member.is_active || false,
+        is_test: member.is_test || false,
         first_name: member.first_name || "",
         last_name: member.last_name || "",
         date_of_birth: member.date_of_birth || "",
@@ -53,12 +54,20 @@ export default function MemberDetailEditForm({ member, closeModal }) {
     return (
         <form onSubmit={handleSubmit}>
             <>
-                <div className="my-3">
+                <div className="my-3 space-y-3">
                     <Switch
                         label="Aktivan član"
                         checked={data.is_active}
                         onChange={(checked) => setData("is_active", checked)}
                     />
+                    <Switch
+                        label="Testni član"
+                        checked={data.is_test}
+                        onChange={(checked) => setData("is_test", checked)}
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Plaćanja testnog člana ne ulaze u nadzornu ploču ni u podsjetnike. Upis u stvarnu grupu i dalje ulazi.
+                    </p>
                 </div>
 
                 <div className="grid gap-6 sm:grid-cols-2 mb-4">

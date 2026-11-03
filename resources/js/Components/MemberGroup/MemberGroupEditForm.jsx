@@ -3,6 +3,7 @@ import { router, useForm } from "@inertiajs/react";
 import Button from "@/ui/button/Button";
 import Label from "../form/Label";
 import Input from "../form/input/InputField";
+import Switch from "../form/switch/Switch";
 import toast from "react-hot-toast";
 
 export default function MemberGroupEditForm({ group, workshops, onClose }) {
@@ -10,6 +11,7 @@ export default function MemberGroupEditForm({ group, workshops, onClose }) {
     name: group.name || "",
     description: group.description || "",
     workshop_id: group.workshop_id || group.workshop?.id || "",
+    is_test: group.is_test || false,
   });
 
 
@@ -60,6 +62,17 @@ export default function MemberGroupEditForm({ group, workshops, onClose }) {
               {errors.description && (
                   <p className="text-red-500 text-sm">{errors.description}</p>
               )}
+          </div>
+
+          <div className="space-y-2">
+              <Switch
+                  label="Testna grupa"
+                  checked={data.is_test}
+                  onChange={(checked) => setData("is_test", checked)}
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Grupa se ne prikazuje na nadzornoj ploči. Računi njenih članova za ovu radionicu ne ulaze u iznose ni u podsjetnike.
+              </p>
           </div>
 
           <div>
