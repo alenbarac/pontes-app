@@ -64,6 +64,10 @@ export default function CashFlowWidget({ months, monthKey, onMonthChange }) {
           : "Prošao rok, još nije plaćeno",
       icon: ClockIcon,
       iconClass: "text-warning-500",
+      href: route("invoices.index", {
+        month: active.key || undefined,
+        payment_status: "Otvoreno",
+      }),
     },
   ];
 
