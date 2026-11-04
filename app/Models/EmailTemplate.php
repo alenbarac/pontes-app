@@ -11,6 +11,8 @@ class EmailTemplate extends Model
 
     public const REMINDER = 'payment_reminder';
 
+    public const DOCUMENT = 'member_document';
+
     protected $fillable = [
         'key',
         'subject',
@@ -47,14 +49,31 @@ class EmailTemplate extends Model
                 'intro' => 'Unutar naše evidencije ustanovili smo da nije podmiren račun. U prilogu ponovno šaljemo uplatnicu.',
                 'sign_off' => 'Lijep pozdrav,',
             ],
+            self::DOCUMENT => [
+                'name' => 'Dokument člana',
+                'description' => 'E-mail s dokumentom u prilogu (ispričnica, privola i kasnije vrste).',
+                'subject' => '{naziv_dokumenta} - {ime}',
+                'heading' => '{naziv_dokumenta}',
+                'greeting' => 'Poštovani/na {ime},',
+                'intro' => 'U prilogu Vam šaljemo dokument {naziv_dokumenta}.',
+                'sign_off' => 'Lijep pozdrav,',
+            ],
         ];
     }
 
     /**
      * @return array<string, string>
      */
-    public static function placeholders(): array
+    public static function placeholders(?string $key = null): array
     {
+        if ($key === self::DOCUMENT) {
+            return [
+                '{ime}' => 'Ime člana',
+                '{naziv_dokumenta}' => 'Naziv dokumenta, npr. Ispričnica',
+                '{studio}' => 'Naziv studija',
+            ];
+        }
+
         return [
             '{ime}' => 'Ime platitelja ili člana',
             '{opis}' => 'Opis članarine, npr. Članarina za 10/2026',
@@ -83,13 +102,14 @@ class EmailTemplate extends Model
     }
 
     /**
-     * @param  array{ime?: string, opis?: string, studio?: string}  $values
+     * @param  array{ime?: string, opis?: string, studio?: string, naziv_dokumenta?: string}  $values
      */
     public static function interpolate(string $template, array $values = []): string
     {
         $ime = trim((string) ($values['ime'] ?? ''));
         $studio = trim((string) ($values['studio'] ?? ''));
         $opis = trim((string) ($values['opis'] ?? ''));
+        $nazivDokumenta = trim((string) ($values['naziv_dokumenta'] ?? ''));
 
         if ($ime === '') {
             $template = preg_replace('/\s*\/na\s*\{ime\}/u', '', $template) ?? $template;
@@ -99,10 +119,16 @@ class EmailTemplate extends Model
             $template = str_replace(' - {studio}', '', $template);
         }
 
+        if ($nazivDokumenta === '') {
+            $template = str_replace('{naziv_dokumenta} - ', '', $template);
+            $template = str_replace(' - {naziv_dokumenta}', '', $template);
+        }
+
         $rendered = strtr($template, [
             '{ime}' => $ime,
             '{studio}' => $studio,
             '{opis}' => $opis,
+            '{naziv_dokumenta}' => $nazivDokumenta,
         ]);
 
         $rendered = preg_replace('/[ \t]{2,}/u', ' ', $rendered) ?? $rendered;

@@ -61,7 +61,63 @@ class DocumentGenerationService
             $content = str_replace($placeholder, $value, $content);
         }
 
-        return $content;
+        return $this->applyGenderPairs($content, $member->gender);
+    }
+
+    /**
+     * Swap {{g:muški|ženski}} pairs. An unknown gender leaves the token in place.
+     */
+    public function applyGenderPairs(string $content, ?string $gender): string
+    {
+        $replaced = preg_replace_callback(
+            DocumentTemplate::GENDER_PAIR_PATTERN,
+            function (array $matches) use ($gender) {
+                $male = trim($matches[1]);
+                $female = trim($matches[2]);
+
+                return match ($gender) {
+                    Member::GENDER_FEMALE => $female,
+                    Member::GENDER_MALE => $male,
+                    default => $matches[0],
+                };
+            },
+            $content
+        );
+
+        return is_string($replaced) ? $replaced : $content;
+    }
+
+    /**
+     * Members who still need a gender because this template uses pair tokens.
+     *
+     * @param  Collection<int, Member>  $members
+     * @return Collection<int, Member>
+     */
+    public function membersMissingGender(DocumentTemplate $template, Collection $members): Collection
+    {
+        if (! $template->hasGenderPairs()) {
+            return collect();
+        }
+
+        return $members
+            ->filter(fn (Member $member) => ! in_array($member->gender, [Member::GENDER_MALE, Member::GENDER_FEMALE], true))
+            ->values();
+    }
+
+    /**
+     * @param  Collection<int, Member>  $members
+     * @return array{message: string, missing_gender: list<array{id: int, first_name: string, last_name: string}>}
+     */
+    public function missingGenderPayload(Collection $members): array
+    {
+        return [
+            'message' => 'Nekim članovima nedostaje spol. Odaberite muški ili ženski oblik prije nastavka.',
+            'missing_gender' => $members->map(fn (Member $member) => [
+                'id' => $member->id,
+                'first_name' => $member->first_name ?? '',
+                'last_name' => $member->last_name ?? '',
+            ])->values()->all(),
+        ];
     }
 
     /**

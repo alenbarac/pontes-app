@@ -14,6 +14,13 @@ class StoreMemberRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->input('gender') === '') {
+            $this->merge(['gender' => null]);
+        }
+    }
+
     /**
      * Get the validation rules that apply to the request.
      *
@@ -24,6 +31,7 @@ class StoreMemberRequest extends FormRequest
         return [
             'first_name' => 'required|string|max:255',
             'last_name' => 'nullable|string|max:255',
+            'gender' => 'nullable|in:male,female',
             'date_of_birth' => 'required|date|before:today', // ✅ Ensure proper date validation
             'phone_number' => 'required|string|max:20',
             'email' => 'required|email|unique:members,email',

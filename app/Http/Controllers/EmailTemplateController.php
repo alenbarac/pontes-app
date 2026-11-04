@@ -27,20 +27,26 @@ class EmailTemplateController extends Controller
 
         return Inertia::render('EmailTemplates/Edit', [
             'template' => $this->present($key),
-            'placeholders' => collect(EmailTemplate::placeholders())
+            'placeholders' => collect(EmailTemplate::placeholders($key))
                 ->map(fn (string $label, string $token) => ['token' => $token, 'label' => $label])
                 ->values(),
             'sample' => [
                 'ime' => 'Ivana Anić',
-                'opis' => 'Članarina za 10/2026',
+                'opis' => $key === EmailTemplate::DOCUMENT ? 'Ispričnica - Nije me strah' : 'Članarina za 10/2026',
+                'naziv_dokumenta' => $key === EmailTemplate::DOCUMENT ? 'Ispričnica - Nije me strah' : '',
                 'studio' => trim((string) config('pontes.recipient_name')),
-                'facts' => array_values(array_filter([
-                    ['label' => 'Program', 'value' => 'Dramska radionica'],
-                    ['label' => 'Iznos', 'value' => '45,00 '.trim((string) config('pontes.currency', 'EUR'))],
-                    $key === EmailTemplate::REMINDER
-                        ? null
-                        : ['label' => 'Rok plaćanja', 'value' => '15.10.2026.'],
-                ])),
+                'facts' => $key === EmailTemplate::DOCUMENT
+                    ? [
+                        ['label' => 'Dokument', 'value' => 'Ispričnica - Nije me strah'],
+                        ['label' => 'Član', 'value' => 'Ivana Anić'],
+                    ]
+                    : array_values(array_filter([
+                        ['label' => 'Program', 'value' => 'Dramska radionica'],
+                        ['label' => 'Iznos', 'value' => '45,00 '.trim((string) config('pontes.currency', 'EUR'))],
+                        $key === EmailTemplate::REMINDER
+                            ? null
+                            : ['label' => 'Rok plaćanja', 'value' => '15.10.2026.'],
+                    ])),
                 'contacts' => array_values(array_filter([
                     trim((string) config('pontes.email')),
                     trim((string) config('pontes.phone')),

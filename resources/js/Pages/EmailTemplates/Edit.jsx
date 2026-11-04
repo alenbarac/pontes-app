@@ -71,6 +71,7 @@ export default function Edit({ template, placeholders = [], sample }) {
         ime: sample?.ime || "",
         opis: sample?.opis || "",
         studio: sample?.studio || "",
+        naziv_dokumenta: sample?.naziv_dokumenta || "",
     };
     const preview = {
         heading: fillEmailTemplate(form.data.heading, values),

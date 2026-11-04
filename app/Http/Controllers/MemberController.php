@@ -568,6 +568,28 @@ class MemberController extends Controller
     }
 
     /**
+     * Save gender for members who were asked at document generation or send time.
+     */
+    public function updateGenders(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'members' => 'required|array|min:1',
+            'members.*.id' => 'required|integer|exists:members,id',
+            'members.*.gender' => 'required|in:male,female',
+        ]);
+
+        foreach ($validated['members'] as $row) {
+            Member::query()->whereKey($row['id'])->update([
+                'gender' => $row['gender'],
+            ]);
+        }
+
+        return response()->json([
+            'saved' => count($validated['members']),
+        ]);
+    }
+
+    /**
      * Plans for enroll and edit dropdowns: each base plan, then its % OFF variants.
      */
     private function membershipPlansForForms(): Collection

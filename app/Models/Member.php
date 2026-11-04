@@ -9,6 +9,10 @@ class Member extends Model
 {
     use HasFactory;
 
+    public const GENDER_MALE = 'male';
+
+    public const GENDER_FEMALE = 'female';
+
     protected $casts = [
         'is_test' => 'boolean',
     ];
@@ -16,6 +20,7 @@ class Member extends Model
     protected $fillable = [
         'first_name',
         'last_name',
+        'gender',
         'date_of_birth',
         'phone_number',
         'email',

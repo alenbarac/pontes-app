@@ -15,6 +15,8 @@ class Mailing extends Model
 
     public const TYPE_REMINDER = 'reminder';
 
+    public const TYPE_DOCUMENT = 'document';
+
     public const SOURCE_GROUP = 'group';
 
     public const SOURCE_MEMBERS = 'members';
@@ -129,6 +131,29 @@ class Mailing extends Model
             ->joinSub($latest, 'latest', 'latest.id', '=', 'invoice_mailings.id')
             ->get();
 
+        self::accumulateAttemptCounts($counts, $rows);
+
+        $latestDocuments = MemberDocumentMailing::query()
+            ->selectRaw('MAX(id) as id')
+            ->whereIn('mailing_id', $ids->all())
+            ->groupBy('mailing_id', 'member_document_id');
+
+        $documentRows = MemberDocumentMailing::query()
+            ->select(['member_document_mailings.mailing_id', 'member_document_mailings.status'])
+            ->joinSub($latestDocuments, 'latest_documents', 'latest_documents.id', '=', 'member_document_mailings.id')
+            ->get();
+
+        self::accumulateAttemptCounts($counts, $documentRows);
+
+        return $counts;
+    }
+
+    /**
+     * @param  array<int, array{sent: int, failed: int, queued: int, total: int}>  $counts
+     * @param  iterable<int, object>  $rows
+     */
+    private static function accumulateAttemptCounts(array &$counts, iterable $rows): void
+    {
         foreach ($rows as $row) {
             $mailingId = (int) $row->mailing_id;
             if (! isset($counts[$mailingId])) {
@@ -141,8 +166,6 @@ class Mailing extends Model
             }
             $counts[$mailingId]['total']++;
         }
-
-        return $counts;
     }
 
     /**
@@ -152,6 +175,20 @@ class Mailing extends Model
      */
     public function latestAttempts(): Collection
     {
+        if ($this->type === self::TYPE_DOCUMENT) {
+            $latest = MemberDocumentMailing::query()
+                ->selectRaw('MAX(id) as id')
+                ->where('mailing_id', $this->id)
+                ->groupBy('member_document_id');
+
+            return MemberDocumentMailing::query()
+                ->select('member_document_mailings.*')
+                ->joinSub($latest, 'latest', 'latest.id', '=', 'member_document_mailings.id')
+                ->with('member:id,first_name,last_name')
+                ->orderBy('member_document_mailings.id')
+                ->get();
+        }
+
         $latest = InvoiceMailing::query()
             ->selectRaw('MAX(id) as id')
             ->where('mailing_id', $this->id)
@@ -216,6 +253,15 @@ class Mailing extends Model
             ->where('status', InvoiceMailing::STATUS_QUEUED)
             ->update([
                 'status' => InvoiceMailing::STATUS_CANCELLED,
+                'error' => null,
+                'sent_at' => null,
+            ]);
+
+        MemberDocumentMailing::query()
+            ->where('mailing_id', $this->id)
+            ->where('status', MemberDocumentMailing::STATUS_QUEUED)
+            ->update([
+                'status' => MemberDocumentMailing::STATUS_CANCELLED,
                 'error' => null,
                 'sent_at' => null,
             ]);

@@ -9,6 +9,7 @@ import Input from "@/Components/form/input/InputField";
 import toast from "react-hot-toast";
 import axios from "axios";
 import { EyeIcon } from "@heroicons/react/24/outline";
+import GenderPairPlaceholders from "@/Components/Documents/GenderPairPlaceholders";
 
 export default function Create({ template, placeholders, type, isEdit = false }) {
     const { data, setData, post, patch, processing, errors } = useForm({
@@ -20,6 +21,7 @@ export default function Create({ template, placeholders, type, isEdit = false })
     });
 
     const textareaRef = useRef(null);
+    const [previewGender, setPreviewGender] = useState("male");
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -55,6 +57,7 @@ export default function Create({ template, placeholders, type, isEdit = false })
         const params = new URLSearchParams({
             content: data.content,
             type: data.type,
+            gender: previewGender,
         });
 
         const routeName = template?.id 
@@ -65,7 +68,7 @@ export default function Create({ template, placeholders, type, isEdit = false })
         window.open(routeName, '_blank', 'noopener,noreferrer');
     };
 
-    const insertPlaceholder = (placeholder) => {
+    const insertAtCursor = (snippet) => {
         const textarea = textareaRef.current;
         if (textarea) {
             const start = textarea.selectionStart;
@@ -73,17 +76,17 @@ export default function Create({ template, placeholders, type, isEdit = false })
             const text = data.content;
             const before = text.substring(0, start);
             const after = text.substring(end, text.length);
-            const newText = before + `{{${placeholder}}}` + after;
+            const newText = before + snippet + after;
             setData("content", newText);
             setTimeout(() => {
                 textarea.focus();
                 textarea.setSelectionRange(
-                    start + placeholder.length + 4,
-                    start + placeholder.length + 4
+                    start + snippet.length,
+                    start + snippet.length
                 );
             }, 0);
         } else {
-            setData("content", data.content + `{{${placeholder}}}`);
+            setData("content", data.content + snippet);
         }
     };
 
@@ -128,7 +131,23 @@ export default function Create({ template, placeholders, type, isEdit = false })
                     <div>
                         <div className="flex items-center justify-between mb-2">
                             <Label htmlFor="content">Sadržaj predloška *</Label>
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <div className="inline-flex rounded-lg border border-gray-300 p-0.5 text-xs dark:border-gray-700">
+                                    <button
+                                        type="button"
+                                        className={`rounded-md px-2 py-1 ${previewGender === "male" ? "bg-brand-500 text-white" : "text-gray-600 dark:text-gray-300"}`}
+                                        onClick={() => setPreviewGender("male")}
+                                    >
+                                        Muški
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={`rounded-md px-2 py-1 ${previewGender === "female" ? "bg-brand-500 text-white" : "text-gray-600 dark:text-gray-300"}`}
+                                        onClick={() => setPreviewGender("female")}
+                                    >
+                                        Ženski
+                                    </button>
+                                </div>
                                 <Button
                                     type="button"
                                     variant="outline"
@@ -163,7 +182,7 @@ export default function Create({ template, placeholders, type, isEdit = false })
                                         <button
                                             key={key}
                                             type="button"
-                                            onClick={() => insertPlaceholder(key)}
+                                            onClick={() => insertAtCursor(`{{${key}}}`)}
                                             className="text-left px-3 py-2 text-sm rounded border border-gray-300 dark:border-gray-700 hover:bg-brand-50 dark:hover:bg-brand-900/20 hover:border-brand-500 transition"
                                         >
                                             <code className="text-brand-600 dark:text-brand-400">
@@ -176,6 +195,7 @@ export default function Create({ template, placeholders, type, isEdit = false })
                                     )
                                 )}
                             </div>
+                            <GenderPairPlaceholders onInsert={insertAtCursor} />
                         </div>
                     </div>
 

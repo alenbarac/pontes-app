@@ -7,6 +7,7 @@ const MemberEditForm = ({ member, workshops, groups, membershipPlans }) => {
    const { data, setData, put, processing, errors } = useForm({
        first_name: member.first_name,
        last_name: member.last_name,
+       gender: member.gender || "",
        date_of_birth: member.date_of_birth,
        phone_number: member.phone_number,
        email: member.email,
@@ -158,6 +159,24 @@ const MemberEditForm = ({ member, workshops, groups, membershipPlans }) => {
                         <p className="text-red-500 text-sm">{errors.email}</p>
                     )}
                 </div>
+            </div>
+
+            <div className="mb-5 w-full xl:w-1/3">
+                <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                    Spol
+                </label>
+                <select
+                    className="w-full rounded border px-5 py-3 dark:bg-gray-900 dark:text-white"
+                    value={data.gender}
+                    onChange={(e) => setData("gender", e.target.value)}
+                >
+                    <option value="">Odaberi spol</option>
+                    <option value="male">Muški</option>
+                    <option value="female">Ženski</option>
+                </select>
+                {errors.gender && (
+                    <p className="text-red-500 text-sm">{errors.gender}</p>
+                )}
             </div>
 
             {/* Second ROW */}

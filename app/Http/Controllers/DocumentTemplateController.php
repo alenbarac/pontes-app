@@ -198,17 +198,24 @@ class DocumentTemplateController extends Controller
             abort(400, 'Content is required');
         }
 
-        // Create a temporary template object for preview
+        // Create a temporary template object for preview. Keep the textarea
+        // text even when an existing template is loaded, so unsaved edits show.
         $tempTemplate = $documentTemplate ?? new DocumentTemplate([
-            'type' => $type,
-            'content' => $content,
             'name' => 'Preview',
         ]);
+        $tempTemplate->type = $type;
+        $tempTemplate->content = $content;
+
+        $gender = $request->input('gender', Member::GENDER_MALE);
+        if (! in_array($gender, [Member::GENDER_MALE, Member::GENDER_FEMALE], true)) {
+            $gender = Member::GENDER_MALE;
+        }
 
         // Create a sample member for preview
         $sampleMember = new Member([
-            'first_name' => 'Ivan',
+            'first_name' => $gender === Member::GENDER_FEMALE ? 'Ivana' : 'Ivan',
             'last_name' => 'Horvat',
+            'gender' => $gender,
             'parent_contact' => 'Roditelj Ime Prezime',
             'parent_email' => 'roditelj@example.com',
             'date_of_birth' => '2010-05-15',
@@ -250,7 +257,12 @@ class DocumentTemplateController extends Controller
         ]);
 
         $member = Member::findOrFail($validated['member_id']);
-        
+
+        $missingGender = $this->documentService->membersMissingGender($documentTemplate, collect([$member]));
+        if ($missingGender->isNotEmpty()) {
+            return response()->json($this->documentService->missingGenderPayload($missingGender), 422);
+        }
+
         $additionalData = [];
         if (isset($validated['activity'])) {
             $additionalData['activity'] = $validated['activity'];
@@ -295,7 +307,12 @@ class DocumentTemplateController extends Controller
         ]);
 
         $members = Member::whereIn('id', $validated['member_ids'])->get();
-        
+
+        $missingGender = $this->documentService->membersMissingGender($documentTemplate, $members);
+        if ($missingGender->isNotEmpty()) {
+            return response()->json($this->documentService->missingGenderPayload($missingGender), 422);
+        }
+
         $additionalData = [];
         if (isset($validated['activity'])) {
             $additionalData['activity'] = $validated['activity'];
@@ -334,14 +351,21 @@ class DocumentTemplateController extends Controller
      */
     public function getActiveTemplates(Request $request)
     {
-        $type = $request->input('type', 'ispricnica');
-        
-        $templates = DocumentTemplate::where('type', $type)
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get(['id', 'name', 'type']);
+        $type = $request->input('type');
 
-        return response()->json($templates->toArray());
+        $templates = DocumentTemplate::query()
+            ->when($type, fn ($query) => $query->where('type', $type))
+            ->where('is_active', true)
+            ->orderBy('type')
+            ->orderBy('name')
+            ->get(['id', 'name', 'type', 'content']);
+
+        return response()->json($templates->map(fn (DocumentTemplate $template) => [
+            'id' => $template->id,
+            'name' => $template->name,
+            'type' => $template->type,
+            'has_gender_pairs' => $template->hasGenderPairs(),
+        ])->values());
     }
 
     /**
@@ -368,6 +392,11 @@ class DocumentTemplateController extends Controller
         $member = $memberDocument->member;
         $template = $memberDocument->documentTemplate;
         $additionalData = $memberDocument->additional_data ?? [];
+
+        $missingGender = $this->documentService->membersMissingGender($template, collect([$member]));
+        if ($missingGender->isNotEmpty()) {
+            return response()->json($this->documentService->missingGenderPayload($missingGender), 422);
+        }
 
         $pdf = $this->documentService->generatePDF($template, $member, $additionalData);
         $filename = str_replace([' ', '/', '\\'], '_', $template->name . '_' . trim(($member->first_name ?? '') . '_' . ($member->last_name ?? ''))) . '.pdf';

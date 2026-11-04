@@ -9,6 +9,7 @@ import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/light.css";
 import { CalendarDaysIcon } from "@heroicons/react/24/outline";
 import Switch from "../form/switch/Switch";
+import Select from "@/Components/form/Select";
 
 export default function MemberDetailEditForm({ member, closeModal }) {
     const { data, setData, put, processing, errors } = useForm({
@@ -16,6 +17,7 @@ export default function MemberDetailEditForm({ member, closeModal }) {
         is_test: member.is_test || false,
         first_name: member.first_name || "",
         last_name: member.last_name || "",
+        gender: member.gender || "",
         date_of_birth: member.date_of_birth || "",
         phone_number: member.phone_number || "",
         email: member.email || "",
@@ -106,6 +108,23 @@ export default function MemberDetailEditForm({ member, closeModal }) {
                             <p className="text-red-500 text-sm">
                                 {errors.last_name}
                             </p>
+                        )}
+                    </div>
+
+                    <div className="sm:col-span-2">
+                        <Label htmlFor="gender">Spol</Label>
+                        <Select
+                            id="gender"
+                            placeholder="Odaberi spol"
+                            value={data.gender}
+                            onChange={(value) => setData("gender", value)}
+                            options={[
+                                { value: "male", label: "Muški" },
+                                { value: "female", label: "Ženski" },
+                            ]}
+                        />
+                        {errors.gender && (
+                            <p className="text-red-500 text-sm">{errors.gender}</p>
                         )}
                     </div>
                 </div>

@@ -25,11 +25,13 @@ test('email templates are listed for staff', function () {
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('EmailTemplates/Index')
-            ->has('templates', 2)
+            ->has('templates', 3)
             ->where('templates.0.name', 'Uplatnica')
             ->where('templates.0.subject', 'Uplatnica - {opis}')
             ->where('templates.1.name', 'Podsjetnik za uplatu')
             ->where('templates.1.subject', 'Podsjetnik za uplatu - {opis}')
+            ->where('templates.2.name', 'Dokument člana')
+            ->where('templates.2.subject', '{naziv_dokumenta} - {ime}')
         );
 });
 

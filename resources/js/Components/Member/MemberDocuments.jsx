@@ -7,18 +7,21 @@ import {
     TableCell,
     TableBody,
 } from "@/Components/ui/table";
-import { DocumentTextIcon, TrashIcon, PlusIcon } from "@heroicons/react/24/outline";
+import { DocumentTextIcon, TrashIcon, PlusIcon, EnvelopeIcon } from "@heroicons/react/24/outline";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { Modal } from "@/Components/ui/modal";
 import { useModal } from "@/hooks/useModal";
 import Button from "@/Components/ui/button/Button";
 import TemplateSelectorModal from "@/Components/Documents/TemplateSelectorModal";
+import SendDocumentEmailModal from "@/Components/Documents/SendDocumentEmailModal";
 
 export default function MemberDocuments({ documents, memberId, member }) {
     const deleteModal = useModal();
     const generateModal = useModal();
+    const sendModal = useModal();
     const [documentToDelete, setDocumentToDelete] = useState(null);
+    const [documentToSend, setDocumentToSend] = useState(null);
 
     // Sort documents by created_at descending (newest first)
     // Parse date string format "dd.MM.yyyy H:i" or use ISO format if available
@@ -95,9 +98,38 @@ export default function MemberDocuments({ documents, memberId, member }) {
 
     const handleDocumentSuccess = () => {
         generateModal.closeModal();
-        // Reload the page to show the new document
         router.reload({ only: ['documents'] });
     };
+
+    const openSendExisting = (doc) => {
+        setDocumentToSend(doc);
+        sendModal.openModal();
+    };
+
+    const openSendNew = () => {
+        setDocumentToSend(null);
+        sendModal.openModal();
+    };
+
+    const handleSendSuccess = () => {
+        sendModal.closeModal();
+        setDocumentToSend(null);
+        router.reload({ only: ['documents'] });
+    };
+
+    const sendModalNode = (
+        <SendDocumentEmailModal
+            isOpen={sendModal.isOpen}
+            onClose={() => {
+                sendModal.closeModal();
+                setDocumentToSend(null);
+            }}
+            mode={documentToSend ? "document" : "member"}
+            memberId={memberId}
+            memberDocument={documentToSend}
+            onSuccess={handleSendSuccess}
+        />
+    );
 
     if (!documents || documents.length === 0) {
         return (
@@ -106,14 +138,24 @@ export default function MemberDocuments({ documents, memberId, member }) {
                     <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90">
                         Generirani dokumenti
                     </h4>
-                    <Button
-                        onClick={generateModal.openModal}
-                        variant="primary"
-                        size="xs"
-                        startIcon={<PlusIcon className="h-4 w-4" />}
-                    >
-                        Generiraj dokument
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button
+                            onClick={openSendNew}
+                            variant="outline"
+                            size="xs"
+                            startIcon={<EnvelopeIcon className="h-4 w-4" />}
+                        >
+                            Pošalji dokument
+                        </Button>
+                        <Button
+                            onClick={generateModal.openModal}
+                            variant="primary"
+                            size="xs"
+                            startIcon={<PlusIcon className="h-4 w-4" />}
+                        >
+                            Generiraj dokument
+                        </Button>
+                    </div>
                 </div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                     Nema generiranih dokumenata za ovog člana.
@@ -126,6 +168,7 @@ export default function MemberDocuments({ documents, memberId, member }) {
                     members={[member]}
                     onSuccess={handleDocumentSuccess}
                 />
+                {sendModalNode}
             </div>
         );
     }
@@ -136,14 +179,24 @@ export default function MemberDocuments({ documents, memberId, member }) {
                 <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90">
                     Generirani dokumenti
                 </h4>
-                <Button
-                    onClick={generateModal.openModal}
-                    variant="primary"
-                    size="xs"
-                    startIcon={<PlusIcon className="h-4 w-4" />}
-                >
-                    Generiraj dokument
-                </Button>
+                <div className="flex gap-2">
+                    <Button
+                        onClick={openSendNew}
+                        variant="outline"
+                        size="xs"
+                        startIcon={<EnvelopeIcon className="h-4 w-4" />}
+                    >
+                        Pošalji dokument
+                    </Button>
+                    <Button
+                        onClick={generateModal.openModal}
+                        variant="primary"
+                        size="xs"
+                        startIcon={<PlusIcon className="h-4 w-4" />}
+                    >
+                        Generiraj dokument
+                    </Button>
+                </div>
             </div>
             <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
                 <div className="max-w-full overflow-x-auto">
@@ -198,6 +251,13 @@ export default function MemberDocuments({ documents, memberId, member }) {
                                                 title="Pregledaj PDF"
                                             >
                                                 <DocumentTextIcon className="h-5 w-5" />
+                                            </button>
+                                            <button
+                                                onClick={() => openSendExisting(doc)}
+                                                className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
+                                                title="Pošalji e-mailom"
+                                            >
+                                                <EnvelopeIcon className="h-5 w-5" />
                                             </button>
                                             <button
                                                 onClick={() => handleDelete(doc)}
@@ -297,6 +357,7 @@ export default function MemberDocuments({ documents, memberId, member }) {
                 members={[member]}
                 onSuccess={handleDocumentSuccess}
             />
+            {sendModalNode}
         </div>
     );
 }

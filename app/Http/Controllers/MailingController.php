@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\MailingResource;
 use App\Models\Mailing;
+use App\Services\MemberDocumentEmailService;
 use App\Services\PaymentSlipEmailService;
 use App\Support\MailRecipientAllowlist;
 use Illuminate\Http\RedirectResponse;
@@ -14,6 +15,7 @@ class MailingController extends Controller
 {
     public function __construct(
         protected PaymentSlipEmailService $paymentSlipEmailService,
+        protected MemberDocumentEmailService $memberDocumentEmailService,
     ) {}
 
     public function index(): Response
@@ -47,7 +49,9 @@ class MailingController extends Controller
 
     public function retryFailed(Mailing $mailing): RedirectResponse
     {
-        $result = $this->paymentSlipEmailService->retryFailed($mailing);
+        $result = $mailing->type === Mailing::TYPE_DOCUMENT
+            ? $this->memberDocumentEmailService->retryFailed($mailing)
+            : $this->paymentSlipEmailService->retryFailed($mailing);
 
         if ($result['recipient_not_allowed']) {
             return back()->with('error', $result['message'] ?? MailRecipientAllowlist::REFUSAL_MESSAGE);
@@ -55,9 +59,13 @@ class MailingController extends Controller
 
         $queued = $result['queued'];
 
-        $message = $queued > 0
-            ? 'Neuspjele uplatnice ponovno su stavljene u red.'
-            : 'Nema neuspjelih uplatnica za ponovno slanje.';
+        $message = $mailing->type === Mailing::TYPE_DOCUMENT
+            ? ($queued > 0
+                ? 'Neuspjeli dokumenti ponovno su stavljeni u red.'
+                : 'Nema neuspjelih dokumenata za ponovno slanje.')
+            : ($queued > 0
+                ? 'Neuspjele uplatnice ponovno su stavljene u red.'
+                : 'Nema neuspjelih uplatnica za ponovno slanje.');
 
         return back()->with($queued > 0 ? 'success' : 'error', $message);
     }

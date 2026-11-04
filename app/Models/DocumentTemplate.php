@@ -6,6 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class DocumentTemplate extends Model
 {
+    /**
+     * Male form before the pipe, female form after: {{g:učenik|učenica}}.
+     */
+    public const GENDER_PAIR_PATTERN = '/\{\{g:([^}|]+)\|([^}]+)\}\}/u';
+
     protected $fillable = [
         'type',
         'name',
@@ -73,5 +78,15 @@ class DocumentTemplate extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    public static function containsGenderPairs(?string $content): bool
+    {
+        return is_string($content) && preg_match(self::GENDER_PAIR_PATTERN, $content) === 1;
+    }
+
+    public function hasGenderPairs(): bool
+    {
+        return self::containsGenderPairs($this->content);
     }
 }

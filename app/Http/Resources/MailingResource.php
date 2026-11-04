@@ -145,12 +145,12 @@ class MailingResource extends JsonResource
     private function recipients(Mailing $mailing): array
     {
         return $mailing->latestAttempts()
-            ->map(function (InvoiceMailing $row) {
+            ->map(function ($row) {
                 $name = trim(($row->member->first_name ?? '').' '.($row->member->last_name ?? ''));
 
                 return [
                     'id' => $row->id,
-                    'invoice_id' => $row->invoice_id,
+                    'invoice_id' => $row->invoice_id ?? null,
                     'member_id' => $row->member_id,
                     'member_name' => $name !== '' ? $name : 'Član',
                     'recipient' => $row->recipient,

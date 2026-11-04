@@ -9,6 +9,8 @@ import { CalendarDaysIcon } from "@heroicons/react/24/outline";
 import Select from "@/Components/form/Select";
 import toast from "react-hot-toast";
 import axios from "axios";
+import GenderPrompt from "@/Components/Documents/GenderPrompt";
+import { saveMemberGenders } from "@/utils/memberGender";
 
 export default function TemplateSelectorModal({
     isOpen,
@@ -30,6 +32,8 @@ export default function TemplateSelectorModal({
         location: "",
         description: "",
     });
+    const [missingGender, setMissingGender] = useState([]);
+    const [genderChoices, setGenderChoices] = useState({});
 
     useEffect(() => {
         if (isOpen) {
@@ -44,6 +48,8 @@ export default function TemplateSelectorModal({
                 location: "",
                 description: "",
             });
+            setMissingGender([]);
+            setGenderChoices({});
         }
     }, [isOpen, initialTemplateType]);
 
@@ -126,7 +132,6 @@ export default function TemplateSelectorModal({
         const templateName = selectedTemplate?.name || 'documents';
 
         try {
-            // For both single and bulk, just save to member profiles
             await axios.post(routeName, data);
 
             if (isBulk) {
@@ -140,11 +145,37 @@ export default function TemplateSelectorModal({
             setProcessing(false);
             onSuccess();
         } catch (error) {
+            const missing = error.response?.data?.missing_gender;
+            if (Array.isArray(missing) && missing.length > 0) {
+                setMissingGender(missing);
+                setProcessing(false);
+                return;
+            }
             console.error('Error generating document:', error);
             toast.error(
                 error.response?.data?.message ||
                 "Došlo je do pogreške prilikom generiranja dokumenta."
             );
+            setProcessing(false);
+        }
+    };
+
+    const saveGendersAndContinue = async () => {
+        const incomplete = missingGender.some((member) => !genderChoices[member.id]);
+        if (incomplete) {
+            toast.error("Odaberite spol za svakog člana.");
+            return;
+        }
+
+        setProcessing(true);
+        try {
+            await saveMemberGenders(genderChoices);
+            setMissingGender([]);
+            setGenderChoices({});
+            setProcessing(false);
+            await handleSubmit({ preventDefault() {} });
+        } catch (error) {
+            toast.error(error.response?.data?.message || "Spol nije spremljen.");
             setProcessing(false);
         }
     };
@@ -179,7 +210,35 @@ export default function TemplateSelectorModal({
                     </div>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
+                {missingGender.length > 0 ? (
+                    <div className="space-y-4">
+                        <GenderPrompt
+                            members={missingGender}
+                            value={genderChoices}
+                            onChange={setGenderChoices}
+                        />
+                        <div className="flex gap-3 pt-2">
+                            <Button
+                                type="button"
+                                variant="primary"
+                                disabled={processing}
+                                onClick={saveGendersAndContinue}
+                            >
+                                {processing ? "Spremanje..." : "Spremi spol i nastavi"}
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setMissingGender([])}
+                                disabled={processing}
+                            >
+                                Natrag
+                            </Button>
+                        </div>
+                    </div>
+                ) : null}
+
+                <form onSubmit={handleSubmit} className={`space-y-4 ${missingGender.length > 0 ? "hidden" : ""}`}>
                     <div>
                         <Label htmlFor="document_type">Vrsta dokumenta *</Label>
                         <Select
@@ -328,7 +387,7 @@ export default function TemplateSelectorModal({
                             {processing
                                 ? "Generiranje..."
                                 : selectedMembers.length > 1
-                                  ? "Generiraj dokumente (ZIP)"
+                                  ? "Generiraj dokumente"
                                   : "Generiraj dokument"}
                         </Button>
                         <Button

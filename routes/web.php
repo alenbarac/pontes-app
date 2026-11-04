@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentTemplateController;
+use App\Http\Controllers\MemberDocumentEmailController;
 use App\Http\Controllers\EmailTemplateController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\InvoiceGenerationController;
@@ -49,6 +50,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/members/bulk-send-slip-emails', [MemberController::class, 'bulkSendSlipEmails'])
         ->name('members.bulkSendSlipEmails');
 
+    Route::post('/members/genders', [MemberController::class, 'updateGenders'])->name('members.genders');
     Route::resource('members', MemberController::class);
 
     Route::get('/workshop-discounts', [WorkshopDiscountController::class, 'index'])->name('workshop-discounts.index');
@@ -195,6 +197,18 @@ Route::middleware('auth')->group(function () {
         ->name('member-documents.destroy');
     Route::get('/member-documents/{memberDocument}/download', [DocumentTemplateController::class, 'downloadMemberDocument'])
         ->name('member-documents.download');
+    Route::post('/member-groups/{memberGroup}/document-emails/preview', [MemberDocumentEmailController::class, 'previewForGroup'])
+        ->name('member-groups.document-emails.preview');
+    Route::post('/member-groups/{memberGroup}/document-emails', [MemberDocumentEmailController::class, 'sendForGroup'])
+        ->name('member-groups.document-emails');
+    Route::post('/members/{member}/document-emails/preview', [MemberDocumentEmailController::class, 'previewForMember'])
+        ->name('members.document-emails.preview');
+    Route::post('/members/{member}/document-emails', [MemberDocumentEmailController::class, 'sendForMember'])
+        ->name('members.document-emails');
+    Route::post('/member-documents/{memberDocument}/email/preview', [MemberDocumentEmailController::class, 'previewForDocument'])
+        ->name('member-documents.email.preview');
+    Route::post('/member-documents/{memberDocument}/email', [MemberDocumentEmailController::class, 'sendForDocument'])
+        ->name('member-documents.email');
 
 });
 

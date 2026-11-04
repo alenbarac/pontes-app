@@ -29,6 +29,7 @@ import BulkSlipsEmailModal from "@/Components/MemberGroup/BulkSlipsEmailModal";
 import MemberGroupEditForm from "@/Components/MemberGroup/MemberGroupEditForm";
 import GroupMailingActivity from "@/Components/MemberGroup/GroupMailingActivity";
 import TemplateSelectorModal from "@/Components/Documents/TemplateSelectorModal";
+import SendDocumentEmailModal from "@/Components/Documents/SendDocumentEmailModal";
 import toast from "react-hot-toast";
 
 export default function Show({
@@ -45,6 +46,7 @@ export default function Show({
     const [search, setSearch] = useState(initialSearch);
     const bulkReassignModal = useModal();
     const documentModal = useModal();
+    const documentEmailModal = useModal();
     const slipsDownloadModal = useModal();
     const slipsEmailModal = useModal();
     const editGroupModal = useModal();
@@ -249,6 +251,16 @@ export default function Show({
                                 }
                             >
                                 Generiraj dokument
+                            </Button>
+                            <Button
+                                onClick={documentEmailModal.openModal}
+                                variant="outline"
+                                size="sm"
+                                startIcon={
+                                    <EnvelopeIcon className="h-4 w-4" />
+                                }
+                            >
+                                Pošalji dokument
                             </Button>
                             <Button
                                 onClick={handleBulkReassign}
@@ -510,6 +522,20 @@ export default function Show({
                 members={members.data}
                 currentGroup={group}
                 onSuccess={handleSlipsDownloadSuccess}
+            />
+
+            <SendDocumentEmailModal
+                isOpen={documentEmailModal.isOpen}
+                onClose={documentEmailModal.closeModal}
+                mode="group"
+                groupId={group.id}
+                groupName={group.name}
+                selectedMemberIds={selectedMembers}
+                groupTotalMembers={statistics.total_members}
+                onSuccess={() => {
+                    documentEmailModal.closeModal();
+                    router.reload({ only: ["groupMailings"] });
+                }}
             />
 
             <BulkSlipsEmailModal

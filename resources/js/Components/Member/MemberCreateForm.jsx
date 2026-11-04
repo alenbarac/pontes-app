@@ -19,6 +19,7 @@ export default function MemberCreateForm({
     const { data, setData, post, processing, errors } = useForm({
         first_name: "",
         last_name: "",
+        gender: "",
         date_of_birth: "",
         phone_number: "",
         email: "",
@@ -119,6 +120,26 @@ export default function MemberCreateForm({
                             {errors.last_name}
                         </p>
                     )}
+                </div>
+
+                <div className="sm:col-span-2">
+                    <Label htmlFor="gender">Spol</Label>
+                    <Select
+                        id="gender"
+                        placeholder="Odaberi spol"
+                        value={data.gender}
+                        onChange={(value) => setData("gender", value)}
+                        options={[
+                            { value: "male", label: "Muški" },
+                            { value: "female", label: "Ženski" },
+                        ]}
+                    />
+                    {errors.gender && (
+                        <p className="text-red-500 text-sm">{errors.gender}</p>
+                    )}
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        Koristi se u ispričnicama i drugim dokumentima (učenik/učenica, polaznik/polaznica).
+                    </p>
                 </div>
             </div>
 
