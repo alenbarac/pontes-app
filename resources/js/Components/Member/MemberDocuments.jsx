@@ -237,7 +237,11 @@ export default function MemberDocuments({ documents, memberId, member }) {
                                     </TableCell>
                                     <TableCell className="px-5 py-4 text-start text-theme-sm text-gray-500 dark:text-gray-400">
                                         <span className="inline-block px-2 py-1 text-xs rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-                                            {doc.document_type === "ispricnica" ? "Ispričnica" : "Privola"}
+                                            {doc.document_type === "ispricnica"
+                                                ? "Ispričnica"
+                                                : doc.document_type === "potvrda"
+                                                  ? "Potvrda"
+                                                  : "Privola"}
                                         </span>
                                     </TableCell>
                                     <TableCell className="px-5 py-4 text-start text-theme-sm text-gray-500 dark:text-gray-400">

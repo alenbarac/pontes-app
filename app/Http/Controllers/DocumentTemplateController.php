@@ -25,18 +25,8 @@ class DocumentTemplateController extends Controller
      */
     public function index(Request $request)
     {
-        // Determine type from route name
-        $routeName = $request->route()->getName();
-        if (str_contains($routeName, 'ispricnice')) {
-            $type = 'ispricnica';
-            $componentPath = 'Documents/Ispricnice/Index';
-        } elseif (str_contains($routeName, 'privole')) {
-            $type = 'privola';
-            $componentPath = 'Documents/Privole/Index';
-        } else {
-            $type = $request->input('type', 'ispricnica');
-            $componentPath = 'Documents/Ispricnice/Index';
-        }
+        $type = $this->typeFromRoute($request);
+        $componentPath = $this->indexComponentFor($type);
         
         $templates = DocumentTemplate::where('type', $type)
             ->orderBy('created_at', 'desc')
@@ -53,18 +43,8 @@ class DocumentTemplateController extends Controller
      */
     public function create(Request $request)
     {
-        // Determine type from route name
-        $routeName = $request->route()->getName();
-        if (str_contains($routeName, 'ispricnice')) {
-            $type = 'ispricnica';
-            $componentPath = 'Documents/Ispricnice/Create';
-        } elseif (str_contains($routeName, 'privole')) {
-            $type = 'privola';
-            $componentPath = 'Documents/Privole/Create';
-        } else {
-            $type = $request->input('type', 'ispricnica');
-            $componentPath = 'Documents/Ispricnice/Create';
-        }
+        $type = $this->typeFromRoute($request);
+        $componentPath = $this->formComponentFor($type);
         
         $template = new DocumentTemplate();
         $template->type = $type;
@@ -83,7 +63,7 @@ class DocumentTemplateController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'type' => 'required|in:ispricnica,privola',
+            'type' => 'required|in:ispricnica,privola,potvrda',
             'name' => 'required|string|max:255',
             'content' => 'required|string',
             'description' => 'nullable|string',
@@ -92,9 +72,7 @@ class DocumentTemplateController extends Controller
 
         DocumentTemplate::create($validated);
 
-        $routeName = $validated['type'] === 'ispricnica' 
-            ? 'document-templates.ispricnice.index' 
-            : 'document-templates.privole.index';
+        $routeName = $this->indexRouteFor($validated['type']);
         
         return redirect()
             ->route($routeName)
@@ -108,10 +86,7 @@ class DocumentTemplateController extends Controller
     {
         $placeholders = $documentTemplate->getAvailablePlaceholders();
         
-        // Determine component path based on type
-        $componentPath = $documentTemplate->type === 'ispricnica' 
-            ? 'Documents/Ispricnice/Create' 
-            : 'Documents/Privole/Create';
+        $componentPath = $this->formComponentFor($documentTemplate->type);
 
         return inertia($componentPath, [
             'template' => $documentTemplate,
@@ -127,11 +102,8 @@ class DocumentTemplateController extends Controller
     public function edit(DocumentTemplate $documentTemplate)
     {
         $placeholders = $documentTemplate->getAvailablePlaceholders();
-        
-        // Determine component path based on type
-        $componentPath = $documentTemplate->type === 'ispricnica' 
-            ? 'Documents/Ispricnice/Create' 
-            : 'Documents/Privole/Create';
+
+        $componentPath = $this->formComponentFor($documentTemplate->type);
 
         return inertia($componentPath, [
             'template' => $documentTemplate,
@@ -155,9 +127,7 @@ class DocumentTemplateController extends Controller
 
         $documentTemplate->update($validated);
 
-        $routeName = $documentTemplate->type === 'ispricnica' 
-            ? 'document-templates.ispricnice.index' 
-            : 'document-templates.privole.index';
+        $routeName = $this->indexRouteFor($documentTemplate->type);
 
         return redirect()
             ->route($routeName)
@@ -172,9 +142,7 @@ class DocumentTemplateController extends Controller
         $type = $documentTemplate->type;
         $documentTemplate->delete();
 
-        $routeName = $type === 'ispricnica' 
-            ? 'document-templates.ispricnice.index' 
-            : 'document-templates.privole.index';
+        $routeName = $this->indexRouteFor($type);
 
         return redirect()
             ->route($routeName)
@@ -402,5 +370,45 @@ class DocumentTemplateController extends Controller
         $filename = str_replace([' ', '/', '\\'], '_', $template->name . '_' . trim(($member->first_name ?? '') . '_' . ($member->last_name ?? ''))) . '.pdf';
 
         return $pdf->stream($filename);
+    }
+
+    private function typeFromRoute(Request $request): string
+    {
+        $routeName = (string) $request->route()?->getName();
+
+        if (str_contains($routeName, 'potvrde')) {
+            return 'potvrda';
+        }
+
+        if (str_contains($routeName, 'privole')) {
+            return 'privola';
+        }
+
+        if (str_contains($routeName, 'ispricnice')) {
+            return 'ispricnica';
+        }
+
+        $type = (string) $request->input('type', 'ispricnica');
+
+        return in_array($type, ['ispricnica', 'privola', 'potvrda'], true) ? $type : 'ispricnica';
+    }
+
+    private function indexComponentFor(string $type): string
+    {
+        return $type === 'privola' ? 'Documents/Privole/Index' : 'Documents/Ispricnice/Index';
+    }
+
+    private function formComponentFor(string $type): string
+    {
+        return $type === 'privola' ? 'Documents/Privole/Create' : 'Documents/Ispricnice/Create';
+    }
+
+    private function indexRouteFor(string $type): string
+    {
+        return match ($type) {
+            'privola' => 'document-templates.privole.index',
+            'potvrda' => 'document-templates.potvrde.index',
+            default => 'document-templates.ispricnice.index',
+        };
     }
 }

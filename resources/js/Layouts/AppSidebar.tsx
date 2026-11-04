@@ -80,6 +80,7 @@ const navItems: NavItem[] = [
         subItems: [
             { name: "Ispričnice", path: route("document-templates.ispricnice.index") },
             { name: "Privole", path: route("document-templates.privole.index") },
+            { name: "Potvrde", path: route("document-templates.potvrde.index") },
         ],
     },
 

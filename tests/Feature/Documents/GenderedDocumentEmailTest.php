@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\View;
 
 beforeEach(function () {
     RateLimiter::clear(SendInvoiceMailing::SEND_SLOT);
@@ -181,6 +182,25 @@ test('the pdf attachment carries the gendered wording for that member', function
 
     expect($bytes)->toBe('Draga učenica.')
         ->and($attachment->as)->toBe('ispricnica-ana-anic.pdf');
+});
+
+test('a potvrda uses the ispricnica layout with the POTVRDA heading', function () {
+    $service = app(DocumentGenerationService::class);
+    $member = Member::factory()->create(['gender' => 'female', 'first_name' => 'Ana', 'last_name' => 'Anić']);
+
+    $potvrda = genderedTemplate('Tekst potvrde.');
+    $potvrda->update(['type' => 'potvrda', 'name' => 'Potvrda']);
+    $ispricnica = genderedTemplate('Tekst ispričnice.');
+
+    $captured = [];
+    View::composer('documents.ispricnica', function ($view) use (&$captured) {
+        $captured[] = $view->getData()['documentTitle'] ?? null;
+    });
+
+    $service->generatePDF($potvrda->fresh(), $member);
+    $service->generatePDF($ispricnica, $member);
+
+    expect($captured)->toBe(['POTVRDA', 'Ispričnica']);
 });
 
 test('a send without gender is refused and does not queue mail', function () {

@@ -140,10 +140,10 @@ class DocumentGenerationService
 
         $view = 'documents.template';
 
-        if ($template->type === 'ispricnica') {
+        if (in_array($template->type, ['ispricnica', 'potvrda'], true)) {
             $view = 'documents.ispricnica';
             $data = array_merge($data, [
-                'documentTitle' => 'Ispričnica',
+                'documentTitle' => $template->type === 'potvrda' ? 'POTVRDA' : 'Ispričnica',
                 'todayDate' => Carbon::now()->format('d.m.Y.'),
                 'logoPath' => public_path('images/documents/ispricnica-logo.png'),
                 'signaturePath' => public_path('images/documents/ispricnica-signature.png'),

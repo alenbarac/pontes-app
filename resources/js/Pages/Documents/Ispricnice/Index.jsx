@@ -20,6 +20,12 @@ import toast from "react-hot-toast";
 import Button from "@/Components/ui/button/Button";
 
 export default function Index({ templates, type }) {
+    const isPotvrda = type === "potvrda";
+    const pageTitle = isPotvrda ? "Potvrde" : "Ispričnice";
+    const listTitle = isPotvrda ? "Predlošci potvrda" : "Predlošci ispričnica";
+    const createRoute = isPotvrda
+        ? "document-templates.potvrde.create"
+        : "document-templates.ispricnice.create";
     const handleDelete = (template) => {
         if (confirm("Jeste li sigurni da želite izbrisati ovaj predložak?")) {
             router.delete(route("document-templates.destroy", template.id), {
@@ -35,13 +41,13 @@ export default function Index({ templates, type }) {
 
     return (
         <AuthenticatedLayout>
-            <Head title="Ispričnice" />
-            <Breadcrumb pageName="Ispričnice" />
+            <Head title={pageTitle} />
+            <Breadcrumb pageName={pageTitle} />
             <ComponentCard
-                title="Predlošci ispričnica"
+                title={listTitle}
                 headerAction={
                     <Link
-                        href={route("document-templates.ispricnice.create")}
+                        href={route(createRoute)}
                         className="inline-flex items-center justify-center gap-2 rounded-lg transition px-4 py-3 text-sm bg-brand-500 text-white shadow-theme-xs hover:bg-brand-600 disabled:bg-brand-300"
                     >
                         Novi predložak

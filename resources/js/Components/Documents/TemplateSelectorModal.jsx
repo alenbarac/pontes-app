@@ -252,6 +252,7 @@ export default function TemplateSelectorModal({
                             options={[
                                 { value: "ispricnica", label: "Ispričnice" },
                                 { value: "privola", label: "Privole" },
+                                { value: "potvrda", label: "Potvrde" },
                             ]}
                         />
                     </div>

@@ -15,6 +15,7 @@ import { notifyMailingStarted } from "@/lib/mailingActivity";
 const TYPE_LABELS = {
     ispricnica: "Ispričnice",
     privola: "Privole",
+    potvrda: "Potvrde",
 };
 
 function typeLabel(type) {

@@ -22,6 +22,11 @@ export default function Create({ template, placeholders, type, isEdit = false })
 
     const textareaRef = useRef(null);
     const [previewGender, setPreviewGender] = useState("male");
+    const isPotvrda = (data.type || type) === "potvrda";
+    const indexRouteName = isPotvrda
+        ? "document-templates.potvrde.index"
+        : "document-templates.ispricnice.index";
+    const kindLabel = isPotvrda ? "potvrde" : "ispričnice";
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -39,7 +44,7 @@ export default function Create({ template, placeholders, type, isEdit = false })
                         ? "Predložak uspješno ažuriran."
                         : "Predložak uspješno kreiran."
                 );
-                router.visit(route("document-templates.ispricnice.index"));
+                router.visit(route(indexRouteName));
             },
             onError: () => {
                 toast.error("Došlo je do pogreške prilikom spremanja.");
@@ -95,7 +100,7 @@ export default function Create({ template, placeholders, type, isEdit = false })
             <Head title={isEdit ? "Uredi predložak" : "Novi predložak"} />
             <Breadcrumb
                 pageName={
-                    isEdit ? "Uredi predložak ispričnice" : "Novi predložak ispričnice"
+                    isEdit ? `Uredi predložak ${kindLabel}` : `Novi predložak ${kindLabel}`
                 }
             />
             <ComponentCard title={isEdit ? "Uredi predložak" : "Novi predložak"}>
@@ -221,7 +226,7 @@ export default function Create({ template, placeholders, type, isEdit = false })
                             {isEdit ? "Ažuriraj" : "Kreiraj"}
                         </Button>
                         <Link
-                            href={route("document-templates.ispricnice.index")}
+                            href={route(indexRouteName)}
                             className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
                         >
                             Odustani
